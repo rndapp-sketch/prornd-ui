@@ -75,6 +75,11 @@ const MISC_TAB_MODULE_IDS: Record<string, 'Miscellaneous Commit' | 'Recruitment 
     '11': 'Recruitment Adhoc Contractual',
 };
 
+// Display labels that replace the Module Registry's raw doctype names (moduleId -> label)
+const MODULE_LABEL_OVERRIDES: Record<string, string> = {
+    '29': 'Direct Purchase (PO)',
+};
+
 const Payments: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
@@ -97,7 +102,7 @@ const Payments: React.FC = () => {
 
     // New State for Commits and Tabs
     const [pendingCommits, setPendingCommits] = useState<CommitRecord[]>([]);
-    const [activeTab, setActiveTab] = useState<'history' | 'commits' | 'misc'>('commits'); // Default to commits context
+    const [activeTab, setActiveTab] = useState<'history' | 'commits' | 'misc' | 'paid'>('commits'); // Default to commits context
     const [commitPage, setCommitPage] = useState(1);
     const commitsPerPage = 50;
     const itemsPerPage = 10;
@@ -221,7 +226,7 @@ const Payments: React.FC = () => {
 
     // Fetch Module Registry to map moduleId (idx) -> doctype_name
     const fetchModuleRegistry = useCallback(async () => {
-        // Fallback map in case API fails or is missing rows (covers all known modules 1–25)
+        // Fallback map in case API fails or is missing rows (covers all known modules 1–25, plus 26–30, as in the pending-task Module Registry)
         const fallbackMap: Record<string, string> = {
             '1': 'Project Registration',
             '2': 'Project Proposal',
@@ -248,6 +253,11 @@ const Payments: React.FC = () => {
             '23': 'Project Staff Details',
             '24': 'Cancellation Request',
             '25': 'Miscellaneous Commit',
+            '26': 'Project Staff Extension',
+            '27': 'Proforma_Invoice',
+            '28': 'Project Staff Resignation',
+            '29': 'Direct Purchase (PO)',
+            '30': 'Po Commit Adjustment',
         };
         try {
             // Use GET to avoid CSRF requirements in dev/proxy environments
@@ -265,6 +275,8 @@ const Payments: React.FC = () => {
                     }
                 });
             }
+            // The registry stores raw doctype names; show friendlier labels for these ids
+            Object.assign(map, MODULE_LABEL_OVERRIDES);
             setModuleNameMap(map);
         } catch (err) {
             setModuleNameMap(fallbackMap);
@@ -421,6 +433,37 @@ const Payments: React.FC = () => {
 
         return result;
     }, [filteredPendingCommits, debouncedCommitSearch, selectedCommitModule, budgetHeadMap, moduleNameMap]);
+
+    // --- Paid tab: every payment the ledger reports as PAID (all modules, nothing excluded) ---
+    const [paidSearch, setPaidSearch] = useState('');
+    const [paidPage, setPaidPage] = useState(1);
+    const [paidModule, setPaidModule] = useState('');
+    const paidPerPage = 20;
+    const allPaid = React.useMemo(
+        () => payments
+            .filter(p => String(p.payment_status || '').toUpperCase() === 'PAID')
+            .map(p => ({
+                ...p,
+                moduleLabel: p.doctype ? (moduleNameMap[p.doctype] || p.doctype) : '-',
+                headLabel: budgetHeadMap[String(p.budget_head)] || p.budget_head,
+            })),
+        [payments, moduleNameMap, budgetHeadMap],
+    );
+    const paidModuleOptions = React.useMemo(
+        () => Array.from(new Set(allPaid.map(p => p.moduleLabel))).sort(),
+        [allPaid],
+    );
+    const paidPayments = React.useMemo(() => {
+        const q = paidSearch.trim().toLowerCase();
+        return allPaid
+            .filter(p => !paidModule || p.moduleLabel === paidModule)
+            .filter(p => !q || [p.name, p.project_ref_number, p.headLabel, p.moduleLabel, p.payment_particular, p.payment_bmr, p.transaction_commit_number]
+                .some(v => String(v ?? '').toLowerCase().includes(q)));
+    }, [allPaid, paidModule, paidSearch]);
+    const paidTotal = React.useMemo(
+        () => paidPayments.reduce((sum, p) => sum + (Number(p.payment_amount) || 0), 0),
+        [paidPayments],
+    );
 
     // Resolve module names on payments using the moduleNameMap (runs reactively when either changes)
     // Filter out module name or id 11 or "Recruitment Adhoc Contractual"
@@ -585,6 +628,37 @@ const Payments: React.FC = () => {
     }, []);
 
     // Create New Payment from Commit
+    // The payment that stops "Pay" being offered for a commit. A PARTIALLY_PAID commit has an
+    // earlier payment by definition, so that alone must not block the next instalment — only a
+    // payment still in flight (PENDING, including one just made this session) does.
+    const blockingPayment = (commit: CommitRecord): PaymentRecord | undefined => {
+        if (commit.transactionCommitNumber == null) return undefined;
+        const latest = commitPaymentInfo.get(commit.transactionCommitNumber);
+        if (!latest) return undefined;
+        if (commit.status === 'PARTIALLY_PAID' && String(latest.payment_status).toUpperCase() !== 'PENDING') {
+            return undefined;
+        }
+        return latest;
+    };
+
+    // Earlier payments against the commit being paid, oldest first.
+    const previousPayments = React.useMemo(() => {
+        const id = selectedCommit?.transactionCommitNumber;
+        if (id == null) return [];
+        return payments
+            .filter(p => p.transaction_commit_number === id)
+            .sort((a, b) => new Date(a.payment_date || 0).getTime() - new Date(b.payment_date || 0).getTime());
+    }, [payments, selectedCommit]);
+
+    // Only PAID payments count towards what has been paid (the ledger's remainingAmount
+    // does the same); PENDING / REJECTED ones are listed but not subtracted.
+    const previousPaidTotal = React.useMemo(
+        () => previousPayments
+            .filter(p => String(p.payment_status || '').toUpperCase() === 'PAID')
+            .reduce((sum, p) => sum + (Number(p.payment_amount) || 0), 0),
+        [previousPayments],
+    );
+
     const initiatePaymentForCommit = useCallback((commit: CommitRecord) => {
         setSelectedPaymentName(null);
         setSelectedCommit(commit);
@@ -683,30 +757,38 @@ const Payments: React.FC = () => {
                 </FrappeCard>
 
                 {/* Tabs */}
-                <div className="mb-3 flex gap-2 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35 overflow-x-auto">
-                    <button
-                        onClick={() => setActiveTab('commits')}
-                        className={cn(
-                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
-                            activeTab === 'commits'
-                                ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A]"
-                                : "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]"
-                        )}
-                    >
-                        Pending Commits
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('misc')}
-                        className={cn(
-                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
-                            activeTab === 'misc'
-                                ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A]"
-                                : "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]"
-                        )}
-                    >
-                        Miscellaneous Commit
-                    </button>
-                    {/* Payment History tab hidden temporarily */}
+                <div className="mb-3 flex gap-2 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35 overflow-x-auto" role="tablist">
+                    {([
+                        ['commits', 'Pending Commits', filteredPendingCommits.length],
+                        ['misc', 'Miscellaneous Commit', combinedMiscTabRows.length],
+                        ['paid', 'Paid', allPaid.length],
+                    ] as const).map(([id, label, count]) => {
+                        const active = activeTab === id;
+                        return (
+                            <button
+                                key={id}
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => setActiveTab(id)}
+                                className={cn(
+                                    "flex h-10 flex-shrink-0 items-center gap-2 rounded-lg border-2 px-4 text-[12px] font-extrabold uppercase tracking-wide transition-colors",
+                                    active
+                                        ? "border-[#4A6CF7] bg-[#4A6CF7] text-white shadow-sm"
+                                        : "border-[#C7D2FE] bg-[#EEF2FF] text-[#1E3A8A] hover:border-[#4A6CF7]/60 hover:bg-[#E0E7FF]"
+                                )}
+                            >
+                                {label}
+                                <span
+                                    className={cn(
+                                        "min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold leading-none",
+                                        active ? "bg-white/20 text-white" : "bg-white text-[#1E3A8A]"
+                                    )}
+                                >
+                                    {count}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {activeTab === 'commits' && (
@@ -790,9 +872,7 @@ const Payments: React.FC = () => {
                                         searchedPendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
                                             .map((commit, idx) => {
-                                                const existingPayment = commit.transactionCommitNumber != null
-                                                    ? commitPaymentInfo.get(commit.transactionCommitNumber)
-                                                    : undefined;
+                                                const existingPayment = blockingPayment(commit);
                                                 return (
                                                 <tr key={idx} className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50">
                                                     <td className="px-3 py-2 text-sm font-mono font-medium">{commit.projectNumber}</td>
@@ -983,9 +1063,7 @@ const Payments: React.FC = () => {
                                         filteredMiscTabRows
                                             .slice((miscPage - 1) * miscPerPage, miscPage * miscPerPage)
                                             .map((row) => {
-                                                const existingPayment = row.commit.transactionCommitNumber != null
-                                                    ? commitPaymentInfo.get(row.commit.transactionCommitNumber)
-                                                    : undefined;
+                                                const existingPayment = blockingPayment(row.commit);
                                                 return (
                                                 <tr key={row.key} className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50">
                                                     <td className="px-3 py-2 text-sm">
@@ -1064,6 +1142,86 @@ const Payments: React.FC = () => {
                                     >
                                         Next
                                     </FrappeButton>
+                                </div>
+                            </div>
+                        )}
+                    </FrappeCard>
+                )}
+
+                {activeTab === 'paid' && (
+                    <FrappeCard className="overflow-hidden p-0">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex flex-wrap items-center justify-between gap-3">
+                            <div className="relative w-full md:w-72">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search paid payments..."
+                                    value={paidSearch}
+                                    onChange={(e) => { setPaidSearch(e.target.value); setPaidPage(1); }}
+                                    className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7]"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="paid-module" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">Module:</label>
+                                <select
+                                    id="paid-module"
+                                    value={paidModule}
+                                    onChange={(e) => { setPaidModule(e.target.value); setPaidPage(1); }}
+                                    className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:border-[#4A6CF7]"
+                                >
+                                    <option value="">All Modules</option>
+                                    {paidModuleOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            </div>
+                            <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                                Total: {paidPayments.length} paid · ₹{paidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr>
+                                        {['Payment No.', 'Commit', 'Module', 'Project No.', 'Account Head', 'Particulars', 'BMR', 'Date'].map(h => (
+                                            <th key={h} className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">{h}</th>
+                                        ))}
+                                        <th className="px-3 py-2 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {paidPayments.length > 0 ? (
+                                        paidPayments
+                                            .slice((paidPage - 1) * paidPerPage, paidPage * paidPerPage)
+                                            .map((p) => (
+                                                <tr key={p.name} className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50">
+                                                    <td className="px-3 py-2 text-sm font-mono">{p.name}</td>
+                                                    <td className="px-3 py-2 text-sm font-mono">{p.transaction_commit_number ?? '-'}</td>
+                                                    <td className="px-3 py-2 text-sm">{p.moduleLabel}</td>
+                                                    <td className="px-3 py-2 text-sm font-mono font-medium">{p.project_ref_number || '-'}</td>
+                                                    <td className="px-3 py-2 text-sm font-bold text-zinc-700 dark:text-zinc-300">{p.headLabel || '-'}</td>
+                                                    <td className="px-3 py-2 text-sm">{p.payment_particular || '-'}</td>
+                                                    <td className="px-3 py-2 text-sm">{p.payment_bmr || '-'}</td>
+                                                    <td className="px-3 py-2 text-sm">{p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-IN') : '-'}</td>
+                                                    <td className="px-3 py-2 text-right font-bold text-sm">
+                                                        ₹{(Number(p.payment_amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={9} className="p-8 text-center text-zinc-500 dark:text-zinc-400">No paid payments found</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {paidPayments.length > paidPerPage && (
+                            <div className="flex items-center justify-between px-3 py-2 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-xs">
+                                <span>Showing {(paidPage - 1) * paidPerPage + 1} to {Math.min(paidPage * paidPerPage, paidPayments.length)} of {paidPayments.length}</span>
+                                <div className="flex gap-2">
+                                    <FrappeButton variant="outline" className="text-xs py-1 px-3" disabled={paidPage === 1} onClick={() => setPaidPage(pg => pg - 1)}>Previous</FrappeButton>
+                                    <FrappeButton variant="outline" className="text-xs py-1 px-3" disabled={paidPage * paidPerPage >= paidPayments.length} onClick={() => setPaidPage(pg => pg + 1)}>Next</FrappeButton>
                                 </div>
                             </div>
                         )}
@@ -1343,10 +1501,48 @@ const Payments: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex-1 overflow-auto p-0">
+                            {!selectedPaymentName && selectedCommit && previousPayments.length > 0 && (() => {
+                                const paid = previousPaidTotal;
+                                const remaining = Math.max(0, (Number(selectedCommit.commitAmount) || 0) - paid);
+                                const money = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                                return (
+                                    <div className="m-4 mb-0 rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-950/20 p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                            <h3 className="text-sm font-bold text-amber-800 dark:text-amber-300">Previous payments on this commit</h3>
+                                            <div className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                                                Committed {money(Number(selectedCommit.commitAmount) || 0)} · Paid {money(paid)} · Remaining {money(remaining)}
+                                            </div>
+                                        </div>
+                                        <table className="w-full text-xs">
+                                            <thead>
+                                                <tr className="text-left text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+                                                    <th className="py-1 pr-3">Payment</th>
+                                                    <th className="py-1 pr-3">Date</th>
+                                                    <th className="py-1 pr-3">Particulars</th>
+                                                    <th className="py-1 pr-3 text-right">Amount</th>
+                                                    <th className="py-1">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {previousPayments.map(p => (
+                                                    <tr key={p.name} className="border-t border-amber-200/60 dark:border-amber-800/30">
+                                                        <td className="py-1 pr-3 font-mono">{p.name}</td>
+                                                        <td className="py-1 pr-3">{p.payment_date ? String(p.payment_date).slice(0, 10) : '-'}</td>
+                                                        <td className="py-1 pr-3">{p.payment_particular || '-'}</td>
+                                                        <td className="py-1 pr-3 text-right font-bold">{money(Number(p.payment_amount) || 0)}</td>
+                                                        <td className="py-1">{p.payment_status}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                );
+                            })()}
                             <PaymentForm
                                 docName={selectedPaymentName || undefined}
                                 commitData={selectedCommit || undefined}
                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
+                                previousPaid={previousPaidTotal}
                                 onSuccess={() => {
                                     const paidCommitId = selectedCommit?.transactionCommitNumber;
                                     if (paidCommitId != null) {
