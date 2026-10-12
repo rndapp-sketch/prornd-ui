@@ -60,7 +60,8 @@ const formatDateSlash = (dateStr?: string) => {
 // not bundled, so Windows/macOS/Linux each substitute something else), so a
 // fixed px size can overflow on one machine and fit on another. The size
 // passed in is the design size and is only reduced when the text overflows.
-const EXPORT_HEADROOM = 1.08;
+// Windows substitutes a wider bold face than Linux, so leave generous slack.
+const EXPORT_HEADROOM = 1.2;
 
 const FitText: React.FC<{
   size: number;
@@ -307,7 +308,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           <FitText size={12} minScale={0.4} style={{ flex: "0 0 auto" }}>
             ID No: {data.emp_id__ || "—"}
           </FitText>
-          <FitText size={12} minScale={0.4} style={{ minWidth: 0, flex: "1 1 0", textAlign: "right" }}>
+          <FitText size={12} minScale={0.4} style={{ minWidth: 0, flex: "1 1 0", textAlign: "right", paddingRight: "4px" }}>
             Project No: {data.project_number__ || "—"}
           </FitText>
         </div>
