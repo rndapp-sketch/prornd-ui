@@ -11,6 +11,8 @@ import { parseFrappeError } from "../utils/errorUtils";
 interface Props {
     docname: string;
     onActionComplete: () => void;
+    /** Opens the in-app print preview; falls back to the server PDF download when absent. */
+    onOpenPrint?: () => void;
     commitRequired?: boolean;
     sentToFa?: boolean;
     hasFacultyPdf?: boolean;
@@ -66,6 +68,7 @@ const CommentModal = ({
 const TopUpFellowshipActionButtons: React.FC<Props> = ({
     docname,
     onActionComplete,
+    onOpenPrint,
     commitRequired = false,
     sentToFa = false,
     hasFacultyPdf = false,
@@ -154,8 +157,12 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
                 alert(res.message.message || "Could not mark as sent.");
                 return;
             }
-            const url = `${FRAPPE_BASE_URL}/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
-            window.open(url, "_blank");
+            if (onOpenPrint) {
+                onOpenPrint();
+            } else {
+                const url = `${FRAPPE_BASE_URL}/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
+                window.open(url, "_blank");
+            }
             onActionComplete();
         } catch (err: any) {
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });

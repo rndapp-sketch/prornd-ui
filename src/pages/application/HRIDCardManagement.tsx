@@ -14,6 +14,7 @@ import { ErrorModal } from '@/components/ErrorModal';
 import { parseFrappeError } from '@/utils/errorUtils';
 import IDCardPrintTemplate from '../printformat/IDCardPrintTemplate';
 import { toPng } from 'html-to-image';
+import { getIdCardFontEmbedCSS } from '@/utils/idCardFonts';
 import jsPDF from 'jspdf';
 import { createZipArchive, type ZipFileEntry } from '@/utils/zipUtils';
 import { getUploadedImageUrl } from "@/utils/fileUtils";
@@ -514,6 +515,7 @@ const HRIDCardManagement: React.FC = () => {
                 cacheBust: true,
                 includeQueryParams: true,
                 backgroundColor: '#ffffff',
+                fontEmbedCSS: await getIdCardFontEmbedCSS(),
             };
 
             const { folderName } = getFolderNameAndDate(selectedCard, 'Image');
@@ -560,6 +562,7 @@ const HRIDCardManagement: React.FC = () => {
                 cacheBust: true,
                 includeQueryParams: true,
                 backgroundColor: '#ffffff',
+                fontEmbedCSS: await getIdCardFontEmbedCSS(),
             };
 
             // CR80 card: 85.6mm x 53.98mm

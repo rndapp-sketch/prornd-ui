@@ -1,4 +1,4 @@
-// CD pipeline for prornd-ui → LIVE server (172.16.134.179).
+// CD pipeline for prornd-ui → a LIVE server, chosen per build.
 // Tracked branch: production-frontend-live. See JENKINS_CI_CD_PLAN.md §6.
 //
 // WHY A SEPARATE FILE FROM Jenkinsfile
@@ -9,12 +9,25 @@
 // and restart Testing's service. The Live jobs use scriptPath
 // `Jenkinsfile.live`.
 //
-// WHERE THE BUILD HAPPENS: on Live, over SSH — not here with the artifact
+// WHY TARGET IS A PARAMETER
+// There are two live servers and they are not interchangeable. Hardcoding one
+// meant editing this file on the production branch to deploy to the other —
+// changing CI config to perform a routine deploy, with no record of where a
+// given build went. Everything that differs now lives in the `targets` map in
+// 'Resolve target'; every later stage reads the resolved values.
+//
+//                      prod-206                        live-179
+//   ssh user           prornd                          orion
+//   ui dir             Projects/pragati_v0.08/prornd-ui Projects/pragati_v0.04/prornd-ui
+//   node               v24.14.1                        v20.20.2
+//   served by          pm2 (app 'pragati_v0.08')        systemd user unit prornd-ui
+//   reached via        nginx :443 -> :8081              :8081 directly
+//
+// WHERE THE BUILD HAPPENS: on the target, over SSH — not here with the artifact
 // copied across. Vite bakes VITE_* values into the bundle at build time, so a
 // build is environment-specific and Testing's dist/ can never be reused. The
-// frontend checkout already exists on Live with its own node_modules, and
-// `vite preview` needs the project directory anyway, so building in place is
-// both simpler and the same shape as Testing.
+// checkout already exists on each server with its own node_modules, and the
+// preview server needs the project directory anyway.
 //
 // SSH KEY: read from disk rather than Jenkins' credential store — see the note
 // in rndopsapp/Jenkinsfile.live for why.
@@ -27,32 +40,84 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
-    timeout(time: 30, unit: 'MINUTES')
+    timeout(time: 40, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '50'))
   }
 
   parameters {
+    // Deliberately a choice, not free text: a typo in a hostname would point a
+    // production deploy at nothing, or worse at the wrong server.
+    choice(
+      name: 'TARGET',
+      choices: ['prod-206', 'live-179'],
+      description: 'Which live server to deploy to.\n' +
+                   'prod-206 = 172.16.131.206, REAL PRODUCTION (pragati.iitg.ac.in)\n' +
+                   'live-179 = 172.16.134.179, the parallel live server'
+    )
     booleanParam(
       name: 'DISCARD_REMOTE_CHANGES',
       defaultValue: false,
-      description: 'Deploy even if the Live checkout has uncommitted tracked changes. ' +
-                   'They will be PERMANENTLY LOST. Note that Live\'s .env was one of ' +
+      description: 'Deploy even if the target checkout has uncommitted tracked changes. ' +
+                   'They will be PERMANENTLY LOST. Note that .179\'s .env was one of ' +
                    'them when this pipeline was built — check before ticking.'
     )
   }
 
   environment {
-    SSH_KEY   = '/home/rndadmin/deploy-config/ssh/jenkins_live_deploy'
-    LIVE      = 'orion@172.16.134.179'
-    LIVE_URL  = 'http://172.16.134.179:8081'
-    UI_DIR    = '/home/orion/Projects/pragati_v0.04/prornd-ui'
-    NPM       = '/home/orion/.nvm/versions/node/v20.20.2/bin/npm'
-    NODE_BIN  = '/home/orion/.nvm/versions/node/v20.20.2/bin'
-    ENV_FILE  = '/home/rndadmin/deploy-config/prornd-ui/live.env.production'
-    BRANCH    = 'production-frontend-live'
+    // Everything else is per-target and set by 'Resolve target' below.
+    BRANCH = 'production-frontend-live'
   }
 
   stages {
+    // Turns TARGET into the env vars every later stage uses. Keeping the table
+    // in one place is the point: nothing below this stage mentions a hostname.
+    stage('Resolve target') {
+      steps {
+        script {
+          def targets = [
+            'prod-206': [
+              ssh_key  : '/home/rndadmin/deploy-config/ssh/jenkins_prod_deploy',
+              live     : 'prornd@172.16.131.206',
+              live_url : 'http://172.16.131.206:8081',
+              // The REAL path, not the Projects/current symlink. pm2's app has a
+              // fixed cwd; if the symlink were repointed we would deploy into one
+              // directory while pm2 kept serving another. Preflight asserts the
+              // two agree.
+              ui_dir   : '/home/prornd/Projects/pragati_v0.08/prornd-ui',
+              npm      : '/home/prornd/.nvm/versions/node/v24.14.1/bin/npm',
+              node_bin : '/home/prornd/.nvm/versions/node/v24.14.1/bin',
+              env_file : '/home/rndadmin/deploy-config/prornd-ui/prod-206.env.production',
+              serve    : 'pm2',
+              pm2_app  : 'pragati_v0.08',
+              // pm2 runs deploy-prod.sh, which rebuilds before it starts serving,
+              // so the port stays closed for a whole build after a restart.
+              wait_tries: '120',
+            ],
+            'live-179': [
+              ssh_key  : '/home/rndadmin/deploy-config/ssh/jenkins_live_deploy',
+              live     : 'orion@172.16.134.179',
+              live_url : 'http://172.16.134.179:8081',
+              ui_dir   : '/home/orion/Projects/pragati_v0.04/prornd-ui',
+              npm      : '/home/orion/.nvm/versions/node/v20.20.2/bin/npm',
+              node_bin : '/home/orion/.nvm/versions/node/v20.20.2/bin',
+              env_file : '/home/rndadmin/deploy-config/prornd-ui/live.env.production',
+              serve    : 'systemd',
+              pm2_app  : '',
+              wait_tries: '30',
+            ],
+          ]
+          def t = targets[params.TARGET]
+          if (!t) { error("unknown TARGET '${params.TARGET}'") }
+          t.each { k, v -> env[k.toUpperCase()] = v }
+          echo "Target: ${params.TARGET}  ->  ${env.LIVE}  (served by ${env.SERVE})"
+          if (params.TARGET == 'prod-206') {
+            echo "NOTE: this is REAL PRODUCTION, serving users at pragati.iitg.ac.in"
+            echo "Expect ~1-2 min of 502 during the restart — see the 'Serve' stage."
+          }
+        }
+      }
+    }
+
     stage('Preflight') {
       steps {
         sh '''#!/bin/bash
@@ -61,25 +126,40 @@ pipeline {
 
           test -f "$ENV_FILE" || {
             echo "FATAL: $ENV_FILE not found on the Jenkins host."
-            echo "Live's build would otherwise bake in whatever is committed, which"
-            echo "points at a different backend. Refusing to build."
+            echo "The build would otherwise bake in whatever is committed, which may"
+            echo "point at a different backend. Refusing to build."
             exit 1
           }
-          echo "Live backend host to be baked in: $(grep -E '^VITE_APP_BACKEND_HOST=' "$ENV_FILE")"
+          echo "Backend URL to be baked in: $(grep -E '^VITE_FRAPPE_BASE_URL=' "$ENV_FILE")"
 
-          $SSH "test -d '$UI_DIR/.git'" || { echo "FATAL: $UI_DIR is not a git repo on Live"; exit 1; }
-          $SSH "test -x '$NPM'"         || { echo "FATAL: $NPM missing on Live"; exit 1; }
-          echo "Live host: $($SSH 'hostname')"
+          $SSH "test -d '$UI_DIR/.git'" || { echo "FATAL: $UI_DIR is not a git repo on $LIVE"; exit 1; }
+          $SSH "test -x '$NPM'"         || { echo "FATAL: $NPM missing on $LIVE"; exit 1; }
+          echo "Target host: $($SSH 'hostname')"
 
-          dirty=$($SSH "cd '$UI_DIR' && git status --porcelain | grep -c '^ M' || true")
-          echo "uncommitted tracked changes on Live: $dirty"
+          # pm2 must already know this app. We do NOT try to parse its cwd here —
+          # that needs JSON parsing through four layers of quoting. Instead the
+          # smoke test asserts the bundle served over HTTP is the one we just
+          # built in $UI_DIR, which catches a pm2 app pointed at a stale
+          # directory far more definitively than a preflight string compare.
+          if [ "$SERVE" = "pm2" ]; then
+            $SSH "export PATH=$NODE_BIN:\\$PATH; pm2 describe '$PM2_APP' >/dev/null 2>&1" || {
+              echo "FATAL: pm2 app '$PM2_APP' not found on $LIVE."
+              $SSH "export PATH=$NODE_BIN:\\$PATH; pm2 list --no-color" || true
+              exit 1
+            }
+            echo "pm2 app '$PM2_APP' exists on $LIVE"
+          fi
+
+          # .env.production is excluded: this pipeline overwrites it from
+          # $ENV_FILE on every run, so it is expected to differ from the commit
+          # and must not be treated as someone's uncommitted work.
+          dirty=$($SSH "cd '$UI_DIR' && git status --porcelain | grep '^ M' | grep -v '\\.env\\.production$' | wc -l")
+          echo "uncommitted tracked changes on $LIVE (excluding .env.production): $dirty"
           if [ "${dirty:-0}" -gt 0 ]; then
-            $SSH "cd '$UI_DIR' && git status --porcelain | grep '^ M'" || true
+            $SSH "cd '$UI_DIR' && git status --porcelain | grep '^ M' | grep -v '\\.env\\.production$'" || true
             if [ "$DISCARD_REMOTE_CHANGES" != "true" ]; then
               echo ""
-              echo "FATAL: refusing to deploy over uncommitted work on Live."
-              echo "Live's .env is normally one of these — it is gitignored going"
-              echo "forward, but was tracked historically. Check before discarding."
+              echo "FATAL: refusing to deploy over uncommitted work on $LIVE."
               exit 1
             fi
             echo "WARNING: DISCARD_REMOTE_CHANGES is set — the files above will be lost."
@@ -95,16 +175,19 @@ pipeline {
           SSH="ssh -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 $LIVE"
 
           before=$($SSH "cd '$UI_DIR' && git rev-parse --short HEAD")
-          $SSH "cd '$UI_DIR' && git fetch --no-tags origin '$BRANCH' && git checkout -B '$BRANCH' FETCH_HEAD" 2>&1 | tail -3
+          # -f because .env.production is always locally modified by the previous
+          # deploy; a plain checkout refuses to overwrite it and aborts.
+          $SSH "cd '$UI_DIR' && git fetch --no-tags origin '$BRANCH' && git checkout -f -B '$BRANCH' FETCH_HEAD" 2>&1 | tail -3
           after=$($SSH "cd '$UI_DIR' && git rev-parse --short HEAD")
-          echo "Live moved: $before -> $after"
+          echo "$LIVE moved: $before -> $after"
           $SSH "cd '$UI_DIR' && git log -1 --format='  %h %an  %s'"
         '''
       }
     }
 
-    // Copy Live's env file into place AFTER the checkout, so the checkout
-    // cannot overwrite it. Vite bakes these into the bundle.
+    // After the checkout, so the checkout cannot overwrite it. Vite bakes these
+    // into the bundle, so getting this wrong ships a frontend pointed at the
+    // wrong backend — which looks fine until a user tries to load data.
     stage('Inject server config') {
       steps {
         sh '''#!/bin/bash
@@ -112,7 +195,12 @@ pipeline {
           scp -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=no \
             "$ENV_FILE" "$LIVE:$UI_DIR/.env.production"
           SSH="ssh -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 $LIVE"
-          echo "in place on Live: $($SSH "grep -E '^VITE_APP_BACKEND_HOST=' '$UI_DIR/.env.production'")"
+          echo "in place: $($SSH "grep -E '^VITE_FRAPPE_BASE_URL=' '$UI_DIR/.env.production'")"
+
+          local_sum=$(sha256sum "$ENV_FILE" | cut -d' ' -f1)
+          remote_sum=$($SSH "sha256sum '$UI_DIR/.env.production' | cut -d' ' -f1")
+          [ "$local_sum" = "$remote_sum" ] || { echo "FATAL: .env.production did not land intact"; exit 1; }
+          echo "config checksum verified"
         '''
       }
     }
@@ -129,36 +217,51 @@ pipeline {
       }
     }
 
+    // This build is a GATE, not the build that gets served on prod-206 — pm2
+    // runs deploy-prod.sh, which rebuilds on restart. Building here first means
+    // a broken commit fails the job while the old bundle is still being served,
+    // instead of taking production down and leaving pm2 to thrash. The duplicate
+    // work costs a couple of minutes and is worth it.
     stage('Build') {
       steps {
         sh '''#!/bin/bash
           set -euo pipefail
           SSH="ssh -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 $LIVE"
           $SSH "export PATH=$NODE_BIN:\\$PATH; cd '$UI_DIR' && '$NPM' run build -- --mode production" 2>&1 | tail -18
-          $SSH "test -f '$UI_DIR/dist/index.html'" || { echo "FATAL: no dist/index.html on Live"; exit 1; }
-          $SSH "ls '$UI_DIR'/dist/assets/*.js >/dev/null 2>&1" || { echo "FATAL: no JS bundles on Live"; exit 1; }
-          echo "build output present on Live"
+          $SSH "test -f '$UI_DIR/dist/index.html'" || { echo "FATAL: no dist/index.html on $LIVE"; exit 1; }
+          $SSH "ls '$UI_DIR'/dist/assets/*.js >/dev/null 2>&1" || { echo "FATAL: no JS bundles on $LIVE"; exit 1; }
+          echo "build output present on $LIVE"
         '''
       }
     }
 
-    // Live currently serves :8081 from a hand-started `npm run dev` — a DEV
-    // server compiling TypeScript on the fly, in production. This replaces it
-    // with the production build under a systemd unit, so it also survives a
-    // reboot. The unit is created if absent, making this idempotent.
     stage('Serve') {
       steps {
         sh '''#!/bin/bash
           set -euo pipefail
           SSH="ssh -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 $LIVE"
 
-          $SSH 'bash -s' <<'REMOTE'
+          case "$SERVE" in
+            pm2)
+              # .206 serves the SPA through pm2 running deploy-prod.sh, fronted by
+              # nginx (:443 -> :8081). Restarting re-runs that script, which builds
+              # BEFORE it starts the preview server, so :8081 stays closed for the
+              # length of a build and nginx returns 502 meanwhile. Deliberately
+              # matching how production is already supervised rather than changing
+              # it mid-deploy; see the note on wait_tries.
+              # NOTE: pm2 here has no systemd unit and lingering is off for this
+              # user, so nothing started by pm2 survives a reboot.
+              $SSH "export PATH=$NODE_BIN:\\$PATH; pm2 restart '$PM2_APP' --update-env" 2>&1 | tail -6
+              $SSH "export PATH=$NODE_BIN:\\$PATH; pm2 list --no-color | grep '$PM2_APP'" || true
+              ;;
+            systemd)
+              $SSH 'bash -s' <<'REMOTE'
 set -euo pipefail
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 mkdir -p ~/.config/systemd/user
 
 if ! systemctl --user cat prornd-ui.service >/dev/null 2>&1; then
-  echo "creating prornd-ui.service on Live"
+  echo "creating prornd-ui.service"
   cat > ~/.config/systemd/user/prornd-ui.service <<'UNIT'
 [Unit]
 Description=prornd-ui frontend (production build, port 8081) - LIVE
@@ -186,7 +289,7 @@ UNIT
   systemctl --user enable prornd-ui
 fi
 
-# Stop the hand-started dev server if it still owns the port, so the unit can
+# Stop a hand-started dev server if it still owns the port, so the unit can
 # bind it. Ctrl-C the tmux session rather than pkill, to avoid killing
 # something that merely looks similar.
 if ss -tln | grep -q ':8081 '; then
@@ -200,6 +303,10 @@ fi
 systemctl --user restart prornd-ui
 systemctl --user is-active prornd-ui
 REMOTE
+              ;;
+            *)
+              echo "FATAL: unknown SERVE method '$SERVE'"; exit 1 ;;
+          esac
         '''
       }
     }
@@ -208,22 +315,26 @@ REMOTE
       steps {
         sh '''#!/bin/bash
           set -euo pipefail
-          for i in $(seq 1 30); do
+          for i in $(seq 1 "$WAIT_TRIES"); do
             if curl -fsS -o /dev/null "$LIVE_URL/" 2>/dev/null; then
-              echo "OK: Live frontend up after $((i * 2))s"
+              echo "OK: frontend up after $((i * 2))s"
               exit 0
             fi
             sleep 2
           done
-          echo "FATAL: nothing answered on $LIVE_URL within 60s"
-          echo "Logs: ssh $LIVE 'export XDG_RUNTIME_DIR=/run/user/\\$(id -u); journalctl --user -u prornd-ui -n 50 --no-pager'"
+          echo "FATAL: nothing answered on $LIVE_URL within $((WAIT_TRIES * 2))s"
+          if [ "$SERVE" = "pm2" ]; then
+            echo "Logs: ssh $LIVE 'export PATH=$NODE_BIN:\\$PATH; pm2 logs $PM2_APP --lines 80 --nostream'"
+          else
+            echo "Logs: ssh $LIVE 'export XDG_RUNTIME_DIR=/run/user/\\$(id -u); journalctl --user -u prornd-ui -n 50 --no-pager'"
+          fi
           exit 1
         '''
       }
     }
 
     // A 200 on / proves nothing: the page can render while every bundle 404s.
-    // Also assert the served page is a BUILD, not the dev server it replaced.
+    // Also assert the served page is a BUILD, not a dev server.
     stage('Smoke test') {
       steps {
         sh '''#!/bin/bash
@@ -232,7 +343,7 @@ REMOTE
           html=$(curl -fsS "$LIVE_URL/")
 
           if printf '%s' "$html" | grep -q 'src="/src/main.tsx"'; then
-            echo "FATAL: Live is still serving the vite DEV server, not the build."
+            echo "FATAL: still serving the vite DEV server, not the build."
             exit 1
           fi
 
@@ -252,20 +363,42 @@ REMOTE
           deep=$(curl -s -o /dev/null -w '%{http_code}' "$LIVE_URL/projects/smoke-test")
           [ "$deep" = "200" ] || { echo "FATAL: SPA fallback broken — deep link returned HTTP $deep"; exit 1; }
 
-          echo "OK: production build served, bundle $asset resolves 200, SPA fallback works"
+          # The decisive check: is the page we are being served coming from the
+          # directory we just built? Vite hashes bundle filenames, so if pm2 or
+          # the unit serves a different checkout, the name the page references
+          # will not exist in our dist. Everything above this point would pass
+          # against a perfectly healthy but STALE deploy.
+          SSH="ssh -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 $LIVE"
+          rel=${asset#./}
+          if ! $SSH "test -f '$UI_DIR/dist$rel'"; then
+            echo "FATAL: the served page references $asset, which does not exist in $UI_DIR/dist."
+            echo "$LIVE_URL is serving a DIFFERENT checkout - this deploy did not take effect."
+            $SSH "ls '$UI_DIR'/dist/assets/*.js | head -5" || true
+            exit 1
+          fi
+
+          echo "OK: production build served from $UI_DIR, bundle $asset resolves 200, SPA fallback works"
         '''
       }
     }
   }
 
   post {
-    success { echo "Deployed production-frontend-live to http://172.16.134.179:8081" }
+    success { echo "Deployed ${env.BRANCH} to ${env.LIVE_URL} (${params.TARGET})" }
     failure {
-      echo "LIVE DEPLOY FAILED — 172.16.134.179:8081 may be down or stale."
-      echo "Check:  ssh orion@172.16.134.179"
-      echo "        export XDG_RUNTIME_DIR=/run/user/\$(id -u)"
-      echo "        systemctl --user status prornd-ui"
-      echo "        journalctl --user -u prornd-ui -n 80 --no-pager"
+      script {
+        echo "LIVE DEPLOY FAILED (${params.TARGET}) — ${env.LIVE_URL} may be down or stale."
+        if (env.SERVE == 'pm2') {
+          echo "Check:  ssh ${env.LIVE}"
+          echo "        export PATH=${env.NODE_BIN}:\$PATH"
+          echo "        pm2 list; pm2 logs ${env.PM2_APP} --lines 80 --nostream"
+        } else {
+          echo "Check:  ssh ${env.LIVE}"
+          echo "        export XDG_RUNTIME_DIR=/run/user/\$(id -u)"
+          echo "        systemctl --user status prornd-ui"
+          echo "        journalctl --user -u prornd-ui -n 80 --no-pager"
+        }
+      }
     }
   }
 }

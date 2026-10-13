@@ -21,6 +21,7 @@ import { getFileUrl } from '@/utils/fileUtils';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { DepartmentName } from '@/components/DepartmentName';
 import { POEditor } from '@/components/POEditor';
+import { CommitPayment } from '@/components/CommitPayment';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import ProjectDetailsView from "./ProjectDetails";
@@ -1049,13 +1050,36 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                                 </div>
                             ) :
                                 poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
-                                    <POEditor
-                                        ssData={poSanctionData}
-                                        dpId={docName}
-                                        isStaffRnD={isStaffRnD}
-                                        isPIReadOnly={isPermanentEmployee && !isStaffRnD}
-                                        isSaved={!!dpPoName}
-                                    />
+                                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px] items-start">
+                                        <div className="min-w-0">
+                                            <POEditor
+                                                ssData={poSanctionData}
+                                                dpId={docName}
+                                                isStaffRnD={isStaffRnD}
+                                                isPIReadOnly={isPermanentEmployee && !isStaffRnD}
+                                                isSaved={!!dpPoName}
+                                            />
+                                        </div>
+                                        <div className="min-w-0 space-y-4 empty:hidden">
+                                            <CommitPayment
+                                                readOnly
+                                                key={`commit-main-${docName}`}
+                                                doctype="Direct Purchase"
+                                                docName={docName}
+                                                excludeStagingTriggerState="POGenerated"
+                                                projectName=""
+                                            />
+                                            <CommitPayment
+                                                readOnly
+                                                key={`commit-po-${docName}`}
+                                                doctype="Direct Purchase"
+                                                docName={docName}
+                                                stagingTriggerState="POGenerated"
+                                                legacyStagingReferenceName={`${docName}-po`}
+                                                projectName=""
+                                            />
+                                        </div>
+                                    </div>
                                 ) : poSanctionData ? (
                                     <EmptyState
                                         icon={<ShoppingCartIcon className="h-5 w-5" />}

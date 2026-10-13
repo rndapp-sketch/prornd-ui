@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { usePutBack } from "@/components/PutBack";
 import { cn } from '@/lib/utils';
 import { travelAPI, commonAPI } from '@/services/apiService';
 import { CommentModal } from '@/components/CommentModal';
@@ -79,6 +80,8 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     const projects = otherPiProjects;
 
     // Dropdown state
+    const putBack = usePutBack("Travel", docName, onActionComplete);
+
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const toggleBtnRef = useRef<HTMLButtonElement>(null);
@@ -176,11 +179,14 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
         );
     }
 
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    const visibleActions = actions.filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
     if (!actions.length) return null;
 
-    const forwardActions = actions.filter((a) => categorise(a) === 'forward');
-    const neutralActions = actions.filter((a) => categorise(a) === 'neutral');
-    const rejectActions = actions.filter((a) => categorise(a) === 'reject');
+    const forwardActions = visibleActions.filter((a) => categorise(a) === 'forward');
+    const neutralActions = visibleActions.filter((a) => categorise(a) === 'neutral');
+    const rejectActions = visibleActions.filter((a) => categorise(a) === 'reject');
     const groups = [forwardActions, neutralActions, rejectActions].filter((g) => g.length > 0);
 
     return (
@@ -246,6 +252,7 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
                                 })}
                             </React.Fragment>
                         ))}
+                        {canPutBack && putBack.menu(() => setDropdownOpen(false), groups.length > 0)}
                     </div>,
                     document.body,
                 )}
@@ -264,6 +271,7 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
                 isLoading={actionLoading}
                 requireComment
             />
+            {putBack.modal}
         </div>
     );
 };

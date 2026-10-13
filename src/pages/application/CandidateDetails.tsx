@@ -14,6 +14,12 @@ import {
     ClipboardCheck,
     FileText,
     Download,
+    Mail,
+    Phone,
+    ExternalLink,
+    Calendar,
+    Building2,
+    Inbox,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { candidateAPI } from "@/services/apiService";
@@ -115,15 +121,32 @@ const TABS = [
     { key: "review", label: "Review", icon: ClipboardCheck },
 ] as const;
 
-// --- Info Row ---
-const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-        <div className="w-[35%] px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-            {label}
-        </div>
-        <div className="flex-1 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
-            {value || "-"}
-        </div>
+// --- Field tile (label above value) ---
+const Field = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
+    <div className={cn("min-w-0 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 px-3 py-1.5", className)}>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</div>
+        <div className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{value || "-"}</div>
+    </div>
+);
+
+// --- Section heading inside a tab ---
+const SectionTitle = ({ icon: Icon, title, hint }: { icon: React.ElementType; title: string; hint?: string }) => (
+    <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-zinc-800 dark:text-zinc-100">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#D97757]/10 text-[#D97757]">
+                <Icon className="h-4 w-4" />
+            </span>
+            {title}
+        </h3>
+        {hint && <span className="text-xs text-zinc-400">{hint}</span>}
+    </div>
+);
+
+// --- Empty state ---
+const EmptyState = ({ text }: { text: string }) => (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 py-8 text-center">
+        <Inbox className="h-7 w-7 text-zinc-300 dark:text-zinc-600" />
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{text}</p>
     </div>
 );
 
@@ -163,7 +186,7 @@ const formatDate = (dateStr: string | null) => {
 
 
 // --- Document Row ---
-const DocumentRow = ({ doc }: { doc: Document }) => {
+const DocumentRow = ({ doc, index }: { doc: Document; index: number }) => {
     const viewUrl = candidateAPI.viewDocument(doc.id);
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -190,37 +213,40 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
 
     return (
         <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                {doc.document_name || "-"}
+            <td className="px-3 py-2 text-xs text-zinc-400">{index + 1}</td>
+            <td className="px-3 py-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                <span className="inline-flex items-center gap-2">
+                    <FileText className="h-4 w-4 shrink-0 text-[#D97757]" />
+                    {doc.document_name || "-"}
+                </span>
             </td>
-            <td className="px-4 py-3">
-                <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+            <td className="px-3 py-2">
+                <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                     {doc.document_type || "-"}
                 </span>
             </td>
-            <td className="px-4 py-3">
-                <a
-                    href={viewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-400 hover:text-[#D97757]"
-                >
-                    <FileText className="w-8 h-8" />
-                </a>
-            </td>
-            <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                {formatDate(doc.uploaded_at)}
-            </td>
-            <td className="px-4 py-3">
-                <button
-                    type="button"
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                    className="inline-flex items-center gap-1.5 text-sm text-[#D97757] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    {isDownloading ? "Downloading..." : "Download"}
-                </button>
+            <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(doc.uploaded_at)}</td>
+            <td className="px-3 py-2">
+                <div className="flex justify-end gap-2">
+                    <a
+                        href={viewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        View
+                    </a>
+                    <button
+                        type="button"
+                        onClick={handleDownload}
+                        disabled={isDownloading}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#D97757] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#c5684a] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                        {isDownloading ? "Downloading…" : "Download"}
+                    </button>
+                </div>
             </td>
         </tr>
     );
@@ -344,70 +370,111 @@ const CandidateDetails: React.FC = () => {
 
     const { user, candidate, address, education, employment, documents, applications } = profile;
     const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
+    const initials = (`${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}` || fullName[0] || "?").toUpperCase();
+    const currentApp = applications?.find((a) => String(a.id) === applicationId) ?? applications?.[0];
+    const counts: Partial<Record<typeof TABS[number]["key"], number>> = {
+        address: address?.length ?? 0,
+        education: education?.length ?? 0,
+        employment: employment?.length ?? 0,
+        documents: documents?.length ?? 0,
+    };
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="max-w-5xl mx-auto p-0 w-full">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
+            <main className="p-0 w-full space-y-3">
+                {/* Profile header */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                    <div className="h-1 bg-gradient-to-r from-[#D97757] via-[#E8A07F] to-[#4A6CF7]" />
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                            className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                            aria-label="Go back"
                         >
-                            <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                            <ArrowLeft className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                         </button>
-                        <div>
-                            <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-                                <User className="w-6 h-6 text-[#D97757]" />
-                                Candidate Details
-                            </h1>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                                {fullName}
-                            </p>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#D97757]/12 text-base font-extrabold text-[#D97757]">
+                            {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Candidate</div>
+                            <h1 className="truncate text-xl font-bold text-zinc-900 dark:text-zinc-100">{fullName || "-"}</h1>
+                            <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {user.email && <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{user.email}</span>}
+                                {candidate.phone_number && <span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{candidate.phone_number}</span>}
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5">
+                            {currentApp?.status && <StatusBadge status={currentApp.status} />}
+                            <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                                ID: {candidateId}
+                            </span>
                         </div>
                     </div>
-                    <span className="px-4 py-1.5 rounded-full bg-[#D97757] text-white text-sm font-semibold">
-                        ID: {candidateId}
-                    </span>
                 </div>
 
                 {/* Tab Bar */}
-                <div className="flex flex-wrap gap-1 mb-6 border-b border-zinc-200 dark:border-zinc-800">
-                    {TABS.map(({ key, label, icon: Icon }) => (
-                        <button
-                            key={key}
-                            onClick={() => setActiveTab(key)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap",
-                                activeTab === key
-                                    ? "border-[#D97757] text-[#D97757] bg-[#D97757]/5"
-                                    : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                            )}
-                        >
-                            <Icon className="w-4 h-4" />
-                            {label}
-                        </button>
-                    ))}
+                <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] p-1 shadow-sm">
+                    {TABS.map(({ key, label, icon: Icon }) => {
+                        const active = activeTab === key;
+                        const count = counts[key];
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setActiveTab(key)}
+                                className={cn(
+                                    "flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors",
+                                    active
+                                        ? "bg-[#D97757] text-white shadow-sm"
+                                        : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                )}
+                            >
+                                <Icon className="h-4 w-4" />
+                                {label}
+                                {count !== undefined && (
+                                    <span className={cn(
+                                        "min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold leading-none",
+                                        active ? "bg-white/25 text-white" : "bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+                                    )}>{count}</span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Tab Content */}
                 <Card className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] shadow-sm rounded-xl overflow-hidden">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4">
 
                         {/* Personal */}
                         {activeTab === "personal" && (
-                            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                <InfoRow label="Full Name" value={fullName} />
-                                <InfoRow label="Email" value={user.email} />
-                                <InfoRow label="Father's Name" value={candidate.father_name} />
-                                <InfoRow label="Gender" value={candidate.gender} />
-                                <InfoRow label="Date of Birth" value={formatDate(candidate.date_of_birth)} />
-                                <InfoRow label="Marital Status" value={candidate.marital_status} />
-                                <InfoRow label="Citizenship" value={candidate.citizenship} />
-                                <InfoRow label="Phone Number" value={candidate.phone_number} />
+                            <div className="space-y-3">
+                                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 px-4 py-3">
+                                    <dl className="grid grid-cols-2 gap-x-6 gap-y-2.5 md:grid-cols-4 xl:grid-cols-6">
+                                        {([
+                                            ["Full Name", fullName],
+                                            ["Father's Name", candidate.father_name],
+                                            ["Gender", candidate.gender],
+                                            ["Date of Birth", formatDate(candidate.date_of_birth)],
+                                            ["Marital Status", candidate.marital_status],
+                                            ["Citizenship", candidate.citizenship],
+                                            ["Email", user.email],
+                                            ["Phone Number", candidate.phone_number],
+                                        ] as [string, React.ReactNode][]).map(([label, value]) => (
+                                            <div key={label} className="min-w-0">
+                                                <dt className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</dt>
+                                                <dd className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{value || "-"}</dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                </div>
                                 {candidate.cover_letter && (
-                                    <InfoRow label="Cover Letter" value={candidate.cover_letter} />
+                                    <div>
+                                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Cover letter</div>
+                                        <div className="whitespace-pre-wrap rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 px-4 py-3 text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+                                            {candidate.cover_letter}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -415,28 +482,29 @@ const CandidateDetails: React.FC = () => {
                         {/* Address */}
                         {activeTab === "address" && (
                             address && address.length > 0 ? (
-                                <div className="space-y-4">
-                                    {address.map((addr) => (
-                                        <div key={addr.addrId} className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                            <div className="px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
-                                                <span className="text-sm font-semibold text-[#D97757] flex items-center gap-2">
-                                                    <MapPin className="w-3.5 h-3.5" />
-                                                    {addr.addrType} Address
-                                                </span>
+                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                    {address.map((addr, i) => (
+                                        <div key={addr.addrId} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                            <div className="flex items-center gap-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
+                                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97757] text-xs font-extrabold text-white">{i + 1}</span>
+                                                <MapPin className="h-4 w-4 text-[#D97757]" />
+                                                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{addr.addrType || "-"} Address</span>
                                             </div>
-                                            <InfoRow label="House No" value={addr.houseNum} />
-                                            <InfoRow label="Street" value={addr.streetName} />
-                                            <InfoRow label="Locality" value={addr.locality} />
-                                            <InfoRow label="City" value={addr.city} />
-                                            <InfoRow label="District" value={addr.district} />
-                                            <InfoRow label="State" value={addr.state} />
-                                            <InfoRow label="Country" value={addr.country} />
-                                            <InfoRow label="Pincode" value={addr.pincode} />
+                                            <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
+                                                <Field label="House No" value={addr.houseNum} />
+                                                <Field label="Street" value={addr.streetName} />
+                                                <Field label="Locality" value={addr.locality} />
+                                                <Field label="City" value={addr.city} />
+                                                <Field label="District" value={addr.district} />
+                                                <Field label="State" value={addr.state} />
+                                                <Field label="Country" value={addr.country} />
+                                                <Field label="Pincode" value={addr.pincode} />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No address information provided.</p>
+                                <EmptyState text="No address information provided." />
                             )
                         )}
 
@@ -447,27 +515,33 @@ const CandidateDetails: React.FC = () => {
                                     <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                         <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                             <tr>
+                                                <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">#</th>
                                                 {["Board/University", "Specialization", "Division", "Exam", "Percentage", "Date of Passing"].map((h) => (
-                                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{h}</th>
+                                                    <th key={h} className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                            {education.map((edu) => (
+                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                            {education.map((edu, i) => (
                                                 <tr key={edu.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{edu.boardName || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.examName || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.distinction || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.level_of_edu || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.percentage || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{formatDate(edu.dateOfPassing)}</td>
+                                                    <td className="px-3 py-2 text-xs text-zinc-400">{i + 1}</td>
+                                                    <td className="px-3 py-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{edu.boardName || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{edu.examName || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{edu.distinction || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{edu.level_of_edu || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm">
+                                                        {edu.percentage ? (
+                                                            <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">{edu.percentage}</span>
+                                                        ) : "-"}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(edu.dateOfPassing)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
                             ) : (
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No educational qualifications provided.</p>
+                                <EmptyState text="No educational qualifications provided." />
                             )
                         )}
 
@@ -478,28 +552,30 @@ const CandidateDetails: React.FC = () => {
                                     <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                         <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                             <tr>
+                                                <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">#</th>
                                                 {["Organization", "Position", "From - To", "Last Pay", "Scale"].map((h) => (
-                                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{h}</th>
+                                                    <th key={h} className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                            {employment.map((emp) => (
+                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                            {employment.map((emp, i) => (
                                                 <tr key={emp.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{emp.organization || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.position || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                                    <td className="px-3 py-2 text-xs text-zinc-400">{i + 1}</td>
+                                                    <td className="px-3 py-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{emp.organization || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{emp.position || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                                                         {formatDate(emp.joiningDate)} – {emp.leavingDate ? formatDate(emp.leavingDate) : "Present"}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.lastPay || "-"}</td>
-                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.scaleOfPay || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{emp.lastPay || "-"}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{emp.scaleOfPay || "-"}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
                             ) : (
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No employment history provided.</p>
+                                <EmptyState text="No employment history provided." />
                             )
                         )}
 
@@ -510,25 +586,35 @@ const CandidateDetails: React.FC = () => {
                             return displayApps.length > 0 ? (
                                 <div className="space-y-4">
                                     {displayApps.map((app) => (
-                                        <div key={app.id} className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                            <InfoRow label="Application Number" value={app.application_number} />
-                                            {postDesignations[String(app.recruitment_post_id)] && (
-                                                <InfoRow label="Applied Post" value={
-                                                    <span className="inline-block text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded font-medium">
-                                                        {postDesignations[String(app.recruitment_post_id)]}
-                                                    </span>
-                                                } />
-                                            )}
-                                            <InfoRow label="Status" value={<StatusBadge status={app.status} />} />
-                                            <InfoRow label="Submitted At" value={formatDate(app.submitted_at)} />
-                                            {app.justification && (
-                                                <InfoRow label="Justification" value={app.justification} />
-                                            )}
+                                        <div key={app.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
+                                                <div>
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Application</div>
+                                                    <div className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{app.application_number}</div>
+                                                </div>
+                                                <StatusBadge status={app.status} />
+                                            </div>
+                                            <div className="p-3 space-y-2">
+                                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                                    {postDesignations[String(app.recruitment_post_id)] && (
+                                                        <Field label="Applied Post" value={postDesignations[String(app.recruitment_post_id)]} />
+                                                    )}
+                                                    <Field label="Submitted At" value={formatDate(app.submitted_at)} />
+                                                </div>
+                                                {app.justification && (
+                                                    <div>
+                                                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Justification</div>
+                                                        <div className="whitespace-pre-wrap rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 p-3 text-sm text-zinc-800 dark:text-zinc-200">
+                                                            {app.justification}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No recruitment information available.</p>
+                                <EmptyState text="No recruitment information available." />
                             );
                         })()}
 
@@ -539,77 +625,112 @@ const CandidateDetails: React.FC = () => {
                                     <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                         <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                             <tr>
-                                                {["Document", "Type", "Preview", "Uploaded", "Action"].map((h) => (
-                                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{h}</th>
-                                                ))}
+                                                <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">#</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Document</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Type</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Uploaded</th>
+                                                <th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Action</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                            {documents.map((doc) => (
-                                                <DocumentRow key={doc.id} doc={doc} />
+                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                            {documents.map((doc, i) => (
+                                                <DocumentRow key={doc.id} doc={doc} index={i} />
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
                             ) : (
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No documents uploaded.</p>
+                                <EmptyState text="No documents uploaded." />
                             )
                         )}
 
                         {/* Review */}
                         {activeTab === "review" && (
-                            <form onSubmit={handleStatusUpdate}>
-                                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-5">
-                                    Update Application Status
-                                </h3>
-                                <div className="mb-4">
-                                    <label htmlFor="status-select" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                                        Status
-                                    </label>
-                                    <select
-                                        id="status-select"
-                                        value={selectedStatus}
-                                        onChange={(e) => setSelectedStatus(e.target.value)}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]"
-                                        required
-                                    >
-                                        <option value="">Select Status</option>
-                                        <option value="Submitted">Submitted</option>
-                                        <option value="Under Review">Under Review</option>
-                                        <option value="Shortlisted">Shortlisted</option>
-                                        <option value="Not Shortlisted">Not Shortlisted</option>
-                                    </select>
-                                </div>
-                                {(selectedStatus === "Shortlisted" || selectedStatus === "Not Shortlisted") && (
-                                    <div className="mb-4">
-                                        <label htmlFor="justification" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                                            Justification <span className="text-red-500">*</span>
-                                        </label>
-                                        <textarea
-                                            id="justification"
-                                            value={justification}
-                                            onChange={(e) => setJustification(e.target.value)}
-                                            rows={4}
-                                            placeholder="Provide detailed justification for your decision..."
-                                            maxLength={FIELD_CHAR_LIMITS.Text}
-                                            className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] resize-none"
-                                            required
-                                        />
-                                        <CharLimitAlert value={justification} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
+                            <form onSubmit={handleStatusUpdate} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                                <div className="lg:col-span-2 space-y-3">
+                                    <SectionTitle icon={ClipboardCheck} title="Update application status" />
+                                    <div>
+                                        <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Status</div>
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup">
+                                            {["Submitted", "Under Review", "Shortlisted", "Not Shortlisted"].map((st) => {
+                                                const active = selectedStatus === st;
+                                                return (
+                                                    <button
+                                                        key={st}
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={active}
+                                                        onClick={() => setSelectedStatus(st)}
+                                                        className={cn(
+                                                            "flex items-center gap-3 rounded-lg border px-3.5 py-2.5 text-left text-sm font-semibold transition-colors",
+                                                            active
+                                                                ? "border-[#D97757] bg-[#D97757]/[0.07] ring-1 ring-[#D97757] text-zinc-900 dark:text-zinc-100"
+                                                                : "border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-zinc-400"
+                                                        )}
+                                                    >
+                                                        <span className={cn("flex h-4 w-4 items-center justify-center rounded-full border", active ? "border-[#D97757]" : "border-zinc-300 dark:border-zinc-600")}>
+                                                            {active && <span className="h-2 w-2 rounded-full bg-[#D97757]" />}
+                                                        </span>
+                                                        {st}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                )}
-                                <button
-                                    type="submit"
-                                    disabled={isUpdating || !selectedStatus}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white shadow-sm transition-all",
-                                        "bg-[#D97757] hover:bg-[#c5684a]",
-                                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                                    {(selectedStatus === "Shortlisted" || selectedStatus === "Not Shortlisted") && (
+                                        <div>
+                                            <label htmlFor="justification" className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                                Justification <span className="text-red-500">*</span>
+                                            </label>
+                                            <textarea
+                                                id="justification"
+                                                value={justification}
+                                                onChange={(e) => setJustification(e.target.value)}
+                                                rows={4}
+                                                placeholder="Provide detailed justification for your decision..."
+                                                maxLength={FIELD_CHAR_LIMITS.Text}
+                                                className="w-full resize-y rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]"
+                                                required
+                                            />
+                                            <CharLimitAlert value={justification} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
+                                        </div>
                                     )}
-                                >
-                                    {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}
-                                    {isUpdating ? "Updating..." : "Update Status"}
-                                </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isUpdating || !selectedStatus}
+                                        className={cn(
+                                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white shadow-sm transition-all",
+                                            "bg-[#D97757] hover:bg-[#c5684a]",
+                                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                                        )}
+                                    >
+                                        {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}
+                                        {isUpdating ? "Updating..." : "Update Status"}
+                                    </button>
+                                </div>
+
+                                <aside className="space-y-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 p-3 h-fit">
+                                    <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Current application</div>
+                                    {currentApp ? (
+                                        <>
+                                            <div className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{currentApp.application_number}</div>
+                                            <StatusBadge status={currentApp.status} />
+                                            {postDesignations[String(currentApp.recruitment_post_id)] && (
+                                                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                    Applied for <span className="font-semibold text-zinc-700 dark:text-zinc-200">{postDesignations[String(currentApp.recruitment_post_id)]}</span>
+                                                </div>
+                                            )}
+                                            <div className="text-xs text-zinc-500 dark:text-zinc-400">Submitted {formatDate(currentApp.submitted_at)}</div>
+                                            {currentApp.justification && (
+                                                <div className="border-t border-zinc-200 dark:border-zinc-700 pt-2 text-xs text-zinc-600 dark:text-zinc-300">
+                                                    <span className="font-semibold">Last note: </span>{currentApp.justification}
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p className="text-xs text-zinc-500">No application found.</p>
+                                    )}
+                                </aside>
                             </form>
                         )}
 

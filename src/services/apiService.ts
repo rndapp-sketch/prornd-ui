@@ -265,6 +265,8 @@ export const disbursalOfHonorariumAPI = {
 export const putBackAPI = {
     getStates: 'rndopsapp.rndopsapp.put_back_action.get_put_back_document_states',
     setState: 'rndopsapp.rndopsapp.put_back_action.set_put_back_workflow_state',
+    getStatesForRole: 'rndopsapp.rndopsapp.put_back_action.get_put_back_states_for_role',
+    getHistoryTrace: 'rndopsapp.rndopsapp.put_back_action.get_workflow_history_trace',
 };
 
 // Universal User API endpoints
