@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
+import { usePutBack } from "@/components/PutBack";
 import { cn } from "@/lib/utils";
 import { tadaAPI, commonAPI } from "@/services/apiService";
 import { CommentModal } from "@/components/CommentModal";
@@ -54,6 +55,8 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
     const { call: addComment } = useFrappePostCall(commonAPI.addComment);
 
     // Dropdown state
+    const putBack = usePutBack("TA DA Settlement", docName, onActionComplete);
+
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const toggleBtnRef = useRef<HTMLButtonElement>(null);
@@ -133,11 +136,14 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
         );
     }
 
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    const visibleActions = actions.filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
     if (!actions.length) return null;
 
-    const forwardActions = actions.filter((a) => categorise(a) === "forward");
-    const neutralActions = actions.filter((a) => categorise(a) === "neutral");
-    const rejectActions = actions.filter((a) => categorise(a) === "reject");
+    const forwardActions = visibleActions.filter((a) => categorise(a) === "forward");
+    const neutralActions = visibleActions.filter((a) => categorise(a) === "neutral");
+    const rejectActions = visibleActions.filter((a) => categorise(a) === "reject");
     const groups = [forwardActions, neutralActions, rejectActions].filter((g) => g.length > 0);
 
     return (
@@ -199,6 +205,7 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
                                 })}
                             </React.Fragment>
                         ))}
+                        {canPutBack && putBack.menu(() => setDropdownOpen(false), groups.length > 0)}
                     </div>,
                     document.body,
                 )}
@@ -212,6 +219,7 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
                 isLoading={actionLoading}
                 requireComment
             />
+            {putBack.modal}
         </div>
     );
 };

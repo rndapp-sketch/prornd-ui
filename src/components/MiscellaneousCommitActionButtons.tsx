@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { usePutBack } from "@/components/PutBack";
 import { cn } from "@/lib/utils";
 import { miscellaneousCommitAPI } from "@/services/apiService";
 import {
@@ -117,6 +118,8 @@ const MiscellaneousCommitActionButtons = ({
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
 
+    const putBack = usePutBack("Miscellaneous Commit", docname, onActionComplete);
+
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
@@ -176,9 +179,11 @@ const MiscellaneousCommitActionButtons = ({
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && (data?.message ?? []).length > 0;
+    const actions = (data?.message ?? []).filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
+    if (actionsLoading || (!actions.length && !canPutBack)) return null;
 
-    const actions = data.message;
     const forwardActions = actions.filter(a => categorise(a) === "forward");
     const putbackActions = actions.filter(a => categorise(a) === "putback");
     const neutralActions = actions.filter(a => categorise(a) === "neutral");
@@ -236,6 +241,7 @@ const MiscellaneousCommitActionButtons = ({
                                 })}
                             </React.Fragment>
                         ))}
+                        {canPutBack && putBack.menu(() => setDropdownOpen(false), groups.length > 0)}
                     </div>,
                     document.body,
                 )}
@@ -248,6 +254,7 @@ const MiscellaneousCommitActionButtons = ({
                 action={selectedAction}
                 isLoading={!!actionLoading}
             />
+            {putBack.modal}
             <ErrorModal
                 open={errorModal.open}
                 title={errorModal.title}

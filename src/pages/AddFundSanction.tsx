@@ -531,8 +531,11 @@ const AddFundSanction: React.FC = () => {
 
     const preparePayload = async (docNameOverride = savedDocName): Promise<FormData> => {
         const dataToSubmit: FormData = { ...formData };
+        if (typeof dataToSubmit.sanctioned_letter_no === 'string') {
+            dataToSubmit.sanctioned_letter_no = dataToSubmit.sanctioned_letter_no.trim();
+        }
         if (!dataToSubmit.sanctioned_letter_no?.trim() && lastValidLetterNoRef.current) {
-            dataToSubmit.sanctioned_letter_no = lastValidLetterNoRef.current;
+            dataToSubmit.sanctioned_letter_no = lastValidLetterNoRef.current.trim();
         }
         const effectiveDocName = docNameOverride || dataToSubmit.name || dataToSubmit.docname || '';
 
@@ -712,7 +715,10 @@ const AddFundSanction: React.FC = () => {
                                                     className={cn(inputClasses, letterNoSuffix && 'rounded-r-none border-r-0')}
                                                     maxLength={140}
                                                     value={baseValue}
-                                                    onChange={e => handleLetterNoChange(e.target.value)}
+                                                    onChange={e => handleLetterNoChange(e.target.value.trimStart())}
+                                                    onBlur={() => {
+                                                        if (baseValue !== baseValue.trim()) handleLetterNoChange(baseValue.trim());
+                                                    }}
                                                 />
                                                 {letterNoSuffix && (
                                                     <span

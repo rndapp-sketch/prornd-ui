@@ -399,6 +399,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                         <TopUpFellowshipActionButtons
                             docname={docName}
                             onActionComplete={handleRefresh}
+                            onOpenPrint={() => setIsPrintOpen(true)}
                             commitRequired={isRnDStaff && isPendingStaff && isCommitted === false}
                             sentToFa={sentToFa}
                             hasFacultyPdf={hasFacultyPdf}

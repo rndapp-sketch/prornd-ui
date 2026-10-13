@@ -4,6 +4,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
   useFrappeGetDocList,
+  useFrappeGetCall,
   useFrappeAuth,
   useFrappeGetDoc,
   useFrappePostCall,
@@ -542,6 +543,28 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   const isRndStaff = fetchedRoles?.includes("staff, RnD");
   const isDoRnd = fetchedRoles?.includes("Dean, RnD");
 
+  // Pending Project Registrations actually routed to this user (same source as /pending-task).
+  // Having the Dean/HoS/Staff role is not enough: the role-wide "Pending X Approval" queue
+  // below also holds projects that are someone else's to approve.
+  const { data: pendingTaskData } = useFrappeGetCall<{
+    message: Record<string, Array<{ doctype?: string; name: string }> | undefined>;
+  }>(
+    isHosRnd || isRndStaff || isDoRnd
+      ? "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task"
+      : (null as unknown as string),
+    { page_name: "pending-task" },
+  );
+  const assignedPendingProjectNames = React.useMemo(() => {
+    if (!pendingTaskData?.message) return null;
+    const names = new Set<string>();
+    Object.values(pendingTaskData.message).forEach((rows) =>
+      (rows ?? []).forEach((row) => {
+        if (row?.doctype === "Project Registration") names.add(row.name);
+      }),
+    );
+    return names;
+  }, [pendingTaskData]);
+
   const {
     data: hosAprovalProjects,
     isLoading: hosLoading,
@@ -707,13 +730,17 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     // on a project (e.g. dornd@iitg.ac.in), and once that project moves past
     // their approval stage (e.g. to "Approved") it must not disappear just
     // because it's no longer in their pending-approval workflow_state.
-    const roleApprovalQueue = isHosRnd
+    const roleQueue = isHosRnd
       ? hosAprovalProjects
       : isRndStaff
         ? rndstaffAprovalProjects
         : isDoRnd
           ? doRndApprovalProjects
           : null;
+    // Keep only the projects routed to this user; show the whole queue if that list can't be loaded.
+    const roleApprovalQueue = assignedPendingProjectNames
+      ? roleQueue?.filter((p) => assignedPendingProjectNames.has(p.name))
+      : roleQueue;
 
     const combined = [
       ...(roleApprovalQueue ?? []),
@@ -752,6 +779,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     ownedLoading,
     ownedError,
     isHosRnd,
+    assignedPendingProjectNames,
     hosAprovalProjects,
     hosLoading,
     hosError,
