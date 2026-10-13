@@ -1885,6 +1885,25 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     editDocName || null,
   );
   const currentDocName = editDocName || savedDocName || "";
+  const { call: fetchDirectorPdfValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
+  const [fetchedDirectorPdf, setFetchedDirectorPdf] = useState("");
+  // director_signed_pdf is a hidden field and isn't always part of the prefill data, so read it directly.
+  useEffect(() => {
+    if (!currentDocName) return;
+    let cancelled = false;
+    fetchDirectorPdfValue({
+      doctype: "Indent Cum Sanction Sheet",
+      filters: { name: currentDocName },
+      fieldname: "director_signed_pdf",
+    })
+      .then((res) => {
+        if (!cancelled) setFetchedDirectorPdf(String(res?.message?.director_signed_pdf || "").trim());
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDocName]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showActionsDropdown, setShowActionsDropdown] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionComment, setActionComment] = useState("");
@@ -5470,7 +5489,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       : "Generate the final purchase order";
   const isAtDeanApproval = workflowState === "Pending Dean Approval";
   const sendToDirector = Boolean(Number(formData.send_to_director || 0));
-  const directorSignedPdf = String(formData.director_signed_pdf || "").trim();
+  const directorSignedPdf = String(formData.director_signed_pdf || "").trim() || fetchedDirectorPdf;
   // Show the doc's real workflow_state so this matches the Pending Tasks list.
   // send_to_director only flags that Director sign-off is additionally required
   // while the doc is still sitting at the Dean stage; it doesn't move workflow_state.
@@ -5842,6 +5861,32 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {currentDocName && directorSignedPdf && !showDirectorControls && (
+          <div className="mb-6 flex items-center gap-4 rounded-xl border border-blue-300 bg-blue-50 px-5 py-4 shadow-sm dark:border-blue-700 dark:bg-blue-900/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-extrabold text-blue-800 dark:text-blue-200">
+                Director-Signed PDF has been uploaded
+              </p>
+              <p className="mt-0.5 text-[11.5px] text-blue-600 dark:text-blue-400 leading-relaxed">
+                {isAtDeanApproval || workflowState === "Pending Director Approval"
+                  ? "The signed document is ready. Review it before the approval step."
+                  : "The Director-signed document is available to view."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.open(getFileUrl(directorSignedPdf), "_blank", "noopener,noreferrer")}
+              className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              View PDF
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3 space-y-6">
