@@ -82,6 +82,7 @@ import {
 } from "@/components/ui/table";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "../components/UserRole";
+import { awaitingLabel } from "@/utils/cancellationLabels";
 import { OVERHEAD_BUDGET_HEAD, OVERHEAD_BUDGET_HEAD_ID, fetchOverheadLedger } from "@/services/overheadLedger";
 
 // --- Ledger Interfaces ---
@@ -827,6 +828,39 @@ const QuickActions = ({
     const [applicationsPage, setApplicationsPage] = useState(1);
     const applicationsPageSize = 10;
 
+    // Cancellation request per Reimbursement row (visible page only), keyed by document name.
+    const [rowCancellations, setRowCancellations] = useState<Record<string, { status?: string; workflow_state?: string } | null>>({});
+    useEffect(() => {
+        if (selectedApplication !== "Reimbursement") return;
+        const pageRows = applicationData.slice(
+            (applicationsPage - 1) * applicationsPageSize,
+            applicationsPage * applicationsPageSize,
+        );
+        const todo = pageRows.filter((r: any) => r.name && !(r.name in rowCancellations));
+        if (!todo.length) return;
+        let stale = false;
+        Promise.all(
+            todo.map(async (r: any) => {
+                try {
+                    const params = new URLSearchParams({ reference_doctype: "Reimbursement", reference_name: r.name });
+                    const res = await fetch(
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_cancellation_status?${params}`,
+                        { credentials: "include" },
+                    ).then((x) => x.json());
+                    const list: any[] = res?.message?.cancellation_requests || [];
+                    const match = list.find((x) => (x.status || "").toLowerCase() === "pending") || list[0] || null;
+                    return [r.name, match] as const;
+                } catch {
+                    return [r.name, null] as const;
+                }
+            }),
+        ).then((entries) => {
+            if (stale) return;
+            setRowCancellations((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+        });
+        return () => { stale = true; };
+    }, [selectedApplication, applicationData, applicationsPage]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // QuickActions doesn't share scope with the outer component — call hooks independently here.
     const { currentUser: quickActionsCurrentUser } = useFrappeAuth();
     const { roles: quickActionsRoles } = useUserRoles(quickActionsCurrentUser ?? null);
@@ -1232,14 +1266,16 @@ const QuickActions = ({
                             item.project_number || ""
                         ).toLowerCase();
 
-                        // Check for exact match or contains
+                        // A reimbursement with no project yet (Other-PI, awaiting assignment)
+                        // must not match: "".includes() would make it match every project.
+                        if (!itemProjectName && !itemProjectNumber) return false;
+
+                        // Check for exact match or contains (empty values never match)
                         const matches =
                             itemProjectName === projectNameLower ||
                             itemProjectNumber === projectNameLower ||
-                            itemProjectName.includes(projectNameLower) ||
-                            itemProjectNumber.includes(projectNameLower) ||
-                            projectNameLower.includes(itemProjectName) ||
-                            projectNameLower.includes(itemProjectNumber);
+                            (!!itemProjectName && (itemProjectName.includes(projectNameLower) || projectNameLower.includes(itemProjectName))) ||
+                            (!!itemProjectNumber && (itemProjectNumber.includes(projectNameLower) || projectNameLower.includes(itemProjectNumber)));
 
                         return matches;
                     }).filter((item: any) =>
@@ -2247,6 +2283,31 @@ const QuickActions = ({
                                                             >
                                                                 {displayStatus ||
                                                                     "Draft"}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                    {selectedApplication === "Reimbursement" && (() => {
+                                                        const c = rowCancellations[item.name];
+                                                        if (!c) return null;
+                                                        const st = (c.status || "Pending").toLowerCase();
+                                                        const approved = st === "approved";
+                                                        const rejected = st === "rejected";
+                                                        const who = awaitingLabel(c.workflow_state);
+                                                        return (
+                                                            <span
+                                                                className={cn(
+                                                                    "inline-flex w-fit px-2 py-1 text-xs font-medium rounded-full",
+                                                                    approved && "bg-red-100 text-red-700",
+                                                                    rejected && "bg-zinc-100 text-zinc-700",
+                                                                    !approved && !rejected && "bg-amber-100 text-amber-700",
+                                                                )}
+                                                                title={`Cancellation request: ${c.status || "Pending"}`}
+                                                            >
+                                                                {approved
+                                                                    ? "Cancelled"
+                                                                    : rejected
+                                                                        ? "Cancellation rejected"
+                                                                        : `Cancellation requested${who ? ` · with ${who}` : ""}`}
                                                             </span>
                                                         );
                                                     })()}

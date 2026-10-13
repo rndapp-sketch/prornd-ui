@@ -4,7 +4,8 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { leaveModuleAPI } from '@/services/apiService';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, CheckCircle2, XCircle, ArrowRightCircle, X, ChevronDown } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, ArrowRightCircle, X, ChevronDown, RotateCcw } from 'lucide-react';
+import { usePutBack, putBackLabel } from '@/components/PutBack';
 import { cn } from '@/lib/utils';
 import { getActionButtonStyle } from '@/utils/workflowUtils';
 
@@ -35,6 +36,11 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
+
+    const putBack = usePutBack('Leave Module', docName, () => {
+        fetchActions({ docname: docName });
+        onActionComplete?.();
+    });
 
     useEffect(() => {
         if (docName) {
@@ -143,6 +149,9 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
         );
     }
 
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    const visibleActions = actions.filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
     if (!actions.length) {
         return null;
     }
@@ -184,7 +193,7 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                                     Workflow Actions
                                 </span>
                             </div>
-                            {actions.map((action) => {
+                            {visibleActions.map((action) => {
                                 const category = getActionCategory(action);
                                 const itemCls =
                                     category === 'forward'
@@ -207,13 +216,14 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                                     </button>
                                 );
                             })}
+                            {canPutBack && putBack.menu(() => setDropdownOpen(false), visibleActions.length > 0)}
                         </div>,
                         document.body,
                     )}
                 </div>
             ) : (
                 <div className="flex flex-wrap gap-3">
-                    {actions.map((action) => (
+                    {visibleActions.map((action) => (
                         <Button
                             key={action}
                             onClick={() => handleActionClick(action)}
@@ -228,8 +238,21 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                             {action}
                         </Button>
                     ))}
+                    {putBack.states.map((st) => (
+                        <Button
+                            key={`pb-${st}`}
+                            variant="outline"
+                            onClick={() => putBack.begin(st)}
+                            disabled={putBack.loading}
+                            className="text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-900/20"
+                        >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Put to {putBackLabel(st)}
+                        </Button>
+                    ))}
                 </div>
             )}
+            {putBack.modal}
 
             {/* Comment Dialog Overlay */}
             {showCommentDialog && (

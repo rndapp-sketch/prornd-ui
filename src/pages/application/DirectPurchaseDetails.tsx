@@ -5,6 +5,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePutBack } from "@/components/PutBack";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -802,12 +803,24 @@ const isBoolCheck = (key: string, val: any): boolean =>
         key.startsWith("declaration_") ||
         key.includes("declaration"));
 
-const formatINR = (val: any): string =>
-    Number(val).toLocaleString("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
-    });
+// Currency link values read like "EUR — Euro"; the ISO code is the leading token
+const getCurrencyCode = (val: any): string => {
+    const m = typeof val === "string" ? val.trim().match(/^[A-Za-z]{3}\b/) : null;
+    return m ? m[0].toUpperCase() : "INR";
+};
+
+const formatMoney = (val: any, currency = "INR"): string => {
+    const isInr = currency === "INR";
+    try {
+        return Number(val).toLocaleString(isInr ? "en-IN" : "en-US", {
+            style: "currency",
+            currency,
+            maximumFractionDigits: isInr ? 0 : 2,
+        });
+    } catch {
+        return `${currency} ${Number(val).toLocaleString()}`;
+    }
+};
 
 const getFileName = (path: string): string => path.split("/").pop() || path;
 
@@ -818,17 +831,73 @@ const DOCUMENT_FIELD_EXCLUSIONS: Record<string, string[]> = {
     "P_11 Form": ["workflow_status"],
 };
 
+// Declarations are Check fields whose label holds the text, and only the doctype
+// metadata carries it (the document just stores 0/1).
+const useCheckLabels = (doctype?: string): Record<string, string> => {
+    const [labels, setLabels] = useState<Record<string, string>>({});
+    const { call: callGetFields } = useFrappePostCall<any>(directPurchaseAPI.getFields);
+    const { call: callGetDoctype } = useFrappePostCall<any>("frappe.desk.form.load.getdoctype");
+
+    useEffect(() => {
+        if (!doctype) return;
+        let cancelled = false;
+        const collect = (fields: any[] | undefined) => {
+            const map: Record<string, string> = {};
+            (fields || []).forEach((f) => {
+                if (f?.fieldtype === "Check" && f.label) {
+                    map[f.fieldname] = String(f.label).replace(/<[^>]*>/g, " ").trim();
+                }
+            });
+            return map;
+        };
+        const load = async () => {
+            let map: Record<string, string> = {};
+            try {
+                if (doctype === "Direct Purchase") {
+                    const res = await callGetFields({ doc_name: null });
+                    map = collect(res?.message?.fields);
+                }
+            } catch {
+                /* fall through to the generic doctype metadata */
+            }
+            if (Object.keys(map).length === 0) {
+                try {
+                    const res = await callGetDoctype({ doctype });
+                    const docs: any[] = res?.docs || res?.message?.docs || [];
+                    map = collect(docs.find((d) => d.name === doctype)?.fields);
+                } catch {
+                    /* labels are optional */
+                }
+            }
+            if (!cancelled) setLabels(map);
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [doctype]);
+
+    return labels;
+};
+
 const DocumentViewer = ({
     data,
     doctype,
+    checkLabels,
 }: {
     data: Record<string, any>;
     doctype?: string;
+    // fieldname -> label of Check fields; the label is the declaration text
+    checkLabels?: Record<string, string>;
 }) => {
     const hiddenFields = new Set([
         ...EXCLUDED_FIELDS,
         ...(doctype ? DOCUMENT_FIELD_EXCLUSIONS[doctype] || [] : []),
     ]);
+
+    const currencyCode = getCurrencyCode(data.currency);
+    const formatINR = (val: any) => formatMoney(val, currencyCode);
 
     const allScalar = Object.entries(data).filter(([key, value]) => {
         if (hiddenFields.has(key)) return false;
@@ -972,6 +1041,11 @@ const DocumentViewer = ({
                                 <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
                                     {renderValue(key, value)}
                                 </p>
+                                {isBoolCheck(key, value) && checkLabels?.[key] && (
+                                    <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed whitespace-pre-line">
+                                        {checkLabels[key]}
+                                    </p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -979,7 +1053,7 @@ const DocumentViewer = ({
             )}
 
             {/* Declarations */}
-            <DeclarationFields doctype="Direct Purchase" />
+            <DeclarationFields doctype={doctype || "Direct Purchase"} />
 
             {/* Attachments */}
             {fileFields.length > 0 && (
@@ -1124,9 +1198,11 @@ const DirectPurchaseActionButtons = ({
     isOtherPiStep = false,
     otherPiProject = "",
     otherPiAccountHead = "",
+    workflowState = "",
 }: {
     docname: string;
     onActionComplete: () => void;
+    workflowState?: string;
     p11DocName?: string;
     onP11Missing?: () => void;
     commitRequired?: boolean;
@@ -1164,6 +1240,7 @@ const DirectPurchaseActionButtons = ({
         return () => document.removeEventListener("mousedown", onDown);
     }, [menuOpen]);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
+    const putBack = usePutBack("Direct Purchase", docname, () => { refreshActions(); onActionComplete(); });
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         directPurchaseAPI.getWorkflowActions,
     );
@@ -1173,6 +1250,37 @@ const DirectPurchaseActionButtons = ({
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
+    const { call: getCommitStaging } = useFrappePostCall(
+        "rndopsapp.rndopsapp.commitPayment.get_commit_staging_status",
+    );
+
+    // Names of the unpublished commits (first commit, then PO commit), oldest first.
+    // Returns null when no PO commit exists yet.
+    const collectCommitIds = async (): Promise<string[] | null> => {
+        const fetchRows = async (referenceName: string): Promise<any[]> => {
+            const res: any = await getCommitStaging({ reference_name: referenceName });
+            if (res?.message?.status !== "success") {
+                throw new Error(res?.message?.message || "Could not read the commitments for this application.");
+            }
+            return res?.message?.data ?? [];
+        };
+        const rows = await fetchRows(docname);
+        // PO commits staged before trigger_state scoping live under "<docname>-po"
+        const legacyPoRows = await fetchRows(`${docname}-po`).catch(() => [] as any[]);
+        const isPo = (r: any) => {
+            if (legacyPoRows.includes(r)) return true;
+            try {
+                const raw = r.payload ?? r.commit_payload ?? "{}";
+                return (typeof raw === "string" ? JSON.parse(raw) : raw)?.trigger_state === "POGenerated";
+            } catch { return false; }
+        };
+        const allRows = [...rows, ...legacyPoRows];
+        if (!allRows.some(isPo)) return null;
+        return allRows
+            .filter((r) => r.status === "PENDING_APPROVAL" || r.status === "FAILED")
+            .sort((a, b) => String(a.creation ?? "").localeCompare(String(b.creation ?? "")))
+            .map((r) => r.name);
+    };
 
     useEffect(() => {
         fetchActions({ docname })
@@ -1211,6 +1319,20 @@ const DirectPurchaseActionButtons = ({
                     project_name: otherPiProject,
                     account_head: otherPiAccountHead,
                 });
+            }
+            // The action that moves Sanction Approved -> POGenerated publishes the commits
+            if (workflowState === "Sanction Approved" && !/put\s*back|reject/i.test(action)) {
+                const commitIds = await collectCommitIds();
+                if (!commitIds) {
+                    setErrorModal({
+                        open: true,
+                        title: "PO commitment missing",
+                        message: "Submit the PO commitment before performing this action.",
+                    });
+                    setIsPerforming(false);
+                    return;
+                }
+                payload.extra_data = JSON.stringify({ commit_ids: commitIds });
             }
             const result: any = await performAction(payload);
             const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
@@ -1268,10 +1390,15 @@ const DirectPurchaseActionButtons = ({
     const isBlocked = (action: string) =>
         (commitRequired || sanctionRequired) && !/put\s*back|reject/i.test(action);
 
+    // Put Back belongs to whoever can act on the current state. A user with no workflow
+    // actions here (e.g. the PI while it sits with R&D staff verification) must not get it.
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    const visibleActions = actions.filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
     if (!actions.length) return null;
 
     return (
         <>
+            {putBack.modal}
             <div className="flex flex-col items-end gap-2 max-w-[320px]">
                 <div className="relative" ref={menuRef}>
                     <ClaudeButton
@@ -1302,7 +1429,7 @@ const DirectPurchaseActionButtons = ({
                                     A commitment must be submitted before forwarding this application.
                                 </div>
                             ) : null}
-                            {actions.map((action) => {
+                            {visibleActions.map((action) => {
                                 const blocked = isBlocked(action) || (action === "Submit P-11" && !p11DocName);
                                 return (
                                     <button
@@ -1328,6 +1455,7 @@ const DirectPurchaseActionButtons = ({
                                     </button>
                                 );
                             })}
+                            {canPutBack && putBack.menu(() => setMenuOpen(false), visibleActions.length > 0)}
                         </div>,
                         document.body,
                     )}
@@ -1783,6 +1911,8 @@ const LinkedDocTab = ({
         mutate: reloadDoc,
     } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
 
+    const checkLabels = useCheckLabels(doctype);
+
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Reload handler
@@ -1859,7 +1989,7 @@ const LinkedDocTab = ({
                 )}
             </div>
 
-            <DocumentViewer data={docData} doctype={doctype} />
+            <DocumentViewer data={docData} doctype={doctype} checkLabels={checkLabels} />
 
             {/* Render workflow actions based on doctype */}
             {doctype === "P_11 Form" && (
@@ -2686,6 +2816,8 @@ const DirectPurchaseDetails: React.FC = () => {
         mutate: reloadData,
     } = useFrappeGetDoc<DirectPurchaseData>("Direct Purchase", id || "");
 
+    const checkLabels = useCheckLabels("Direct Purchase");
+
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isStaffRnD = roles.some((r) =>
@@ -2849,7 +2981,13 @@ const DirectPurchaseDetails: React.FC = () => {
                 );
                 if (!stagingRes.ok || cancelled) return;
                 const stagingJson = await stagingRes.json();
-                const record = (stagingJson?.data ?? [])[0];
+                const isPoCommit = (r: any) => {
+                    try {
+                        const raw = r.payload ?? r.commit_payload ?? "{}";
+                        return (typeof raw === "string" ? JSON.parse(raw) : raw)?.trigger_state === "POGenerated";
+                    } catch { return false; }
+                };
+                const record = (stagingJson?.data ?? []).find((r: any) => !isPoCommit(r));
                 if (!record) return;
 
                 let payload: Record<string, any> = {};
@@ -3455,6 +3593,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                 isOtherPiStep={isDpOtherPiStep}
                                 otherPiProject={selectedDpPiProject}
                                 otherPiAccountHead={selectedDpPiHead}
+                                workflowState={data.workflow_state}
                             />
                         )}
                     </div>
@@ -3617,7 +3756,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                     }
                                 />
                                 <div ref={detailsContainerRef}>
-                                    <DocumentViewer data={data} />
+                                    <DocumentViewer data={data} checkLabels={checkLabels} />
                                 </div>
                                 <div style={{ display: "none" }} ref={activityLogContainerRef}>
                                     {id && (
@@ -3944,9 +4083,10 @@ const DirectPurchaseDetails: React.FC = () => {
                                     {isStaffRnD && !!poSanctionData && ["Sanction Approved", "POGenerated"].includes(data?.workflow_state ?? "") && (
                                         <div className="min-w-0 space-y-4">
                                             <CommitPayment
-                                                key={`commit-main-${id}`}
+                                                key={`commit-main-${id}-${data?.workflow_state}`}
                                                 doctype="Direct Purchase"
                                                 docName={id || ""}
+                                                excludeStagingTriggerState="POGenerated"
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
                                                 actualBalance={actualBalance}
@@ -3955,11 +4095,13 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                                             />
                                             <CommitPayment
-                                                key={`commit-po-${id}`}
+                                                key={`commit-po-${id}-${data?.workflow_state}`}
                                                 doctype="Direct Purchase"
                                                 docName={id || ""}
-                                                stagingReferenceName={`${id}-po`}
-                                                frapAppId={id}
+                                                triggerState="POGenerated"
+                                                stagingTriggerState="POGenerated"
+                                                legacyStagingReferenceName={`${id}-po`}
+                                                defaultParticular={poSanctionData?.po_number ? `PO ${poSanctionData.po_number}` : ""}
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
                                                 actualBalance={actualBalance}
@@ -4016,6 +4158,7 @@ const DirectPurchaseDetails: React.FC = () => {
                             actualBalance={actualBalance}
                             commitableBalance={commitableBalance}
                             displayHeadBalances={ledgerHeadBalances}
+                            excludeStagingTriggerState="POGenerated"
                             onCommitSuccess={() => loadData()}
                             onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                         />

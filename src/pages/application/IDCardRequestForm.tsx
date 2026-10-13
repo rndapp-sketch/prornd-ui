@@ -480,7 +480,7 @@ const IDCardRequestForm = () => {
   );
 
   // Validation
-  const validateForm = useCallback((): boolean => {
+  const formErrors = useMemo((): string[] => {
     const errors: string[] = [];
     if (!formData.emp_id__) errors.push("Employee ID is required.");
     if (!formData.project_number__) errors.push("Project Number is required.");
@@ -504,10 +504,15 @@ const IDCardRequestForm = () => {
       errors.push("Present Address is required.");
     if (!formData.permanent_address__)
       errors.push("Permanent Address is required.");
-
-    setValidationErrors(errors);
-    return errors.length === 0;
+    if (!formData.photo_path__) errors.push("Passport Size Photo is required.");
+    if (!formData.sign_path__) errors.push("Signature is required.");
+    return errors;
   }, [formData]);
+
+  const validateForm = useCallback((): boolean => {
+    setValidationErrors(formErrors);
+    return formErrors.length === 0;
+  }, [formErrors]);
 
   // Save Draft
   const handleSave = async () => {
@@ -1006,7 +1011,7 @@ const IDCardRequestForm = () => {
           <FrappeCard title="Photo & Signature" icon={Camera}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Photo Upload */}
-              <FormField label="Passport Size Photo">
+              <FormField label="Passport Size Photo" required>
                 <div className="flex items-start gap-4">
                   <div className="w-24 h-28 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-600 flex items-center justify-center overflow-hidden bg-zinc-50 dark:bg-zinc-800 flex-shrink-0">
                     {photoPreview ? (
@@ -1042,7 +1047,7 @@ const IDCardRequestForm = () => {
               </FormField>
 
               {/* Signature Upload */}
-              <FormField label="Signature">
+              <FormField label="Signature" required>
                 <div className="flex items-start gap-4">
                   <div className="w-32 h-16 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-600 flex items-center justify-center overflow-hidden bg-zinc-50 dark:bg-zinc-800 flex-shrink-0">
                     {signPreview ? (
@@ -1122,7 +1127,8 @@ const IDCardRequestForm = () => {
             <div className="flex gap-3">
               <FrappeButton
                 onClick={handleSave}
-                disabled={isSubmitting || isReadOnly}
+                disabled={isSubmitting || isReadOnly || formErrors.length > 0}
+                title={formErrors.length > 0 ? `Fill all mandatory fields first (${formErrors.length} missing)` : undefined}
                 className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
@@ -1134,7 +1140,8 @@ const IDCardRequestForm = () => {
               </FrappeButton>
               <FrappeButton
                 type="submit"
-                disabled={isSubmitting || !savedDocName || isReadOnly}
+                disabled={isSubmitting || !savedDocName || isReadOnly || formErrors.length > 0}
+                title={formErrors.length > 0 ? `Fill all mandatory fields first (${formErrors.length} missing)` : undefined}
                 className="bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm shadow-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (

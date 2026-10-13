@@ -19,11 +19,19 @@ function getCookie(name: string): string {
 }
 
 type Phase = 'password' | 'impersonate';
+type TargetMode = 'user' | 'project';
 
 interface UserSuggestion {
   name: string;
   full_name: string;
   username: string;
+}
+
+interface ProjectSuggestion {
+  name: string;
+  project_no: string;
+  project_title?: string;
+  owner: string;
 }
 
 const AdminLogin: React.FC = () => {
@@ -44,11 +52,20 @@ const AdminLogin: React.FC = () => {
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Phase 2, "Project No" tab: pick a project, log in as its owner
+  const [mode, setMode] = useState<TargetMode>('user');
+  const [projectQuery, setProjectQuery] = useState('');
+  const [selectedProject, setSelectedProject] = useState<ProjectSuggestion | null>(null);
+  const [projectSuggestions, setProjectSuggestions] = useState<ProjectSuggestion[]>([]);
+  const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
+  const [projectSearchLoading, setProjectSearchLoading] = useState(false);
+  const projectSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (phase === 'impersonate') {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [phase]);
+  }, [phase, mode]);
 
   // Phase 1: Admin login
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -171,20 +188,94 @@ const AdminLogin: React.FC = () => {
     searchTimeout.current = setTimeout(() => searchUsers(value), 300);
   };
 
-  // Phase 2: Impersonate
+  // Look up Project Registration rows by project number (requires prorndadmin session)
+  const fetchProjects = async (filters: unknown[][], limit: number): Promise<ProjectSuggestion[]> => {
+    const params = new URLSearchParams({
+      filters: JSON.stringify(filters),
+      fields: JSON.stringify(['name', 'project_no', 'project_title', 'owner']),
+      limit: String(limit),
+    });
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project Registration?${params}`, {
+      credentials: 'include',
+      headers: { 'X-Frappe-CSRF-Token': getCookie('X-Frappe-CSRF-Token') },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return (data.data as ProjectSuggestion[]) ?? [];
+  };
+
+  const searchProjects = async (query: string) => {
+    if (query.trim().length < 2) {
+      setProjectSuggestions([]);
+      return;
+    }
+    setProjectSearchLoading(true);
+    try {
+      const results = await fetchProjects([['project_no', 'like', `%${query.trim()}%`]], 10);
+      setProjectSuggestions(results);
+      setShowProjectSuggestions(results.length > 0);
+    } catch {
+      // silently fail — autocomplete is optional
+    }
+    setProjectSearchLoading(false);
+  };
+
+  const handleProjectQueryChange = (value: string) => {
+    setProjectQuery(value);
+    setSelectedProject(null);
+    setPhase2Error(null);
+    if (projectSearchTimeout.current) clearTimeout(projectSearchTimeout.current);
+    projectSearchTimeout.current = setTimeout(() => searchProjects(value), 300);
+  };
+
+  const selectProject = (project: ProjectSuggestion) => {
+    setSelectedProject(project);
+    setProjectQuery(project.project_no || project.name);
+    setProjectSuggestions([]);
+    setShowProjectSuggestions(false);
+  };
+
+  // Phase 2: Impersonate (a typed user, or the owner of the chosen project)
   const handleImpersonate = async (e: React.FormEvent) => {
     e.preventDefault();
     setPhase2Error(null);
     setShowSuggestions(false);
-
-    const target = targetUser.trim();
-    if (!target) {
-      setPhase2Error('Please enter a username or email.');
-      return;
-    }
+    setShowProjectSuggestions(false);
 
     setPhase2Loading(true);
     try {
+      let target = targetUser.trim();
+
+      if (mode === 'project') {
+        const number = projectQuery.trim();
+        if (!number) {
+          setPhase2Error('Please enter a project number.');
+          setPhase2Loading(false);
+          return;
+        }
+        let project = selectedProject;
+        if (!project) {
+          // Typed without picking a suggestion: resolve the exact project number
+          const matches = await fetchProjects([['project_no', '=', number]], 2);
+          if (matches.length === 0) {
+            setPhase2Error('No project found with this project number.');
+            setPhase2Loading(false);
+            return;
+          }
+          project = matches[0];
+        }
+        if (!project.owner) {
+          setPhase2Error('This project has no owner to log in as.');
+          setPhase2Loading(false);
+          return;
+        }
+        target = project.owner;
+      } else if (!target) {
+        setPhase2Error('Please enter a username or email.');
+        setPhase2Loading(false);
+        return;
+      }
+
       const csrf = getCookie('X-Frappe-CSRF-Token');
       const res = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.external_auth.impersonate_user`, {
         method: 'POST',
@@ -259,7 +350,9 @@ const AdminLogin: React.FC = () => {
               <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                 {phase === 'password'
                   ? 'Enter the ProRND admin password to continue.'
-                  : 'Enter the username or email of the user to log in as.'}
+                  : mode === 'user'
+                    ? 'Enter the username or email of the user to log in as.'
+                    : 'Enter a project number to log in as the project owner.'}
               </p>
             </div>
 
@@ -324,6 +417,86 @@ const AdminLogin: React.FC = () => {
             {/* Phase 2: Impersonate */}
             {phase === 'impersonate' && (
               <form onSubmit={handleImpersonate} className="space-y-4">
+                {/* Login target: a user, or a project's owner */}
+                <div role="tablist" className="grid grid-cols-2 gap-1 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] p-1 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                  {([['user', 'User'], ['project', 'Project No']] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={mode === key}
+                      onClick={() => { setMode(key); setPhase2Error(null); }}
+                      className={`h-8 rounded-md text-[11px] font-extrabold uppercase tracking-wider transition-colors ${
+                        mode === key
+                          ? 'bg-white text-[#D97757] shadow-sm dark:bg-[#27272A]'
+                          : 'text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {mode === 'project' && (
+                  <div className="relative space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">
+                      Project Number
+                    </label>
+                    <div className="relative overflow-hidden rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] transition-colors focus-within:border-[#4A6CF7] focus-within:ring-[3px] focus-within:ring-[#4A6CF7]/12 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                      <div className="absolute inset-y-0 left-0 flex w-10 items-center justify-center border-r border-[#E4E4E7] text-[#71717A] dark:border-[#3F3F46] dark:text-[#A1A1AA]">
+                        <Search className="h-4 w-4" />
+                      </div>
+                      <input
+                        ref={inputRef}
+                        className="h-11 w-full bg-transparent pl-12 pr-10 text-[12px] font-semibold text-[#3F3F46] outline-none placeholder:text-[#A1A1AA] dark:text-[#E4E4E7]"
+                        placeholder="e.g. 2627R-0190-CSEN1502SA"
+                        type="text"
+                        value={projectQuery}
+                        onChange={(e) => handleProjectQueryChange(e.target.value)}
+                        onFocus={() => projectSuggestions.length > 0 && setShowProjectSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowProjectSuggestions(false), 150)}
+                        autoComplete="off"
+                      />
+                      {projectSearchLoading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="h-4 w-4 rounded-full border-2 border-[#E4E4E7] border-t-[#71717A] animate-spin dark:border-[#3F3F46] dark:border-t-[#A1A1AA]" />
+                        </div>
+                      )}
+                    </div>
+
+                    {showProjectSuggestions && projectSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-lg dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <div className="max-h-60 overflow-y-auto">
+                          {projectSuggestions.map((project) => (
+                            <button
+                              key={project.name}
+                              type="button"
+                              onMouseDown={() => selectProject(project)}
+                              className="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]"
+                            >
+                              <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                {project.project_no || project.name}
+                              </span>
+                              {project.project_title && (
+                                <span className="truncate text-[11px] text-[#52525B] dark:text-[#D4D4D8]">{project.project_title}</span>
+                              )}
+                              <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">Owner: {project.owner}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject && (
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                        <UserCheck className="h-3.5 w-3.5 text-[#10B981]" />
+                        Will log in as <span className="text-[#3F3F46] dark:text-[#E4E4E7]">{selectedProject.owner}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {mode === 'user' && (
                 <div className="relative space-y-1.5">
                   <label className="text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">
                     Username or Email
@@ -371,6 +544,7 @@ const AdminLogin: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
 
                 {phase2Error && (
                   <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
@@ -400,7 +574,7 @@ const AdminLogin: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => { setPhase('password'); setTargetUser(''); setPhase2Error(null); }}
+                  onClick={() => { setPhase('password'); setTargetUser(''); setProjectQuery(''); setSelectedProject(null); setMode('user'); setPhase2Error(null); }}
                   className="w-full text-center text-[11px] font-bold text-[#71717A] transition-colors hover:text-[#D97757] dark:text-[#A1A1AA]"
                 >
                   ← Back

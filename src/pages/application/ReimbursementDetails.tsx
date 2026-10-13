@@ -615,6 +615,15 @@ const ReimbursementDetails: React.FC = () => {
     data.workflow_state === "Pending PI Approval" &&
     (data.reimbursement_for_id || "").toLowerCase() === currentUser.toLowerCase();
 
+  // With no project number yet (Other-PI reimbursement), "Reimbursement For" is visible
+  // only to the person it names.
+  const showReimbursementFor =
+    !!data &&
+    !!(data.reimbursement_for_id || data.reimbursement_for_department || data.reimbursement_for_designation) &&
+    (!!data.project_number ||
+      (!!currentUser &&
+        (data.reimbursement_for_id || "").toLowerCase() === currentUser.toLowerCase()));
+
   useEffect(() => {
     if (!isPiApprovalStep) return;
     const timer = setTimeout(() => setShowPiHint(true), 800);
@@ -831,7 +840,7 @@ const ReimbursementDetails: React.FC = () => {
       })
       : "-";
 
-    const totalAmount = data.table_bosk?.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0) || 0;
+    const totalAmount = data.table_bosk?.reduce((sum: number, item: any) => sum + (parseFloat(String(item.amount ?? '').replace(/,/g, '')) || 0), 0) || 0;
 
     const expenditureRows =
       data.table_bosk
@@ -842,7 +851,7 @@ const ReimbursementDetails: React.FC = () => {
                 <td>${item.r_date ? new Date(item.r_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-"}</td>
                 <td>${item.particulars || "-"}</td>
                 <td>${item.vendors_name || "-"}</td>
-                <td style="text-align: center;">${(parseFloat(item.amount) || 0).toLocaleString("en-IN")}</td>
+                <td style="text-align: center;">${(parseFloat(String(item.amount ?? '').replace(/,/g, '')) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style="color: blue; text-decoration: underline;">${item.uploads ? "Attached" : "No file"}</td>
             </tr>
         `,
@@ -1094,7 +1103,7 @@ const ReimbursementDetails: React.FC = () => {
                 </div>
                 <div class="field-row">
                     <div class="field-label">Total Amount</div>
-                    <div class="field-value highlight">₹ ${totalAmount.toLocaleString("en-IN")}</div>
+                    <div class="field-value highlight">₹ ${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
             </div>
         </div>
@@ -1141,7 +1150,7 @@ const ReimbursementDetails: React.FC = () => {
         <tfoot>
             <tr>
                 <td colspan="4" style="text-align: right; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #555;">Total Amount</td>
-                <td class="right" style="color: #1a3a6b; font-size: 11px;">₹ ${totalAmount.toLocaleString("en-IN")}</td>
+                <td class="right" style="color: #1a3a6b; font-size: 11px;">₹ ${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td></td>
             </tr>
         </tfoot>
@@ -1324,7 +1333,7 @@ const ReimbursementDetails: React.FC = () => {
               <FrappeCard
                 title="Applicant Details"
                 className={
-                  !(data.reimbursement_for_id || data.reimbursement_for_department || data.reimbursement_for_designation)
+                  !showReimbursementFor
                     ? "lg:col-span-2"
                     : ""
                 }
@@ -1352,7 +1361,7 @@ const ReimbursementDetails: React.FC = () => {
               </FrappeCard>
 
               {/* Reimbursement For */}
-              {(data.reimbursement_for_id || data.reimbursement_for_department || data.reimbursement_for_designation) && (
+              {showReimbursementFor && (
                 <FrappeCard title="Reimbursement For">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -1450,7 +1459,7 @@ const ReimbursementDetails: React.FC = () => {
                             <td className="px-4 py-3 text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{item.vendors_name || "-"}</td>
                             <td className="px-4 py-3 text-sm text-[#3F3F46] dark:text-[#E4E4E7]">{item.particulars || "-"}</td>
                             <td className="px-4 py-3 text-sm font-bold text-right text-[#3F3F46] dark:text-[#E4E4E7]">
-                              ₹{(parseFloat(item.amount) || 0).toLocaleString("en-IN")}
+                              ₹{(parseFloat(String(item.amount ?? '').replace(/,/g, '')) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {item.uploads ? (
@@ -1470,7 +1479,7 @@ const ReimbursementDetails: React.FC = () => {
                             Total Amount:
                           </td>
                           <td className="px-4 py-3 text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right">
-                            ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString("en-IN")}
+                            ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(String(item.amount ?? '').replace(/,/g, '')) || 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td />
                         </tr>

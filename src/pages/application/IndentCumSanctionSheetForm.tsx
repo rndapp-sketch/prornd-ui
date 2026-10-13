@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { usePutBack } from "@/components/PutBack";
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import {
@@ -2203,12 +2204,30 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       null
     );
   }, [availableActions, workflowState]);
+  // Level-based Put To options (replaces the "Put back to requestor" workflow action)
+  const putBack = usePutBack(
+    "Indent Cum Sanction Sheet",
+    editDocName || savedDocName || undefined,
+    async () => {
+      const name = editDocName || savedDocName;
+      if (!name) return;
+      setIsEditMode(false);
+      await fetchFormConfiguration(name);
+      fetchWorkflowActions(name);
+    },
+  );
+
+  // Put Back is only for users who can act on the current state
+  const canPutBack = putBack.hasPutBack && availableActions.length > 0;
+
   const filteredWorkflowActions = React.useMemo(
     () =>
-      availableActions.filter((action) =>
-        poGenerateAction ? action !== poGenerateAction : true,
+      availableActions.filter(
+        (action) =>
+          (poGenerateAction ? action !== poGenerateAction : true) &&
+          !(canPutBack && /put\s*back/i.test(action)),
       ),
-    [availableActions, poGenerateAction],
+    [availableActions, poGenerateAction, canPutBack],
   );
   const isPoDraftSaved = !!poDraftData && hasSavedPoDraft && !isPoDraftDirty;
 
@@ -5531,7 +5550,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       );
     }
 
-    if (!filteredWorkflowActions.length && !poGenerateAction) {
+    if (!filteredWorkflowActions.length && !poGenerateAction && !canPutBack) {
       return null;
     }
 
@@ -5574,7 +5593,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             A commitment must be submitted before forwarding this application.
           </div>
         )}
-        {filteredWorkflowActions.length > 0 && (
+        {(filteredWorkflowActions.length > 0 || canPutBack) && (
           <div className="relative">
             <button
               onClick={() => setShowActionsDropdown((v) => !v)}
@@ -5632,9 +5651,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                       </button>
                     );
                   })}
+                  {canPutBack && putBack.menu(() => setShowActionsDropdown(false), filteredWorkflowActions.length > 0)}
                 </div>
               </>
             )}
+            {putBack.modal}
           </div>
         )}
       </>

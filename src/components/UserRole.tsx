@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
 
 interface UseUserRolesResult {
@@ -32,7 +32,14 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
   // Once we have data, never show loading again
   const isEffectiveLoading = !hasEverLoaded.current && !!user && (isLoading || (data === undefined && !error));
 
-  const roles = (data?.message || []) as string[];
+  // Permanent_head holders are permanent staff who also head a unit, so everywhere the
+  // app checks "Permanent Employee" they must qualify as well.
+  const roles = useMemo(() => {
+    const raw = (data?.message || []) as string[];
+    return raw.includes("Permanent_head") && !raw.includes("Permanent Employee")
+      ? [...raw, "Permanent Employee"]
+      : raw;
+  }, [data?.message]);
   return { roles, isLoading: isEffectiveLoading, error, mutate };
 };
 

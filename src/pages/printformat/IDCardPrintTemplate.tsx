@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef } from "react";
 import { getUploadedImageUrl } from "@/utils/fileUtils";
+import { loadIdCardFontsInDocument } from "@/utils/idCardFonts";
 
 // -----------------------------------------------------------------------
 // ID Card Print Template
@@ -60,6 +61,9 @@ const formatDateSlash = (dateStr?: string) => {
 // not bundled, so Windows/macOS/Linux each substitute something else), so a
 // fixed px size can overflow on one machine and fit on another. The size
 // passed in is the design size and is only reduced when the text overflows.
+// Windows substitutes a wider bold face than Linux, so leave generous slack.
+const EXPORT_HEADROOM = 1.2;
+
 const FitText: React.FC<{
   size: number;
   minScale?: number;
@@ -67,17 +71,20 @@ const FitText: React.FC<{
   children: React.ReactNode;
 }> = ({ size, minScale = 0.6, style, children }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    const inner = innerRef.current;
+    if (!el || !inner) return;
 
     const fit = () => {
       const min = size * minScale;
       let current = size;
       el.style.fontSize = `${current}px`;
-      // 0.5px tolerance absorbs sub-pixel rounding differences between engines
-      while (el.scrollWidth - el.clientWidth > 0.5 && current > min) {
+      // The PNG/PDF export rasterises through an SVG foreignObject, where bold
+      // glyphs come out wider than in the live preview, so keep headroom.
+      while (inner.offsetWidth * EXPORT_HEADROOM > el.clientWidth && current > min) {
         current = Math.max(min, current - 0.25);
         el.style.fontSize = `${current}px`;
       }
@@ -89,8 +96,20 @@ const FitText: React.FC<{
     document.fonts?.ready.then(() => {
       if (!cancelled) fit();
     });
+    // The bundled Noto files are what the export embeds; measure with them too
+    loadIdCardFontsInDocument().then(() => {
+      if (!cancelled) fit();
+    });
+    // Refit when the box itself changes size (e.g. a sibling in the same row
+    // shrank and freed/took space), which a one-off measure would miss.
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => fit())
+        : null;
+    ro?.observe(el);
     return () => {
       cancelled = true;
+      ro?.disconnect();
     };
   }, [size, minScale, children]);
 
@@ -99,10 +118,25 @@ const FitText: React.FC<{
       ref={ref}
       style={{ ...style, fontSize: `${size}px`, whiteSpace: "nowrap" }}
     >
-      {children}
+      <span ref={innerRef} style={{ display: "inline-block" }}>
+        {children}
+      </span>
     </div>
   );
 };
+
+// One "Label: value" line of the card's details column; shrinks to fit instead
+// of clipping long values.
+const DetailRow: React.FC<{
+  label: string;
+  value: string;
+  valueScale?: number;
+}> = ({ label, value, valueScale = 1 }) => (
+  <FitText size={14} minScale={0.5} style={{ color: "#000000" }}>
+    <span style={{ fontWeight: 700 }}>{label}</span>{" "}
+    <span style={{ fontSize: `${valueScale}em`, fontWeight: 800 }}>{value}</span>
+  </FitText>
+);
 
 export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
   const holderSignature = data.sign_path__ || "";
@@ -276,10 +310,10 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             gap: "8px",
           }}
         >
-          <FitText size={12} style={{ minWidth: 0, flex: "0 1 auto" }}>
+          <FitText size={12} minScale={0.4} style={{ flex: "0 0 auto" }}>
             ID No: {data.emp_id__ || "—"}
           </FitText>
-          <FitText size={12} style={{ minWidth: 0, flex: "0 1 auto" }}>
+          <FitText size={12} minScale={0.4} style={{ minWidth: 0, flex: "1 1 0", textAlign: "right", paddingRight: "4px" }}>
             Project No: {data.project_number__ || "—"}
           </FitText>
         </div>
@@ -343,110 +377,10 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               WebkitTextStroke: "0.15px #000000",
             }}
           >
-            <div
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#000000",
-                }}
-              >
-                Name:
-              </span>{" "}
-              <span
-                style={{
-                  fontSize: "15px",
-                  fontWeight: 800,
-                  color: "#000000",
-                }}
-              >
-                {data.full_name__ || "—"}
-              </span>
-            </div>
-            <div
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#000000",
-                }}
-              >
-                Date Of Birth:
-              </span>{" "}
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  color: "#000000",
-                }}
-              >
-                {formatDateSlash(data.dob__)}
-              </span>
-            </div>
-            <div
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#000000",
-                }}
-              >
-                Designation:
-              </span>{" "}
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  color: "#000000",
-                }}
-              >
-                {data.designation__ || "—"}
-              </span>
-            </div>
-            <div
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#000000",
-                }}
-              >
-                Dept./Centre:
-              </span>{" "}
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  color: "#000000",
-                }}
-              >
-                {data.department_name__ || "—"}
-              </span>
-            </div>
+            <DetailRow label="Name:" value={data.full_name__ || "—"} valueScale={15 / 14} />
+            <DetailRow label="Date Of Birth:" value={formatDateSlash(data.dob__)} />
+            <DetailRow label="Designation:" value={data.designation__ || "—"} />
+            <DetailRow label="Dept./Centre:" value={data.department_name__ || "—"} />
           </div>
         </div>
       </div>

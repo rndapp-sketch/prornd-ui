@@ -25,14 +25,10 @@ const Dashboard = () => {
       return;
     }
 
-    // If currentUser is explicitly null (not just undefined during loading), redirect to login
-    if (currentUser === null) {
-      navigate('/login');
-      return;
-    }
-
-    // If currentUser is undefined (initial state before any auth check result), wait
-    if (currentUser === undefined) {
+    // Auth has finished loading and there is no logged-in user (a logged-out visit makes the
+    // session check fail, which leaves currentUser undefined, not null) — go to the login page.
+    if (!currentUser) {
+      navigate('/login', { replace: true });
       return;
     }
 
