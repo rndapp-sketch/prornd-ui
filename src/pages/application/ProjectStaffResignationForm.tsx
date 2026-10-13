@@ -6,6 +6,7 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { resignationAPI } from "@/services/apiService";
+import ViewProjectButton from "@/components/ViewProjectButton";
 import { PageHeader } from "@/components/common/PageHeader";
 import ResignationActionButtons from "@/components/ResignationActionButtons";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
@@ -36,6 +37,7 @@ interface ResignationDoc {
   name: string;
   docstatus: number;
   owner?: string;
+  creation?: string;
   workflow_state?: string;
   resignation_date?: string;
   reason?: string;
@@ -58,37 +60,53 @@ interface WorkflowActionsResponse {
 
 // ── Shared card/button primitives (mirrors TravelDetails / other application forms) ────
 
+type Accent = "blue" | "red" | "emerald" | "violet" | "teal" | "amber";
+
+const ACCENTS: Record<Accent, { head: string; icon: string; title: string }> = {
+  blue:    { head: "bg-gradient-to-r from-[#4A6CF7]/10 to-transparent", icon: "bg-[#4A6CF7]/15 text-[#4A6CF7]", title: "text-[#3451C7] dark:text-[#8FA5FF]" },
+  red:     {   head: "bg-gradient-to-r from-red-500/10 to-transparent",   icon: "bg-red-500/15 text-red-500",   title: "text-red-700 dark:text-red-400" },
+  emerald: { head: "bg-gradient-to-r from-emerald-500/10 to-transparent", icon: "bg-emerald-500/15 text-emerald-600", title: "text-emerald-700 dark:text-emerald-400" },
+  violet:  { head: "bg-gradient-to-r from-violet-500/10 to-transparent", icon: "bg-violet-500/15 text-violet-600", title: "text-violet-700 dark:text-violet-400" },
+  teal:    {  head: "bg-gradient-to-r from-teal-500/10 to-transparent",  icon: "bg-teal-500/15 text-teal-600", title: "text-teal-700 dark:text-teal-400" },
+  amber:   { head: "bg-gradient-to-r from-amber-500/10 to-transparent", icon: "bg-amber-500/15 text-amber-600", title: "text-amber-700 dark:text-amber-400" },
+};
+
 const FrappeCard = ({
   title,
   icon,
   hint,
   children,
   className = "",
+  accent = "blue",
 }: {
   title?: string;
   icon?: React.ReactNode;
   hint?: string;
   children: React.ReactNode;
   className?: string;
-}) => (
-  <div
-    className={cn(
-      "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
-      className,
-    )}
-  >
-    {title && (
-      <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
-        {icon && <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">{icon}</div>}
-        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-          {title}
-        </h3>
-        {hint && <span className="ml-auto text-[10px] text-[#A1A1AA] italic">{hint}</span>}
-      </div>
-    )}
-    <div className="p-6">{children}</div>
-  </div>
-);
+  accent?: Accent;
+}) => {
+  const c = ACCENTS[accent];
+  return (
+    <div
+      className={cn(
+        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
+        className,
+      )}
+    >
+      {title && (
+        <div className={cn("px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2.5", c.head)}>
+          {icon && <div className={cn("p-1.5 rounded-lg [&_svg]:text-current", c.icon)}>{icon}</div>}
+          <h3 className={cn("text-sm font-bold uppercase tracking-wider", c.title)}>
+            {title}
+          </h3>
+          {hint && <span className="ml-auto text-[10px] text-[#A1A1AA] italic">{hint}</span>}
+        </div>
+      )}
+      <div className="p-6">{children}</div>
+    </div>
+  );
+};
 
 const FrappeButton = ({
   children,
@@ -147,12 +165,79 @@ const getStageStatus = (stageName: string, currentState: string) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (
+interface StaffCommitDetails {
+  status: string;
+  total_committed_amount?: number;
+  staff_share?: {
+    designation?: string;
+    monthly_amount?: number;
+    duration_months?: number;
+    share_amount?: number;
+    paid_amount?: number;
+    pending_amount?: number;
+    remaining_share?: number;
+    unraised_share?: number;
+    post_row?: string;
+  } | null;
+  ledger_commits?: Array<{
+    transactionCommitNumber?: number;
+    accountHeadId?: number | string;
+    commitDate?: string;
+    commitAmount?: number;
+    status?: string;
+    frapAppId?: string;
+  }>;
+  ledger_payments?: {
+    payments_count?: number;
+    paid_count?: number;
+    total_payment_amount?: number;
+    total_paid_amount?: number;
+    count_by_status?: Record<string, number>;
+    payments?: Array<{
+      transactionPaymentNumber?: number;
+      paymentDate?: string;
+      paymentAmount?: number;
+      bmr?: string;
+      paymentStatus?: string;
+      bankTransactionNumber?: string | null;
+    }>;
+  };
+  tenure_history?: {
+    joining_date?: string;
+    current_term_completion_date?: string;
+    total_months_worked?: number;
+    total_gap_days?: number;
+    tenures?: any[];
+    extensions?: any[];
+    resignations?: any[];
+  };
+  leave_details?: {
+    leave_balance?: Record<string, any> | null;
+    applications?: any[];
+    approved_days_by_type?: Record<string, number>;
+    applications_by_state?: Record<string, number>;
+  };
+  warnings?: string[];
+}
+
+const formatCreated = (creation: string) =>
+  new Date(creation.replace(" ", "T")).toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+
+const fmtDate = (d?: string) =>
+  d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+const formatINR = (n?: number | null) =>
+  n == null ? "—" : `₹${Number(n).toLocaleString("en-IN")}`;
+
+const InfoRow = ({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value?: React.ReactNode; hint?: string }) => (
   <div className="flex items-start gap-3">
-    <div className="mt-0.5 flex-shrink-0 text-[#A1A1AA]">{icon}</div>
+    <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-lg bg-[#4A6CF7]/10 text-[#4A6CF7]">{icon}</div>
     <div className="min-w-0">
-      <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
       <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7] truncate">{value || "—"}</p>
+      {hint && <p className="text-[11px] leading-snug text-[#71717A] dark:text-[#A1A1AA] mt-0.5">{hint}</p>}
     </div>
   </div>
 );
@@ -258,7 +343,7 @@ const ProjectStaffResignationForm: React.FC = () => {
   const fullName = basic
     ? [basic.ps_first_name, basic.ps_middle_name, basic.ps_last_name].filter(Boolean).join(" ")
     : loadedResignation?.applicant_name || currentUser || "";
-  const { heads: budgetHeads, actualBalance } = useProjectBudget(projectNo);
+  const { heads: budgetHeads, actualBalance, headBalances } = useProjectBudget(projectNo);
 
   const { call: fetchDoc, loading: editDocLoading } = useFrappePostCall<{ message: ResignationDoc }>(
     "frappe.client.get",
@@ -529,6 +614,26 @@ const ProjectStaffResignationForm: React.FC = () => {
     isRnDStaff &&
     workflowState === "Pending Staff Approval";
   const commitRequired = showCommitSection && isCommittedForGate === false;
+
+  // Trace the staff member to the ledger commit that funds them, to prefill the decommit.
+  const { data: staffCommitResp } = useFrappeGetCall<{ message: StaffCommitDetails }>(
+    "rndopsapp.rndopsapp.commitPayment.get_staff_commit_details",
+    { ps_emp_id: applicantEmpId, project_no: projectNo },
+    showCommitSection && applicantEmpId ? undefined : null,
+    { revalidateOnFocus: false },
+  );
+  const staffCommit = staffCommitResp?.message?.status === "success" ? staffCommitResp.message : null;
+  const staffCommitAmount = Math.round(
+    staffCommit?.staff_share?.unraised_share ??
+      staffCommit?.staff_share?.share_amount ??
+      staffCommit?.total_committed_amount ??
+      0,
+  );
+  const ledgerCommit = staffCommit?.ledger_commits?.[0];
+  const staffCommitHead =
+    Object.entries(headBalances || {}).find(
+      ([, hb]) => String(hb.id) === String(ledgerCommit?.accountHeadId),
+    )?.[0] || undefined;
   const isFromRegistry = searchParams.get("fromRegistry") === "true";
 
   const isPI = roles.some((r) => {
@@ -663,6 +768,9 @@ const ProjectStaffResignationForm: React.FC = () => {
             status={workflowState}
             projectNumber={projectNo}
           >
+            {projectNo && (
+              <ViewProjectButton doctype="Project Staff Resignation" data={{ applicant_prj_num: projectNo }} />
+            )}
             {(!isTerminal && !isFromRegistry) && (
               <>
                 {isEditable && !isEditing && (
@@ -728,7 +836,7 @@ const ProjectStaffResignationForm: React.FC = () => {
 
                 {/* Workflow Timeline */}
                 {docName && (
-                  <FrappeCard title="Approval Status">
+                  <FrappeCard title="Approval Status" accent="violet">
                     <WorkflowTimeline currentState={workflowState} />
                   </FrappeCard>
                 )}
@@ -736,7 +844,8 @@ const ProjectStaffResignationForm: React.FC = () => {
                 {/* Applicant Details — read-only, prefilled */}
                 <FrappeCard
                   title="Applicant Details"
-                  icon={<UserIcon className="h-4 w-4 text-[#4A6CF7]" />}
+                  accent="blue"
+                  icon={<UserIcon className="h-4 w-4" />}
                   hint="Auto-filled from your profile"
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -756,9 +865,11 @@ const ProjectStaffResignationForm: React.FC = () => {
                 {/* Resignation Details — editable in Draft only */}
                 <FrappeCard
                   title="Resignation Details"
-                  icon={<FileText className="h-4 w-4 text-red-500 dark:text-red-400" />}
+                  accent="red"
+                  icon={<FileText className="h-4 w-4" />}
                 >
                   <div className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                       <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
                         <CalendarDays className="h-4 w-4 text-[#A1A1AA]" />
@@ -785,6 +896,19 @@ const ProjectStaffResignationForm: React.FC = () => {
                           {resignationDate || "—"}
                         </p>
                       )}
+                    </div>
+
+                    {loadedResignation?.creation && (
+                      <div>
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                          <CalendarDays className="h-4 w-4 text-[#A1A1AA]" />
+                          Form Created On
+                        </label>
+                        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          {formatCreated(loadedResignation.creation)}
+                        </div>
+                      </div>
+                    )}
                     </div>
 
                     <div>
@@ -819,6 +943,172 @@ const ProjectStaffResignationForm: React.FC = () => {
                   </div>
                 </FrappeCard>
 
+                {staffCommit && (
+                  <FrappeCard title="Staff Commitment" accent="emerald" icon={<FolderOpen className="h-4 w-4" />}>
+                    <div className="space-y-5">
+                      <div className="space-y-3">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">1 · Commitment</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <InfoRow icon={<FileText className="h-4 w-4" />} label="Recruitment (Commit Ref.)" value={ledgerCommit?.frapAppId} hint="Recruitment application whose commitment funds this employee's salary." />
+                          <InfoRow icon={<Briefcase className="h-4 w-4" />} label="Designation" value={staffCommit.staff_share?.designation} hint="Post this employee was recruited against." />
+                          <InfoRow icon={<FolderOpen className="h-4 w-4" />} label="Total committed (whole RAC)" value={formatINR(staffCommit.total_committed_amount)} hint="Commitment for the entire recruitment (all selected staff), not only this employee." />
+                          {staffCommit.staff_share && (
+                            <InfoRow
+                              icon={<CalendarDays className="h-4 w-4" />}
+                              label="Monthly × Months"
+                              value={`${formatINR(staffCommit.staff_share.monthly_amount)} × ${staffCommit.staff_share.duration_months}`}
+                              hint="Monthly salary cost × months of the approved contract."
+                            />
+                          )}
+                          <InfoRow icon={<IdCard className="h-4 w-4" />} label="Staff share" value={formatINR(staffCommit.staff_share?.share_amount)} hint="This employee's own part of the commitment (monthly × months), not the whole recruitment." />
+                        </div>
+                      </div>
+                      {staffCommit.staff_share?.paid_amount != null && (
+                        <div className="space-y-3">
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">2 · Staff share — paid and what can be released</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <InfoRow icon={<IdCard className="h-4 w-4" />} label="Staff share" value={formatINR(staffCommit.staff_share.share_amount)} hint="Starting point: this employee's own commitment." />
+                            <InfoRow icon={<CheckCircle2 className="h-4 w-4" />} label="Paid (bank txn)" value={formatINR(staffCommit.staff_share.paid_amount)} hint="Salary already paid out — ledger payments that have a bank transaction number." />
+                            <InfoRow icon={<IdCard className="h-4 w-4" />} label="Remaining share" value={formatINR(staffCommit.staff_share.remaining_share)} hint="Staff share minus what has actually been paid. Still includes the pending amount." />
+                            <InfoRow icon={<AlertCircle className="h-4 w-4" />} label="Pending in ledger" value={formatINR(staffCommit.staff_share.pending_amount)} hint="Salary already raised in the ledger but not yet paid. It stays committed — do not release it." />
+                            <InfoRow icon={<IdCard className="h-4 w-4" />} label="Unraised (can decommit)" value={formatINR(staffCommit.staff_share.unraised_share)} hint="Staff share minus paid and pending. This is the amount that can safely be released." />
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                      {!staffCommit.ledger_payments && (
+                        <p className="text-xs text-amber-600">
+                          Payment history not returned by the server (ledger_payments missing). Restart the Frappe backend and reload.
+                        </p>
+                      )}
+                      {staffCommit.ledger_payments && (
+                        <div className="space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Salary Payments</h4>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-2 py-2">
+                              <p className="text-[10px] uppercase text-[#71717A] dark:text-[#A1A1AA]">Raised</p>
+                              <p className="text-sm font-bold text-[#27272A] dark:text-[#E4E4E7]">{formatINR(staffCommit.ledger_payments.total_payment_amount)}</p>
+                              <p className="text-[10px] text-[#71717A] dark:text-[#A1A1AA]">{staffCommit.ledger_payments.payments_count ?? 0} payment(s)</p>
+                            </div>
+                            <div className="rounded-lg bg-green-50 dark:bg-green-900/20 px-2 py-2">
+                              <p className="text-[10px] uppercase text-green-700 dark:text-green-400">Paid</p>
+                              <p className="text-sm font-bold text-green-700 dark:text-green-400">{formatINR(staffCommit.ledger_payments.total_paid_amount)}</p>
+                              <p className="text-[10px] text-green-700/80 dark:text-green-400/80">{staffCommit.ledger_payments.paid_count ?? 0} payment(s)</p>
+                            </div>
+                            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 px-2 py-2">
+                              <p className="text-[10px] uppercase text-amber-700 dark:text-amber-400">Awaiting</p>
+                              <p className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                                {formatINR((staffCommit.ledger_payments.total_payment_amount ?? 0) - (staffCommit.ledger_payments.total_paid_amount ?? 0))}
+                              </p>
+                              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                                {(staffCommit.ledger_payments.payments_count ?? 0) - (staffCommit.ledger_payments.paid_count ?? 0)} payment(s)
+                              </p>
+                            </div>
+                          </div>
+                          {!staffCommit.ledger_payments.payments?.length && (
+                            <p className="text-xs text-[#A1A1AA] italic">No payments recorded in the ledger.</p>
+                          )}
+                          <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">Raised = salary requests created in the ledger. Awaiting = raised but not yet paid to the employee (status PENDING).</p>
+                          {(staffCommit.ledger_payments.payments || []).map((pay) => (
+                            <div
+                              key={pay.transactionPaymentNumber}
+                              className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-xs"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                                  {pay.paymentDate
+                                    ? new Date(pay.paymentDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+                                    : "—"}
+                                  {" · "}{formatINR(pay.paymentAmount)}
+                                </p>
+                                <p className="text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                  BMR {pay.bmr || "—"}{pay.bankTransactionNumber ? ` · ${pay.bankTransactionNumber}` : ""}
+                                </p>
+                              </div>
+                              <span
+                                className={cn(
+                                  "px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0",
+                                  pay.bankTransactionNumber
+                                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                                )}
+                              >
+                                {pay.paymentStatus || "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {staffCommit.tenure_history && (
+                        <div className="space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-violet-700 dark:text-violet-400">Tenure</h4>
+                          <InfoRow icon={<CalendarDays className="h-4 w-4" />} label="Joined" value={fmtDate(staffCommit.tenure_history.joining_date)} hint="Date this employee joined the project." />
+                          <InfoRow icon={<CalendarDays className="h-4 w-4" />} label="Current term ends" value={fmtDate(staffCommit.tenure_history.current_term_completion_date)} hint="Completion date of the present contract term." />
+                          <InfoRow
+                            icon={<Briefcase className="h-4 w-4" />}
+                            label="Months worked"
+                            value={`${staffCommit.tenure_history.total_months_worked ?? 0}${staffCommit.tenure_history.total_gap_days ? ` (gap ${staffCommit.tenure_history.total_gap_days} days)` : ""}`} hint="Total months served on the project, excluding any gaps." />
+                          <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">
+                            {staffCommit.tenure_history.tenures?.length ?? 0} tenure(s) · {staffCommit.tenure_history.extensions?.length ?? 0} extension(s)
+                          </p>
+                          {(staffCommit.tenure_history.extensions || []).map((ext: any, i: number) => (
+                            <div key={ext.name || i} className="rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-xs">
+                              <p className="font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                                {ext.name || "Extension"} · {ext.workflow_state || ext.state || "—"}
+                              </p>
+                              <p className="text-[#71717A] dark:text-[#A1A1AA]">
+                                {fmtDate(ext.final_new_joining_date || ext.new_joining_date)} → {fmtDate(ext.final_new_completion_date || ext.new_completion_date)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {staffCommit.leave_details && (
+                        <div className="space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Leave</h4>
+                          {staffCommit.leave_details.leave_balance && (
+                            <p className="text-xs text-[#27272A] dark:text-[#E4E4E7]">
+                              Leave balance remaining: EL {staffCommit.leave_details.leave_balance.el ?? staffCommit.leave_details.leave_balance.earned_leave ?? staffCommit.leave_details.leave_balance.remaining_el ?? "—"}
+                              {" · "}CL {staffCommit.leave_details.leave_balance.cl ?? staffCommit.leave_details.leave_balance.casual_leave ?? staffCommit.leave_details.leave_balance.remaining_cl ?? "—"}
+                            </p>
+                          )}
+                          <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">
+                            Leave days approved and taken:{" "}
+                            {Object.keys(staffCommit.leave_details.approved_days_by_type || {}).length
+                              ? Object.entries(staffCommit.leave_details.approved_days_by_type!).map(([k, v]) => `${k} ${v}`).join(" · ")
+                              : "none"}
+                          </p>
+                          {(staffCommit.leave_details.applications || []).map((lv: any, i: number) => (
+                            <div key={lv.name || i} className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-xs">
+                              <div className="min-w-0">
+                                <p className="font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                                  {lv.leave_type || lv.type || "Leave"} · {lv.no_of_days ?? lv.days ?? "—"} day(s)
+                                </p>
+                                <p className="text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                  {fmtDate(lv.from_date || lv.start_date)} → {fmtDate(lv.to_date || lv.end_date)}
+                                </p>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 flex-shrink-0">
+                                {lv.workflow_state || "—"}
+                              </span>
+                            </div>
+                          ))}
+                          {!staffCommit.leave_details.applications?.length && (
+                            <p className="text-xs text-[#A1A1AA] italic">No leave applications.</p>
+                          )}
+                        </div>
+                      )}
+                      
+                      </div>
+                      {!!staffCommit.warnings?.length && (
+                        <p className="text-xs text-amber-600">{staffCommit.warnings.join("; ")}</p>
+                      )}
+                    
+                    </div>
+                  </FrappeCard>
+                )}
+
+
                 {/* Terminal state notice */}
                 {isTerminal && (
                   <div className={cn(
@@ -846,9 +1136,19 @@ const ProjectStaffResignationForm: React.FC = () => {
                     projectName={projectNo}
                     budgetHeads={budgetHeads}
                     actualBalance={actualBalance}
-                    title="Release Resignation Commitment"
-                    description="Stage the project commitment required before forwarding this resignation."
-                    onCommitSuccess={() => showToast("success", "Commitment staged successfully.")}
+                    title="Release Resignation Decommitment"
+                    description="Stage the project decommitment required before forwarding this resignation."
+                    submitLabel="Submit Decommitment"
+                    hideHeadBalance
+                    displayHeadBalances={headBalances}
+                    defaultBudgetHead={staffCommitHead}
+                    billAmount={staffCommitAmount > 0 ? staffCommitAmount : undefined}
+                    defaultParticular={
+                      staffCommit
+                        ? `Decommit on resignation of ${applicantEmpId}${ledgerCommit?.transactionCommitNumber ? ` (commit #${ledgerCommit.transactionCommitNumber})` : ""}`
+                        : ""
+                    }
+                    onCommitSuccess={() => showToast("success", "Decommitment staged successfully.")}
                     onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                   />
                 </aside>

@@ -97,6 +97,8 @@ export interface CommitPaymentProps {
     displayHeadBalances?: Record<string, HeadBalanceLike>;
     /** Optional: hide the project-wide "Commitable Balance" list shown under the form (default: shown) */
     showBalanceList?: boolean;
+    /** Optional: hide the selected-head balance card (Available / Received / Committed / Paid) — e.g. for decommit forms */
+    hideHeadBalance?: boolean;
     /** Optional: adds a "View Project Ledger" button to the balance list */
     onViewLedger?: () => void;
     /** Optional: disable the form externally while still showing it */
@@ -597,6 +599,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     headBalances,
     displayHeadBalances,
     showBalanceList = true,
+    hideHeadBalance = false,
     onViewLedger,
     onHeadChange,
     disabled = false,
@@ -1094,7 +1097,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                             </>
                         )}
                     </select>
-                    {commitHead && (
+                    {commitHead && !hideHeadBalance && (
                         <SelectedHeadBalance head={commitHead} balance={selectedBalance} fallbackAvailable={selectedHeadBalance} />
                     )}
                 </div>
