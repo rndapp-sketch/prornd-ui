@@ -2,7 +2,8 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall } from "frappe-react-sdk";
 import { format } from "date-fns";
-import { BellIcon, CalendarIcon, ClockIcon, MegaphoneIcon, XIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { BellIcon, CalendarIcon, ClockIcon, MegaphoneIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { safeStorage } from "@/lib/safeStorage";
 import { cn } from "@/lib/utils";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 
 interface Announcement {
     name: string;
@@ -19,6 +21,57 @@ interface Announcement {
     start_date: string;
     end_date: string;
 }
+
+// Unread "put back" rows from Put Back Registry (see put_back_action.py).
+// Field names are read defensively since the payload is the raw registry row.
+interface PutBackNotification {
+    name?: string;
+    [key: string]: any;
+}
+
+const PUT_BACK_NOTIFICATIONS = "rndopsapp.rndopsapp.put_back_action.get_my_put_back_notifications";
+
+const pick = (n: PutBackNotification, keys: string[]): string => {
+    for (const k of keys) if (n[k]) return String(n[k]);
+    return "";
+};
+
+const putBackRoute = (doctype: string, name: string): string | null => {
+    const id = encodeURIComponent(name);
+    switch (doctype) {
+        case "Indent Cum Sanction Sheet": return `/indent-cum-sanction-sheet/${id}`;
+        case "Indent General Form": return `/indent-general-form-details/${id}`;
+        case "Travel": return `/travel/${id}`;
+        case "Reimbursement": return `/reimbursement/${id}`;
+        case "Direct Purchase": return `/direct-purchase/${id}`;
+        case "Project Staff Extension": return `/project-staff-extension?edit=${id}`;
+        case "Project Staff Resignation": return `/project-staff-resignation?edit=${id}`;
+        default: return null;
+    }
+};
+
+const initials = (name: string) =>
+    name.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+
+// Facebook-style round avatar with a small coloured type badge at the bottom-right.
+function NotifAvatar({ label, badge, tone }: { label?: string; badge: React.ReactNode; tone: string }) {
+    return (
+        <span className="relative h-7 w-7 shrink-0">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E4E6EB] text-[10px] font-bold text-[#65676B] dark:bg-[#3A3B3C] dark:text-[#E4E6EB]">
+                {label ?? badge}
+            </span>
+            {label !== undefined && (
+                <span className={cn("absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white text-white dark:border-[#242526]", tone)}>
+                    {badge}
+                </span>
+            )}
+        </span>
+    );
+}
+
+const UnreadDot = () => <span className="h-2 w-2 shrink-0 self-center rounded-full bg-[#0866FF]" />;
+
+const rowClass = "flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-[#F2F2F2] dark:hover:bg-[#3A3B3C]";
 
 const SEEN_KEY = "prornd_seen_announcements";
 
@@ -52,11 +105,83 @@ export function AnnouncementBell({ user }: { user: string }) {
     );
     const announcements = data?.message ?? [];
 
+    const navigate = useNavigate();
+    const { data: putBackData, mutate: refreshPutBack } = useFrappeGetCall<{
+        message: { status: string; count: number; notifications: PutBackNotification[] };
+    }>(PUT_BACK_NOTIFICATIONS, { mark_read: 0 }, user ? `put-back-${user}` : null, {
+        revalidateOnFocus: true,
+        refreshInterval: 5 * 60 * 1000,
+    });
+    const [menuOpen, setMenuOpen] = React.useState(false);
+    const [tab, setTab] = React.useState<"new" | "history">("new");
+    // History = every put back for the user (read ones included); needs include_read=1 on the backend.
+    const { data: historyData } = useFrappeGetCall<{
+        message: { notifications: PutBackNotification[] };
+    }>(PUT_BACK_NOTIFICATIONS, { mark_read: 0, include_read: 1 }, user && tab === "history" && menuOpen ? `put-back-history-${user}` : null);
+    const history = historyData?.message?.notifications ?? [];
+    const putBacks = putBackData?.message?.notifications ?? [];
+    const putBackCount = putBackData?.message?.count ?? putBacks.length;
+
     const [seen, setSeen] = React.useState<string[]>(() => readSeen(user));
     const [selected, setSelected] = React.useState<Announcement | null>(null);
-    const [menuOpen, setMenuOpen] = React.useState(false);
 
-    const unreadCount = announcements.filter((a) => !seen.includes(a.name)).length;
+    const unreadCount = announcements.filter((a) => !seen.includes(a.name)).length + putBackCount;
+
+    // Opening the menu shows the list as fetched, marks the put backs read on the
+    // server, and refreshes once closed so the badge clears.
+    const handleMenuOpenChange = async (next: boolean) => {
+        setMenuOpen(next);
+        if (next && putBackCount > 0) {
+            try {
+                await fetch(`${FRAPPE_BASE_URL}/api/method/${PUT_BACK_NOTIFICATIONS}?mark_read=1`, { credentials: "include" });
+            } catch { /* stays unread */ }
+        } else if (!next) {
+            refreshPutBack();
+        }
+    };
+
+    const openPutBack = (n: PutBackNotification) => {
+        const route = putBackRoute(
+            pick(n, ["application_doctype", "doctype_name", "reference_doctype", "document_type"]),
+            pick(n, ["application_docname", "docname", "reference_name", "document_name"]),
+        );
+        handleMenuOpenChange(false);
+        if (route) navigate(route);
+    };
+
+    const renderPutBacks = (list: PutBackNotification[], allUnread: boolean) => (
+        <>
+            {list.map((n, i) => {
+                const dt = pick(n, ["application_doctype", "doctype_name", "reference_doctype", "document_type"]);
+                const dn = pick(n, ["application_docname", "docname", "reference_name", "document_name"]);
+                const by = pick(n, ["put_back_by_name", "put_back_by", "session_user"]);
+                const toState = pick(n, ["to_state"]);
+                const reason = pick(n, ["reason"]);
+                const unread = allUnread || !n.is_read;
+                return (
+                    <button
+                        key={n.name ?? `${dn}-${i}`}
+                        type="button"
+                        onClick={() => openPutBack(n)}
+                        className={rowClass}
+                    >
+                        <NotifAvatar label={initials(by)} badge={<RotateCcwIcon className="h-2 w-2" />} tone="bg-[#F02849]" />
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-[11.5px] leading-snug text-[#050505] dark:text-[#E4E6EB]">
+                                <b>{by || "Someone"}</b> put back your {dt} <b>{dn}</b>
+                                {toState ? <> to <b>{toState}</b></> : null}
+                                {reason ? <>: <span className="text-[#65676B] dark:text-[#B0B3B8]">“{reason}”</span></> : null}
+                            </span>
+                            <span className={cn("mt-0 block text-[10px]", unread ? "font-semibold text-[#0866FF]" : "text-[#65676B] dark:text-[#B0B3B8]")}>
+                                {formatWhen(pick(n, ["timestamp", "creation"]))}
+                            </span>
+                        </span>
+                        {unread && <UnreadDot />}
+                    </button>
+                );
+            })}
+        </>
+    );
 
     const open = (announcement: Announcement) => {
         setMenuOpen(false);
@@ -70,13 +195,13 @@ export function AnnouncementBell({ user }: { user: string }) {
 
     return (
         <>
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenu open={menuOpen} onOpenChange={handleMenuOpenChange}>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
                             <button
                                 className="relative h-8 w-8 flex items-center justify-center rounded-lg border border-transparent text-[#71717A] transition-all hover:border-[#D97757]/20 hover:bg-[#D97757]/10 hover:text-[#D97757] dark:hover:text-[#E88B6A]"
-                                aria-label="Announcements"
+                                aria-label="Notifications"
                             >
                                 <BellIcon className="h-4 w-4" />
                                 {unreadCount > 0 && (
@@ -87,61 +212,83 @@ export function AnnouncementBell({ user }: { user: string }) {
                             </button>
                         </DropdownMenuTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>Announcements</TooltipContent>
+                    <TooltipContent>Notifications</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent
                     align="end"
-                    className="mt-2 w-80 overflow-hidden rounded-lg border-[#E4E4E7] bg-white p-0 shadow-xl dark:border-[#3F3F46] dark:bg-[#27272A]"
+                    sideOffset={10}
+                    className="relative w-[260px] overflow-visible rounded-xl border-0 bg-white p-0 shadow-[0_12px_28px_rgba(0,0,0,0.2),0_2px_4px_rgba(0,0,0,0.1)] dark:bg-[#242526]"
                 >
-                    <div className="flex items-center justify-between border-b border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 dark:border-[#4A6CF7]/30 dark:bg-[#1E3A8A]/18">
-                        <span className="flex items-center gap-1.5 text-[12px] font-extrabold uppercase tracking-wide text-[#1E3A8A] dark:text-[#C7D2FE]">
-                            <MegaphoneIcon className="h-3.5 w-3.5" />
-                            Announcements
-                        </span>
-                        {unreadCount > 0 && (
-                            <span className="rounded-full bg-[#F97316] px-2 py-0.5 text-[10px] font-bold text-white">
-                                {unreadCount} new
-                            </span>
-                        )}
+                    {/* Arrow pointing at the bell */}
+                    <span className="pointer-events-none absolute -top-1 right-[11px] h-2.5 w-2.5 rotate-45 rounded-[2px] bg-white dark:bg-[#242526]" />
+                    <div className="relative overflow-hidden rounded-xl">
+                    <div className="px-3 pb-1 pt-2">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[14px] font-bold leading-5 text-[#050505] dark:text-[#E4E6EB]">Notifications</h3>
+                            {unreadCount > 0 && (
+                                <span className="rounded-full bg-[#0866FF] px-1.5 py-px text-[10px] font-bold text-white">
+                                    {unreadCount} new
+                                </span>
+                            )}
+                        </div>
+                        <div className="mt-1.5 flex gap-1.5">
+                            {(["new", "history"] as const).map((t) => (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setTab(t)}
+                                    className={cn(
+                                        "rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors",
+                                        tab === t
+                                            ? "bg-[#E7F3FF] text-[#0866FF] dark:bg-[#263951] dark:text-[#2D88FF]"
+                                            : "text-[#050505] hover:bg-[#F2F2F2] dark:text-[#E4E6EB] dark:hover:bg-[#3A3B3C]",
+                                    )}
+                                >
+                                    {t === "new" ? "Latest" : "History"}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="max-h-80 overflow-y-auto">
-                        {announcements.length === 0 ? (
-                            <p className="px-3 py-6 text-center text-[12px] text-[#71717A]">
-                                No announcements right now.
+                    <div className="max-h-[50vh] overflow-y-auto px-1.5 pb-1.5">
+                        {tab === "history" ? (
+                            history.length === 0 ? (
+                                <p className="px-3 py-6 text-center text-[12px] text-[#65676B] dark:text-[#B0B3B8]">
+                                    No notification history.
+                                </p>
+                            ) : (
+                                <>
+                                    <p className="px-1.5 pb-0.5 pt-1 text-[12px] font-semibold text-[#050505] dark:text-[#E4E6EB]">Earlier</p>
+                                    {renderPutBacks(history, false)}
+                                </>
+                            )
+                        ) : announcements.length === 0 && putBacks.length === 0 ? (
+                            <p className="px-3 py-6 text-center text-[12px] text-[#65676B] dark:text-[#B0B3B8]">
+                                No notifications right now.
                             </p>
                         ) : (
-                            announcements.map((a) => {
-                                const isNew = !seen.includes(a.name);
-                                return (
-                                    <button
-                                        key={a.name}
-                                        type="button"
-                                        onClick={() => open(a)}
-                                        className="flex w-full items-start gap-2 border-b border-[#F4F4F5] px-3 py-2 text-left transition-colors last:border-b-0 hover:bg-[#EEF2FF] dark:border-[#3F3F46] dark:hover:bg-[#3F3F46]/40"
-                                    >
-                                        <span
-                                            className={cn(
-                                                "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                                                isNew ? "bg-[#F97316]" : "bg-transparent",
-                                            )}
-                                        />
-                                        <span className="min-w-0 flex-1">
-                                            <span
-                                                className={cn(
-                                                    "block truncate text-[13px] text-[#3F3F46] dark:text-[#E4E4E7]",
-                                                    isNew ? "font-bold" : "font-medium",
-                                                )}
-                                            >
-                                                {a.title}
+                            <>
+                                <p className="px-1.5 pb-0.5 pt-1 text-[12px] font-semibold text-[#050505] dark:text-[#E4E6EB]">New</p>
+                                {renderPutBacks(putBacks, true)}
+                                {announcements.map((a) => {
+                                    const isNew = !seen.includes(a.name);
+                                    return (
+                                        <button key={a.name} type="button" onClick={() => open(a)} className={rowClass}>
+                                            <NotifAvatar badge={<MegaphoneIcon className="h-3.5 w-3.5" />} tone="" />
+                                            <span className="min-w-0 flex-1">
+                                                <span className={cn("block text-[11.5px] leading-snug text-[#050505] dark:text-[#E4E6EB]", isNew && "font-semibold")}>
+                                                    {a.title}
+                                                </span>
+                                                <span className={cn("mt-0 block text-[10px]", isNew ? "font-semibold text-[#0866FF]" : "text-[#65676B] dark:text-[#B0B3B8]")}>
+                                                    {formatWhen(a.start_date)}
+                                                </span>
                                             </span>
-                                            <span className="block text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                                {formatWhen(a.start_date)}
-                                            </span>
-                                        </span>
-                                    </button>
-                                );
-                            })
+                                            {isNew && <UnreadDot />}
+                                        </button>
+                                    );
+                                })}
+                            </>
                         )}
+                    </div>
                     </div>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -171,7 +318,7 @@ export function AnnouncementBell({ user }: { user: string }) {
                             </button>
                             <div className="flex items-start gap-3 pr-6">
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15">
-                                    <MegaphoneIcon className="h-5 w-5" />
+                                    <MegaphoneIcon className="h-3.5 w-3.5" />
                                 </div>
                                 <div className="min-w-0">
                                     <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">

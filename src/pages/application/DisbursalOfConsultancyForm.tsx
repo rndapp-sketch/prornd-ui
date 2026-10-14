@@ -8,7 +8,7 @@ import { Save, Send } from 'lucide-react';
 import ViewProjectButton from '@/components/ViewProjectButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { commonAPI, disbursalOfConsultancyAPI, prepareFormDataForApi } from '@/services/apiService';
+import { commonAPI, disbursalOfConsultancyAPI } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 import { Printer } from 'lucide-react';
@@ -184,7 +184,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
-    const { call: saveForm } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.submit);
     const { call: stageCommit } = useFrappePostCall('rndopsapp.rndopsapp.commitPayment.submit_commit_data');
     // Fetch current user data for auto-fill
@@ -596,8 +595,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             const payload: Record<string, any> = { ...formData };
             if (effectiveDocName) payload.name = effectiveDocName;
 
-            const data = await prepareFormDataForApi(payload);
-            const res = await saveForm({ data: JSON.stringify(data) });
+            const res = await callSaveApi(disbursalOfConsultancyAPI.save, payload);
 
             if (res?.message?.status === 'success') {
                 const newDocName = res.message.docname || effectiveDocName;
@@ -626,8 +624,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             const payload: Record<string, any> = { ...formData };
             if (effectiveDocName) payload.name = effectiveDocName;
 
-            const data = await prepareFormDataForApi(payload);
-            const saveRes = await saveForm({ data: JSON.stringify(data) });
+            const saveRes = await callSaveApi(disbursalOfConsultancyAPI.save, payload);
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed");
             }
