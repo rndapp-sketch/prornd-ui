@@ -28,3 +28,12 @@ proxyOptions.ts
 # Derived at build/dev time by scripts/git-leaderboard.cjs — regenerated
 # fresh on every run, only used as a fallback when git itself is unavailable.
 .leaderboard-cache.json
+
+# Per-developer dev-server config. Was tracked, which meant every branch
+# carried its own copy and every merge had to pick a winner - the .env rows
+# showed up in PRs that had nothing to do with config. Copy .env.example to
+# .env locally; .env.example stays tracked as the template.
+# Only VITE_APP_BACKEND_HOST lives here and not in .env.production, and it is
+# read solely by proxyOptions.ts (the vite dev proxy, which has its own
+# fallback), so an absent .env does not change any built bundle.
+.env
