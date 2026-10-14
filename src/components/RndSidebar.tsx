@@ -197,6 +197,20 @@ export function AppSidebar() {
     );
     const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
 
+    // Unread "put back" notifications on the user's own forms. mark_read=0 keeps the
+    // badge until the user opens "Pending Application (as PI)", which marks them read.
+    const PUT_BACK_NOTIFICATIONS = "rndopsapp.rndopsapp.put_back_action.get_my_put_back_notifications";
+    const { data: putBackData, mutate: refreshPutBack } = useFrappeGetCall<{
+        message: { status: string; count: number };
+    }>(PUT_BACK_NOTIFICATIONS, { mark_read: 0 }, currentUser ? `put-back-${currentUser}` : null);
+    const returnedIcssCount = putBackData?.message?.count ?? 0;
+    const markPutBacksRead = React.useCallback(async () => {
+        try {
+            await fetch(`${FRAPPE_BASE_URL}/api/method/${PUT_BACK_NOTIFICATIONS}?mark_read=1`, { credentials: "include" });
+            refreshPutBack();
+        } catch { /* badge simply stays until next visit */ }
+    }, [refreshPutBack]);
+
     // Fetch pending ID Card requests for HR (Submitted state only)
     const isHrUser = roles?.some(r => ["staff, RnD", "System Manager"].includes(r)) ?? false;
     const { data: pendingIdCardList } = useFrappeGetDocList("Employee ID Card", {
@@ -489,6 +503,7 @@ export function AppSidebar() {
     }, [location.pathname, roles]);
 
     const handleMenuItemClick = (item: MenuItem) => {
+        if (item.label === "Pending Application (as PI)" && returnedIcssCount > 0) markPutBacksRead();
         if (item.action) {
             item.action();
         } else if (item.subMenu && !item.alwaysOpen && state !== "expanded" && item.subMenu[0]) {
@@ -601,7 +616,9 @@ export function AppSidebar() {
     const getBadge = (label: string): { count: number; tone: "orange" | "red" } | null => {
         const map: Record<string, { count: number; tone: "orange" | "red" }> = {
             "Pending Task (as Approver)": { count: pendingTaskCount, tone: "orange" },
-            "Pending Application (as PI)": { count: pendingApplicationCount, tone: "orange" },
+            "Pending Application (as PI)": returnedIcssCount > 0
+                ? { count: pendingApplicationCount + returnedIcssCount, tone: "red" }
+                : { count: pendingApplicationCount, tone: "orange" },
             "Upload Director PDF": { count: pendingDirectorPdfCount, tone: "orange" },
             "ID Card Management": { count: pendingIdCardCount, tone: "red" },
             "ID Card Request": { count: returnedIdCardCount, tone: "red" },
