@@ -108,7 +108,21 @@ pipeline {
           ]
           def t = targets[params.TARGET]
           if (!t) { error("unknown TARGET '${params.TARGET}'") }
-          t.each { k, v -> env[k.toUpperCase()] = v }
+          // Assigned one by one, NOT with `t.each { k, v -> env[k.toUpperCase()] = v }`.
+          // That form calls DefaultGroovyMethods.putAt, which Jenkins' script
+          // sandbox rejects outright (RejectedAccessException) - it killed
+          // rndopsapp-deploy-live #17 in this same stage. Setting env.NAME
+          // directly is whitelisted.
+          env.SSH_KEY    = t.ssh_key
+          env.LIVE       = t.live
+          env.LIVE_URL   = t.live_url
+          env.UI_DIR     = t.ui_dir
+          env.NPM        = t.npm
+          env.NODE_BIN   = t.node_bin
+          env.ENV_FILE   = t.env_file
+          env.SERVE      = t.serve
+          env.PM2_APP    = t.pm2_app
+          env.WAIT_TRIES = t.wait_tries
           echo "Target: ${params.TARGET}  ->  ${env.LIVE}  (served by ${env.SERVE})"
           if (params.TARGET == 'prod-206') {
             echo "NOTE: this is REAL PRODUCTION, serving users at pragati.iitg.ac.in"
