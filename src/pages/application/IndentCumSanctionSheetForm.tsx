@@ -5573,7 +5573,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       return null;
     }
 
-    const dropdownDisabled = isActionLoading || commitRequired;
+    const isPutToPiAction = (action: string) => /put\s*(to|back)/i.test(action);
+    // Pending commitment blocks forwarding only; "Put to PI" stays available.
+    const canActWithoutCommit =
+      canPutBack || filteredWorkflowActions.some(isPutToPiAction);
+    const dropdownDisabled =
+      isActionLoading || (commitRequired && !canActWithoutCommit);
 
     return (
       <>
@@ -5640,8 +5645,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg overflow-hidden">
                   {filteredWorkflowActions.map((action) => {
                     const isApproveAction = action === "Approve";
-                    const isDirectorBlocked = isApproveAction && directorApproveBlocked;
-                    const disabledTitle = isDirectorBlocked
+                    const isCommitBlocked = commitRequired && !isPutToPiAction(action);
+                    const isDirectorBlocked =
+                      isCommitBlocked || (isApproveAction && directorApproveBlocked);
+                    const disabledTitle = isCommitBlocked
+                      ? "Submit a commitment before forwarding"
+                      : isDirectorBlocked
                       ? sendToDirector
                         ? "Awaiting Director-signed PDF upload by Staff"
                         : "Tick Send for Director Approval before approving"
