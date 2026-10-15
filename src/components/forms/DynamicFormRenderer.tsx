@@ -7,6 +7,7 @@ import {
   evaluateExpression,
 } from "@/utils/evalExpression";
 import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
+import { Info } from "lucide-react";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
@@ -994,19 +995,22 @@ const FormSection = ({
       )}
     >
       <div className="form-section-header">
-        <div className="form-section-header-accent" />
-        <div className="flex flex-wrap items-center gap-2">
-          {title && (
-            <h2 className={cn("form-section-title", highlight && "!text-[#D97757] !text-base font-extrabold uppercase tracking-wide")}>{title}</h2>
-          )}
-          {highlight && (
-            <span className="px-2 py-0.5 rounded-full bg-[#D97757] text-white text-[10px] font-extrabold uppercase tracking-wider">
-              {highlight}
-            </span>
-          )}
+        <div className={cn("form-section-header-accent", description && "!h-auto self-stretch")} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {title && (
+              <h2 className={cn("form-section-title", highlight && "!text-[#D97757] !text-base font-extrabold uppercase tracking-wide")}>{title}</h2>
+            )}
+            {highlight && (
+              <span className="px-2 py-0.5 rounded-full bg-[#D97757] text-white text-[10px] font-extrabold uppercase tracking-wider">
+                {highlight}
+              </span>
+            )}
+          </div>
           {description && (
-            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5 leading-relaxed">
-              {description}
+            <p className="flex items-start gap-1.5 text-[12.5px] font-normal normal-case leading-relaxed tracking-normal text-[#71717A] dark:text-[#A1A1AA]">
+              <Info className="mt-[3px] h-3.5 w-3.5 shrink-0 text-[#D97757]/80" aria-hidden="true" />
+              <span>{description}</span>
             </p>
           )}
         </div>
