@@ -284,6 +284,7 @@ const AddFundSanction: React.FC = () => {
     // Kept separate from the editable base so users can't quietly delete it and
     // resubmit the original duplicate value.
     const [letterNoSuffix, setLetterNoSuffix] = useState('');
+    const [letterNoMode, setLetterNoMode] = useState<'manual' | 'auto'>('manual');
     const letterNoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Last non-empty letter no. the user had. If they clear the field entirely
     // (e.g. deleting the base text under a locked suffix), save/submit silently
@@ -459,6 +460,27 @@ const AddFundSanction: React.FC = () => {
 
     // baseValue is what the user typed in the editable box (the locked suffix, if any,
     // is appended separately so it can't be erased by editing/select-all-delete).
+    const handleLetterNoModeChange = useCallback((mode: 'manual' | 'auto') => {
+        if (letterNoTimerRef.current) clearTimeout(letterNoTimerRef.current);
+        setLetterNoMode(mode);
+        setLetterNoSuffix('');
+        if (mode === 'auto') {
+            // e.g. "SL-RDE2R-2627C-0011": random part + first two segments of project_no.
+            // Falls back to the project name if project_no isn't set.
+            const projectNo = String(projectDoc?.project_no || '').trim();
+            const shortNo = projectNo ? projectNo.split('-').slice(0, 2).join('-') : (projectName || '');
+            const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+            const generated = `SL-${rand}${shortNo ? `-${shortNo}` : ''}`.slice(0, 140);
+            lastValidLetterNoRef.current = generated;
+            handleChange('sanctioned_letter_no', generated);
+            setLetterNoHint({ status: 'available', message: 'System-generated letter number will be used' });
+        } else {
+            lastValidLetterNoRef.current = '';
+            handleChange('sanctioned_letter_no', '');
+            setLetterNoHint({ status: 'idle', message: '' });
+        }
+    }, [handleChange, projectDoc, projectName]);
+
     const handleLetterNoChange = useCallback((baseValue: string) => {
         const combined = baseValue + letterNoSuffix;
         handleChange('sanctioned_letter_no', combined);
@@ -482,7 +504,7 @@ const AddFundSanction: React.FC = () => {
                     });
                 } else {
                     setLetterNoSuffix('');
-                    setLetterNoHint({ status: 'available', message: 'Letter number is available' });
+                    setLetterNoHint({ status: 'available', message: 'Letter number is available, no duplicate found, so it can be used. This number has not been used in any other Fund Sanction record.' });
                 }
             } catch (err: any) {
                 setLetterNoHint({ status: 'idle', message: `Could not verify: ${err.message}` });
@@ -705,15 +727,31 @@ const AddFundSanction: React.FC = () => {
                                         : fullValue;
                                     return (
                                         <div className="space-y-1.5">
-                                            <label htmlFor="sanctioned_letter_no" className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
-                                                {field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
-                                            </label>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <label htmlFor="sanctioned_letter_no" className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                    {field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
+                                                </label>
+                                                <div className="inline-flex shrink-0 rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden text-[11px] font-bold">
+                                                    {(['manual', 'auto'] as const).map(m => (
+                                                        <button
+                                                            key={m}
+                                                            type="button"
+                                                            onClick={() => letterNoMode !== m && handleLetterNoModeChange(m)}
+                                                            className={cn('px-2 py-0.5 text-[10px] uppercase tracking-wider', letterNoMode === m ? 'bg-[#1E3A8A] text-white' : 'bg-transparent text-zinc-500')}
+                                                        >
+                                                            {m}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                             <div className="flex items-stretch">
                                                 <input
                                                     id="sanctioned_letter_no"
                                                     type="text"
                                                     className={cn(inputClasses, letterNoSuffix && 'rounded-r-none border-r-0')}
                                                     maxLength={140}
+                                                    readOnly={letterNoMode === 'auto'}
+                                                    placeholder={letterNoMode === 'auto' ? 'Auto-generated' : ''}
                                                     value={baseValue}
                                                     onChange={e => handleLetterNoChange(e.target.value.trimStart())}
                                                     onBlur={() => {
@@ -730,6 +768,9 @@ const AddFundSanction: React.FC = () => {
                                                 )}
                                             </div>
                                             <CharLimitAlert value={baseValue} maxLength={140} />
+                                            <p className="text-[11px] mt-1 text-zinc-500 dark:text-zinc-400">
+                                                No duplicate allowed. If a sanction letter number is available, insert it manually. If there is no sanction letter number, use Auto and a system-generated number will be used.
+                                            </p>
                                             {letterNoHint.status !== 'idle' && (
                                                 <p className={`text-[11px] mt-1 ${
                                                     letterNoHint.status === 'available' ? 'text-emerald-600 dark:text-emerald-400' :
