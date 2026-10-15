@@ -52,6 +52,10 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [debouncedValue] = useDebounce(inputValue, 300);
 
+  const optionsKey = onAsyncSearch
+    ? ''
+    : options.map(o => `${o.value}\u0001${o.label}`).join('\u0002');
+
   // Update internal input value if external value changes (e.g. reset/cleared)
   useEffect(() => {
     if (combineLabelValue) {
@@ -62,7 +66,10 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     } else {
       setInputValue(value);
     }
-  }, [value, options, searchByLabel, combineLabelValue]);
+    // Depend on option *content*, not array identity: parents often rebuild
+    // `options` every render, which would otherwise reset the typed text.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, optionsKey, searchByLabel, combineLabelValue]);
 
   // Async search: fire when debounced input changes (empty = show all when showAllOnFocus)
   useEffect(() => {
@@ -187,6 +194,9 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
         onChange={(e) => {
           setInputValue(e.target.value);
           setIsOpen(true);
+          // Async-search fields only commit on selection; propagate an emptied box
+          // so dependent auto-filled fields can be cleared.
+          if (onAsyncSearch && e.target.value === '' && value) onChange('');
         }}
         onFocus={() => {
           setIsOpen(true);
