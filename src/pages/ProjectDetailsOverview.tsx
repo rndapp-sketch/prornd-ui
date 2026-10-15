@@ -715,16 +715,20 @@ const ScrModal = ({
 }) => {
     if (!isOpen) return null;
 
+    // Only one SCR per interview; a new one is allowed only if all earlier ones are cancelled
+    const canCreateNew = scrs.every(
+        (s) => s.docstatus === 2 || s.workflow_state === "Cancelled",
+    );
+
     return createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999]">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-lg relative z-[100000]">
                 <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">
-                    Existing Selection Committee Report(s) Found
+                    Existing Selection Committee Report Found
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
                     A Selection Committee Report already exists for this
-                    interview. You can open an existing report or create a new
-                    one.
+                    interview. Only one report is allowed per interview.
                 </p>
                 <div className="space-y-3 mb-6 max-h-[280px] overflow-y-auto">
                     {scrs.map((scr) => (
@@ -775,12 +779,14 @@ const ScrModal = ({
                     <Button variant="ghost" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button
-                        onClick={onCreateNew}
-                        className="bg-[#D97757] hover:bg-[#D97757] text-white"
-                    >
-                        Create New SCR
-                    </Button>
+                    {canCreateNew && (
+                        <Button
+                            onClick={onCreateNew}
+                            className="bg-[#D97757] hover:bg-[#D97757] text-white"
+                        >
+                            Create New SCR
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>,
@@ -1093,7 +1099,7 @@ const QuickActions = ({
             const response = await fetchReimbursements({
                 doctype: "Selection Committee Report",
                 filters: [["interview_id", "=", item.name]],
-                fields: ["name", "workflow_state", "creation"],
+                fields: ["name", "workflow_state", "creation", "docstatus"],
                 order_by: "creation desc",
                 limit_page_length: 20,
             });

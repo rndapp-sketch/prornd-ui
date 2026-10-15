@@ -1697,9 +1697,23 @@ const getIcssWorkflowSuccessMessage = (action: string, nextState?: string) => {
   return "Indent Cum Sanction Sheet updated successfully!";
 };
 
+const ICSS_SECTION_DESCRIPTIONS: Record<string, string> = {
+  "applicant details":
+    "The person raising this indent. Details are taken from your profile and cannot be edited.",
+  "applying for":
+    "Whom this indent is raised for.",
+  "project details":
+    "The project and account head this purchase will be charged to, and whether it belongs to another PI.",
+};
+
 const ALWAYS_READONLY_FIELDS = new Set([
   "icss_applicant_webmail_id",
   "icss_applicant_name",
+  "icss_applicant_department__centre__section",
+  "icss_applicant_designation",
+  "icss_applying_for_name",
+  "icss_applying_for_department_centre_section",
+  "icss_applying_for_designation",
 ]);
 
 const IndentCumSanctionSheetForm: React.FC = () => {
@@ -1737,8 +1751,21 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     !editDocName || searchParams.get("mode") === "edit",
   );
 
+  const lockProjectFields =
+    searchParams.get("other_pi") !== "1" &&
+    Boolean(projectParam || projectNoParam || projectRefParam);
+
+  const lockSelfOtherFields =
+    searchParams.get("other_pi") === "1" || lockProjectFields;
+
   const displayBaseFields = React.useMemo(() => {
     return baseFields.map((field) => {
+      if (field.fieldtype === "Section Break" && !field.description) {
+        const description =
+          ICSS_SECTION_DESCRIPTIONS[String(field.label || "").trim().toLowerCase()];
+        if (description) return { ...field, description };
+      }
+
       if (field.fieldname === "icss_applicant_webmail_id") {
         return { ...field, fieldtype: "Data", read_only: 1 };
       }
@@ -1747,11 +1774,51 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         return { ...field, fieldtype: "Data", read_only: 1 };
       }
 
+      // Applying-for details are auto-filled from the chosen webmail.
+      if (
+        field.fieldname === "icss_applying_for_name" ||
+        field.fieldname === "icss_applying_for_department_centre_section" ||
+        field.fieldname === "icss_applying_for_designation"
+      ) {
+        return {
+          ...field,
+          ...(field.fieldname === "icss_applying_for_name"
+            ? { options: field.fieldname }
+            : {}),
+          read_only: 1,
+          read_only_depends_on: undefined,
+        };
+      }
+
+      // Applicant department/designation come from the user's profile.
+      if (
+        field.fieldname === "icss_applicant_department__centre__section" ||
+        field.fieldname === "icss_applicant_designation"
+      ) {
+        return { ...field, read_only: 1, read_only_depends_on: undefined };
+      }
+
       if (
         field.fieldname === "icss_applying_for_mail" ||
         field.fieldname === "icss_applying_for_name"
       ) {
         return { ...field, options: field.fieldname };
+      }
+
+      // Launched from a project page or the Other PI tab: Self/Other choice is fixed.
+      const isApplyingForField =
+        field.fieldname === "icss_other_pi" ||
+        field.fieldname === "icss_applying_for" ||
+        field.fieldname === "icss_other_pi_id" ||
+        /^applying\s*for$/i.test(String(field.label || "").trim());
+      // Project picked from the project page: reference and number are fixed too.
+      if (
+        (lockSelfOtherFields && isApplyingForField) ||
+        (lockProjectFields &&
+          (field.fieldname === "project_ref" ||
+            field.fieldname === "project_no"))
+      ) {
+        return { ...field, read_only: 1, read_only_depends_on: undefined };
       }
 
       // In edit mode, clear backend-supplied read_only from field and its child columns
@@ -1770,7 +1837,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
       return field;
     });
-  }, [baseFields, isEditMode]);
+  }, [baseFields, isEditMode, lockProjectFields, lockSelfOtherFields]);
   const [computationRules, setComputationRules] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
@@ -3434,8 +3501,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               }
             }
 
-            if (searchParams.get("other_pi") === "1") {
-              initialData.icss_other_pi = "Other";
+            const isOtherPiLaunch = searchParams.get("other_pi") === "1";
+            const hasProjectLaunch = Boolean(
+              projectParam || projectNoParam || projectRefParam,
+            );
+            if (isOtherPiLaunch || hasProjectLaunch) {
               // Locate the "Applying For" Self/Other select by label so we don't
               // depend on the backend fieldname.
               const applyingForField = (fetchedFields || []).find(
@@ -3443,10 +3513,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   /^applying\s*for$/i.test(String(f.label || "").trim()) &&
                   f.fieldtype !== "Section Break",
               );
+              const choice = isOtherPiLaunch ? "Other" : "Self";
+              initialData.icss_other_pi = choice;
               initialData[applyingForField?.fieldname || "icss_applying_for"] =
-                "Other";
-              initialData.project_ref = "";
-              initialData.project_no = "";
+                choice;
+              if (isOtherPiLaunch) {
+                initialData.project_ref = "";
+                initialData.project_no = "";
+              }
             }
 
             const normalizedData = normalizeIcssFormData(initialData);
@@ -3895,6 +3969,17 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         fieldname === "applying_for_mail" ||
         fieldname === "webmail_id"
       ) {
+        // Other-PI flow: the person being applied for is the Other PI.
+        if (
+          fieldname === "icss_applying_for_mail" ||
+          fieldname === "applying_for_mail"
+        ) {
+          setFormData((prev) =>
+            prev.icss_other_pi === "Other"
+              ? { ...prev, icss_other_pi_id: value || "" }
+              : prev,
+          );
+        }
         if (
           !value &&
           (fieldname === "icss_applying_for_mail" ||
