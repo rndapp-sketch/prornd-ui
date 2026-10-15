@@ -1167,8 +1167,9 @@ const ProjectRegistration: React.FC = () => {
         result: submitResult,
         error: submitError,
     } = useFrappePostCall(
-        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data",
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.submit_project_registration",
     );
+    // Same single endpoint: docname + comment only => Final Submit.
     const { call: submitProjectRegistration } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.submit_project_registration"
     );
@@ -2701,7 +2702,7 @@ const ProjectRegistration: React.FC = () => {
         setIsSubmitting(true);
         try {
             const { doc_data, files } = await prepareDataWithFiles();
-            await submitForm({ doc: doc_data, files });
+            await submitForm({ docname, doc: doc_data, files });
         } catch (err: any) {
             setErrorModal({
                 open: true,
