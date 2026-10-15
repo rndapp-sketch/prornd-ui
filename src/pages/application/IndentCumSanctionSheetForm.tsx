@@ -1100,21 +1100,20 @@ const WorkflowTimeline = ({
     if (status === "completed") return "bg-emerald-500 border-emerald-500 text-white";
     if (status === "in-progress") return "bg-[#D97757] border-[#D97757] text-white ring-4 ring-[#D97757]/20";
     if (status === "rejected") return "bg-red-500 border-red-500 text-white";
-    return "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-400 dark:text-zinc-500";
+    return "bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-400 dark:text-zinc-500";
   };
 
-  const lineStyle = (status: StageStatus) =>
-    status === "completed"
-      ? "bg-emerald-400"
-      : "bg-zinc-200 dark:bg-zinc-700";
+  // "Pending HoS Approval" -> "HoS Approval": the "Pending" prefix is noise in a stepper
+  const shortLabel = (label: string) => label.replace(/^Pending\s+/i, "");
 
   return (
     <FrappeCard>
-      <div className="p-4" id="icss-workflow-progress">
-        {/* Header row */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+      <div className="px-4 py-3" id="icss-workflow-progress">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-4 bg-[#D97757] rounded-full" />
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
               Workflow
             </h3>
             {isFinished && (
@@ -1128,72 +1127,76 @@ const WorkflowTimeline = ({
               </span>
             )}
             {activeStage && (
-              <span className="text-[10px] font-semibold text-[#D97757] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-2 py-0.5 rounded-full">
-                {activeStage.label}
+              <span className="text-[10px] font-semibold text-[#D97757] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-2 py-0 rounded-full">
+                Current: {activeStage.label}
               </span>
             )}
           </div>
-          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums">
-            {completedCount}/{totalCount} steps
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="h-1 w-20 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  isRejected ? "bg-red-400" : isFinished ? "bg-emerald-500" : "bg-[#D97757]",
+                )}
+                style={{ width: `${isFinished ? 100 : progressPct}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums">
+              {completedCount}/{totalCount} steps
+            </span>
+          </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="h-1 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 mb-4 overflow-hidden">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all duration-500",
-              isRejected ? "bg-red-400" : isFinished ? "bg-emerald-500" : "bg-[#D97757]",
-            )}
-            style={{ width: `${isFinished ? 100 : progressPct}%` }}
-          />
-        </div>
-
-        {/* Step track */}
-        <div className="flex items-center overflow-x-auto pb-1 gap-0">
+        {/* Stepper: equal-width columns, connector runs from this circle to the next */}
+        <ol className="flex w-full overflow-x-auto">
           {stages.map((stage, idx) => (
-            <React.Fragment key={`${stage.label}-${idx}`}>
-              <div className="flex flex-col items-center flex-shrink-0">
-                <div
-                  className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-200 text-[10px] font-bold",
-                    nodeStyle(stage.status),
-                  )}
-                  title={stage.label}
-                >
-                  {stage.status === "completed" ? (
-                    <CheckCircle2 className="w-3 h-3" />
-                  ) : stage.status === "rejected" ? (
-                    <XCircle className="w-3 h-3" />
-                  ) : stage.status === "in-progress" ? (
-                    <Clock className="w-3 h-3" />
-                  ) : (
-                    <span>{idx + 1}</span>
-                  )}
-                </div>
-                <p
-                  className={cn(
-                    "mt-1.5 text-center text-[10px] leading-tight w-[68px] px-0.5",
-                    stage.status === "in-progress" && "font-bold text-[#D97757]",
-                    stage.status === "completed" && "font-medium text-emerald-600 dark:text-emerald-400",
-                    stage.status === "pending" && "text-zinc-400 dark:text-zinc-500",
-                    stage.status === "rejected" && "font-bold text-red-500",
-                  )}
-                >
-                  {stage.label}
-                </p>
-              </div>
+            <li
+              key={`${stage.label}-${idx}`}
+              className="relative flex-1 min-w-[68px] flex flex-col items-center"
+            >
               {idx < stages.length - 1 && (
-                <div
+                <span
+                  aria-hidden="true"
                   className={cn(
-                    "flex-1 h-0.5 mb-4 min-w-[10px]",
-                    lineStyle(stage.status),
+                    "absolute top-3 left-1/2 w-full h-0.5 -translate-y-1/2",
+                    stage.status === "completed"
+                      ? "bg-emerald-400"
+                      : "bg-zinc-200 dark:bg-zinc-700",
                   )}
                 />
               )}
-            </React.Fragment>
+              <div
+                className={cn(
+                  "relative z-10 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-200 text-[10px] font-bold",
+                  nodeStyle(stage.status),
+                )}
+                title={stage.label}
+              >
+                {stage.status === "completed" ? (
+                  <CheckCircle2 className="w-3 h-3" />
+                ) : stage.status === "rejected" ? (
+                  <XCircle className="w-3 h-3" />
+                ) : stage.status === "in-progress" ? (
+                  <Clock className="w-3 h-3" />
+                ) : (
+                  <span>{idx + 1}</span>
+                )}
+              </div>
+              <p
+                className={cn(
+                  "mt-1 text-center text-[10px] leading-tight px-0.5",
+                  stage.status === "in-progress" && "font-bold text-[#D97757]",
+                  stage.status === "completed" && "font-medium text-emerald-600 dark:text-emerald-400",
+                  stage.status === "pending" && "text-zinc-400 dark:text-zinc-500",
+                  stage.status === "rejected" && "font-bold text-red-500",
+                )}
+              >
+                {shortLabel(stage.label)}
+              </p>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </FrappeCard>
   );
@@ -1730,7 +1733,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     () => [...baseFields, ...subFormFields],
     [baseFields, subFormFields],
   );
-  const [isEditMode, setIsEditMode] = useState(!editDocName);
+  const [isEditMode, setIsEditMode] = useState(
+    !editDocName || searchParams.get("mode") === "edit",
+  );
 
   const displayBaseFields = React.useMemo(() => {
     return baseFields.map((field) => {
@@ -1754,7 +1759,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         return {
           ...field,
           read_only: 0,
-          child_fields: field.child_fields?.map((cf: any) => ({ ...cf, read_only: 0 })),
+          read_only_depends_on: undefined,
+          child_fields: field.child_fields?.map((cf: any) => ({
+            ...cf,
+            read_only: 0,
+            read_only_depends_on: undefined,
+          })),
         };
       }
 
@@ -1869,7 +1879,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           return {
             ...field,
             read_only: 0,
-            child_fields: field.child_fields?.map((cf: any) => ({ ...cf, read_only: 0 })),
+            read_only_depends_on: undefined,
+            child_fields: field.child_fields?.map((cf: any) => ({
+              ...cf,
+              read_only: 0,
+              read_only_depends_on: undefined,
+            })),
           };
         }
 
@@ -1957,6 +1972,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
   // Workflow States
   const [workflowState, setWorkflowState] = useState<string>("Draft");
+  // Applicant name as stored on the server; backend rejects changing it on an existing doc.
+  const originalApplicantNameRef = React.useRef<string>("");
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [docStatus, setDocStatus] = useState<number>(0);
@@ -2890,6 +2907,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       project_ref: currentProjectRef,
     });
     delete normalizedFormData.__for_save;
+    if ((savedDocName || editDocName) && originalApplicantNameRef.current) {
+      normalizedFormData.icss_applicant_name = originalApplicantNameRef.current;
+    }
 
     const preparedData = await prepareFormDataForApi(normalizedFormData);
 
@@ -3287,6 +3307,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             const enrichedData =
               await enrichApplicantDisplayData(normalizedData);
             setFormData(normalizeIcssFormData(enrichedData));
+            originalApplicantNameRef.current =
+              prefill_data.icss_applicant_name || "";
             setWorkflowState(prefill_data.workflow_state || "Draft");
             setDocStatus(prefill_data.docstatus || 0);
             if (prefill_data.icss_indent_type) {
@@ -5476,8 +5498,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   }, [showPoEditor]);
 
   // --- RENDER HELPERS ---
+  // Workflow state decides editability; docstatus can be 1 on a doc the workflow
+  // still shows as Draft, which previously locked every field.
   const isReadOnly =
-    docStatus === 1 ||
     (workflowState !== "Draft" && workflowState !== "Pending") ||
     !isEditMode;
   const shouldUsePoGenerationTabs =
@@ -5519,53 +5542,53 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
   const renderActionButtons = () => {
     if (workflowState === "Draft") {
-      if (!isEditMode) {
-        // For existing saved drafts, allow submitting without entering edit mode
-        if (!currentDocName) return null;
-        return (
-          <button
-            onClick={() => setPendingAction("Submit")}
-            disabled={isSubmitting || isActionLoading}
-            className={cn(
-              "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
-              "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
-              (isSubmitting || isActionLoading) && "opacity-50 cursor-not-allowed",
-            )}
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Submit
-          </button>
-        );
-      }
+      const draftBusy = isSubmitting || isActionLoading;
       return (
-        <>
-          <FrappeButton
-            variant="outline"
-            onClick={handleSave}
-            disabled={isSubmitting || isActionLoading}
-            className="bg-white dark:bg-zinc-800 shadow-sm"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Save Draft
-          </FrappeButton>
-
+        <div className="flex items-center gap-2">
+          {!isEditMode && currentDocName && (
+            <button
+              type="button"
+              onClick={() => setIsEditMode(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition-all hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </button>
+          )}
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={draftBusy}
+              className={cn(
+                "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-all",
+                "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400",
+                "dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700",
+                draftBusy && "cursor-not-allowed opacity-50",
+              )}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save Draft
+            </button>
+          )}
           <button
+            type="button"
             onClick={() => setPendingAction("Submit")}
-            disabled={isSubmitting || isActionLoading}
+            disabled={draftBusy}
             className={cn(
-              "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
-              "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
-              (isSubmitting || isActionLoading) && "opacity-50 cursor-not-allowed",
+              "inline-flex h-10 items-center gap-2 rounded-xl border border-transparent px-5 text-sm font-semibold text-white shadow-sm transition-all",
+              "bg-[#D97757] hover:bg-[#c66a4e] hover:shadow-md",
+              draftBusy && "cursor-not-allowed opacity-50",
             )}
           >
-            <Send className="w-4 h-4 mr-2" />
+            <Send className="h-4 w-4" />
             Submit
           </button>
-        </>
+        </div>
       );
     }
 
@@ -5623,7 +5646,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               onClick={() => setShowActionsDropdown((v) => !v)}
               disabled={dropdownDisabled}
               className={cn(
-                "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
+                "inline-flex h-10 items-center gap-2 px-5 rounded-xl text-sm font-semibold border transition-all duration-200 shadow-sm",
                 dropdownDisabled
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
                   : "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
@@ -5709,43 +5732,61 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
       <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
         {/* Header */}
-        <div className="mb-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-          <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
+        <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="h-1 w-full bg-gradient-to-r from-[#D97757] via-[#e8a58f] to-transparent" />
+          <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                aria-label="Go back"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
               >
-                <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                <ArrowLeft className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
               </button>
-              <div>
-                <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex flex-wrap items-center gap-3">
-                  Indent Cum Sanction Sheet
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100">
+                    Indent Cum Sanction Sheet
+                  </h1>
                   {(editDocName || savedDocName) && (
                     <span
                       className={cn(
-                        "text-xs font-sans px-2.5 py-1 rounded-full border",
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-sans text-xs font-semibold",
                         ["Approved", "PO Delivered"].includes(
                           displayWorkflowState || "",
                         )
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300"
                           : displayWorkflowState === "Draft"
-                            ? "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
-                            : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50",
+                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-300"
+                            : "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/50 dark:bg-blue-900/20 dark:text-blue-300",
                       )}
                     >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
                       {displayWorkflowState}
                     </span>
                   )}
-                </h1>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                  {editDocName || savedDocName
-                    ? `Application ID: ${editDocName || savedDocName}`
-                    : "New Application"}
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  {editDocName || savedDocName ? (
+                    <>
+                      <span>Application ID</span>
+                      <code className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        {editDocName || savedDocName}
+                      </code>
+                    </>
+                  ) : (
+                    "New Application"
+                  )}
+                  {workflowState === "Draft" &&
+                    isEditMode && (
+                      <span className="inline-flex items-center gap-1 text-xs text-zinc-400">
+                        <Pencil className="h-3 w-3" /> Editable
+                      </span>
+                    )}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 md:justify-end">
+            <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
               {showDirectorControls && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
                   <FrappeButton
@@ -5856,16 +5897,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     Generate PO
                   </FrappeButton>
                 )}
-              {workflowState === "Draft" && !isEditMode && currentDocName && (
-                <FrappeButton
-                  variant="outline"
-                  onClick={() => setIsEditMode(true)}
-                  className="bg-white dark:bg-zinc-800 shadow-sm"
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit
-                </FrappeButton>
-              )}
               {renderActionButtons()}
             </div>
           </div>

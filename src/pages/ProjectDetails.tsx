@@ -1776,7 +1776,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             const action = selectedAction;
             const apiCall =
                 action.toLowerCase() === "submit"
-                    ? submitProjectRegistration({ docname: projectName }) // Submit might not need comment, or backend might not support it yet. But generic workflow usually does.
+                    ? submitProjectRegistration({ docname: projectName, comment })
                     : triggerWorkflowAction({
                         doctype: "Project Registration",
                         docname: projectName,
