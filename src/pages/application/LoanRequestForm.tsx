@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { Save, Send, UserIcon, IndianRupeeIcon, TableIcon, FileTextIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -115,6 +115,13 @@ const LoanRequestForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // Full, unfiltered Account Head options as returned by get_loan_request_fields.
+    // Kept around so the dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
+    // linkOptions key(s) the Fund Breakup child table's account-head column actually
+    // reads from (its own fieldname, and/or the Budget Head doctype name) — detected
+    // from the loaded field metadata rather than assumed.
+    const [accountHeadFieldKeys, setAccountHeadFieldKeys] = useState<string[]>(['account_head']);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,6 +136,17 @@ const LoanRequestForm: React.FC = () => {
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: saveForm } = useFrappePostCall<{ message: any }>(loanRequestAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(loanRequestAPI.submit);
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const projectNoForHeads = formData.project_number || '';
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
+    );
 
     useEffect(() => {
         if (!dataLoaded) fetchFormData({});
@@ -146,6 +164,24 @@ const LoanRequestForm: React.FC = () => {
                     }
                     return field;
                 });
+
+                // The Fund Breakup child table's account-head column fieldname varies by
+                // doctype config — find whatever it actually is rather than guessing, so
+                // the project filter below can target the right linkOptions key.
+                const fundBreakupTable = enhancedFields.find((f) => f.fieldname === 'account_head_fund_breakup') as any;
+                const fundBreakupChildFields: any[] = fundBreakupTable?.child_fields || [];
+                const headChildField =
+                    fundBreakupChildFields.find((cf) => cf.fieldtype === 'Link' && /head/i.test(cf.fieldname)) ||
+                    fundBreakupChildFields.find((cf) => cf.fieldtype === 'Link');
+                const headFieldKeys = Array.from(new Set([
+                    'account_head',
+                    headChildField?.fieldname,
+                    headChildField?.options,
+                ].filter(Boolean))) as string[];
+                setAccountHeadFieldKeys(headFieldKeys);
+                setAllAccountHeadOptions(
+                    headFieldKeys.map((k) => (link_options || {})[k] || []).find((o) => o.length > 0) || [],
+                );
 
                 if (editDocName) {
                     setFields(enhancedFields);
@@ -206,6 +242,33 @@ const LoanRequestForm: React.FC = () => {
     const handleFileChange = useCallback((fieldname: string, file: File | null) => {
         setFormData(prev => ({ ...prev, [fieldname]: file }));
     }, []);
+
+    // Narrow the Account Head dropdown (in the Fund Breakup child table) to the Budget
+    // Heads actually sanctioned/received for the selected project. Falls back to the
+    // full list once the project is cleared, or while the project-scoped list hasn't
+    // loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => {
+                const next = { ...prev };
+                accountHeadFieldKeys.forEach((key) => { next[key] = allAccountHeadOptions; });
+                return next;
+            });
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
+        setLinkOptions(prev => {
+            const next = { ...prev };
+            accountHeadFieldKeys.forEach((key) => { next[key] = filtered; });
+            return next;
+        });
+    }, [dataLoaded, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions, accountHeadFieldKeys]);
 
     const recalcLoanAmount = (rows: any[]) =>
         rows.reduce((sum: number, r: any) => sum + (parseFloat(r.account_head_amount) || 0), 0);

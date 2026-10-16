@@ -7431,52 +7431,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                         )}
                     >
                         <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
-                                <div className="w-0.5 h-3 rounded-full bg-[#4A6CF7]" />
-                                <h3 className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#1E3A8A] dark:text-blue-200">
-                                    Balances
-                                </h3>
-                            </div>
-                            <div className="p-2 space-y-1.5">
-                                <div className="rounded border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-2">
-                                    <div className="flex items-center justify-between gap-1">
-                                        <span className="text-[9px] font-bold uppercase text-blue-700 dark:text-blue-300">Commitable</span>
-                                        <span className="text-[8px] font-medium text-blue-600 dark:text-blue-400">Available</span>
-                                    </div>
-                                    <div className="text-[16px] font-extrabold text-blue-900 dark:text-blue-100 mt-0.5 leading-tight">
-                                        ₹ {commitableBalance.toLocaleString("en-IN", {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="rounded border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30 p-2">
-                                    <div className="flex items-center justify-between gap-1">
-                                        <span className="text-[9px] font-bold uppercase text-orange-700 dark:text-orange-300">Actual</span>
-                                        <span className="text-[8px] font-medium text-orange-600 dark:text-orange-400">After Payments</span>
-                                    </div>
-                                    <div className="text-[16px] font-extrabold text-orange-900 dark:text-orange-100 mt-0.5 leading-tight">
-                                        ₹ {actualBalance.toLocaleString("en-IN", {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}
-                                    </div>
-                                </div>
-                                {commitableBalance !== actualBalance && (
-                                    <div className="rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-2">
-                                        <div className="text-[8px] font-bold text-amber-700 dark:text-amber-300">Difference</div>
-                                        <div className="text-[14px] font-extrabold text-amber-900 dark:text-amber-100 mt-0.5 leading-tight">
-                                            ₹ {(commitableBalance - actualBalance).toLocaleString("en-IN", {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
                             <div className="px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />

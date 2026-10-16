@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from 'frappe-react-sdk';
 import { commonAPI } from '@/services/apiService';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -200,6 +200,9 @@ const TopUpFellowshipForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // Full, unfiltered Account Head options as returned by get_top_up_fellowship_fields.
+    // Kept around so the dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
     // dimension — every spend books to "Overhead". This fixes and locks every Budget
     // Head selector on the form. Ordinary projects are untouched.
@@ -237,6 +240,17 @@ const TopUpFellowshipForm: React.FC = () => {
     );
     const { call: fetchMonthlySummary } = useFrappePostCall<{ message: any }>(
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_students_monthly_summary'
+    );
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const projectNoForHeads = formData.project_no || '';
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
     );
 
     // Per-student monthly status, keyed by `${email}|${YYYY-MM}`
@@ -365,6 +379,7 @@ const TopUpFellowshipForm: React.FC = () => {
                 }
 
                 setLinkOptions(mergedLinkOptions);
+                setAllAccountHeadOptions(mergedLinkOptions.account_head || []);
 
                 let initialData: Record<string, any> = { ...prefill_data };
 
@@ -456,6 +471,24 @@ const TopUpFellowshipForm: React.FC = () => {
                 .catch(err => console.warn("Could not fetch owner details", err));
         }
     }, [formData.owner, fetchUserDetails]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
+        setLinkOptions(prev => ({ ...prev, account_head: filtered }));
+    }, [dataLoaded, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
