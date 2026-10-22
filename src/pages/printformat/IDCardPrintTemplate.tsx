@@ -310,7 +310,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             gap: "8px",
           }}
         >
-          <FitText size={12} minScale={0.4} style={{ flex: "0 0 auto" }}>
+          <FitText size={24} minScale={0.4} style={{ flex: "0 0 auto" }}>
             ID No: {data.emp_id__ || "—"}
           </FitText>
           <FitText size={12} minScale={0.4} style={{ minWidth: 0, flex: "1 1 0", textAlign: "right", paddingRight: "4px" }}>
