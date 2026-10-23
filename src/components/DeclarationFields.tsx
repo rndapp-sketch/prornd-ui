@@ -6,6 +6,13 @@ interface DeclarationFieldsProps {
     doctype: string;
 }
 
+// Frappe desk authors these fields for a fixed-size print/desk layout — they often
+// carry an explicit `height` (e.g. "height: 395px") sized for that context, which on
+// this card just leaves a large empty box below a few short lines of text. Strip any
+// inline height so the card hugs its actual content instead.
+const stripFixedHeight = (html: string): string =>
+    html.replace(/height\s*:\s*[\d.]+(px|rem|em|vh)\s*;?/gi, "");
+
 /**
  * Fetches HTML-type fields from a Frappe DocType's field definitions
  * and renders them. Declaration fields in Frappe are fieldtype "HTML"
@@ -44,8 +51,8 @@ export const DeclarationFields: React.FC<DeclarationFieldsProps> = ({ doctype })
                 {htmlFields.map((field: any, index: number) => (
                     <div
                         key={field.fieldname || index}
-                        className="prose prose-sm max-w-none text-zinc-900 dark:text-zinc-100 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl dark:prose-invert"
-                        dangerouslySetInnerHTML={{ __html: field.options }}
+                        className="prose prose-sm max-w-none leading-snug text-zinc-900 dark:text-zinc-100 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl dark:prose-invert [&_p]:my-1.5 [&_div]:!h-auto"
+                        dangerouslySetInnerHTML={{ __html: stripFixedHeight(field.options) }}
                     />
                 ))}
             </div>

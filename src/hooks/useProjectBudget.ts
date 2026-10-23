@@ -109,17 +109,26 @@ export const useProjectBudget = (projectCode: string) => {
           return;
         }
 
-        // 1. Fetch Budget Heads
+        // 1. Fetch the Budget Heads actually sanctioned/received for this project —
+        // not every Budget Head in the system — so the commit dropdown can't book
+        // a spend against a head the project was never funded under.
         const headRes = await fetch(
-          `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
+          `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project?project_no=${encodeURIComponent(projectCode)}`,
           { credentials: "include", headers: { Accept: "application/json" } },
         );
-        const headData = await headRes.json();
-        const availableHeads = headData?.data || [];
+        const headJson = await headRes.json();
+        const projectHeads: { name: string; id: number | null; budget_head: string }[] =
+          headJson?.message || [];
 
-        const headNames = availableHeads.map((h: any) => h.budget_head);
+        const headNames = projectHeads.map((h) => h.budget_head);
         setHeads(headNames);
 
+        // Heads without a proper Budget Head master record (plain sanction text,
+        // no matching doc) have no numeric id, so there's no ledger to fan out to —
+        // they still appear in the dropdown above, just with a zeroed balance.
+        const availableHeads = projectHeads
+          .filter((h) => h.id != null)
+          .map((h) => ({ budget_head: h.budget_head, id: h.id as number }));
 
         // 2. Fetch Ledger Data for EACH head
         // Using Promise.all to fetch concurrently

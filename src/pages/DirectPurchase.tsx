@@ -2220,6 +2220,9 @@ const DirectPurchase: React.FC = () => {
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [formData, setFormData] = useState<Record<string, any>>({});
+    // Full, unfiltered Account Head options as returned by get_direct_purchase_fields.
+    // Kept around so the dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     // --- OVERHEAD FUNDS: the account head is fixed, not chosen ---
     // This page renders its own field loop rather than using DynamicFormRenderer, so the
     // rule is applied here too — from the same shared helpers, so it cannot drift from the
@@ -2263,6 +2266,26 @@ const DirectPurchase: React.FC = () => {
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>(
         'frappe.client.get'
     );
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list. Reuses the
+    // same endpoint DirectPurchaseDetails already calls for its Other-PI account head picker.
+    const { call: fetchProjectAccountHeads } = useFrappePostCall<{ message: LinkOption[] }>(
+        directPurchaseAPI.getProjectAccountHeads
+    );
+    const projectNoForHeads = formData.project_no || formData.project_name || projectName || '';
+    const [projectAccountHeads, setProjectAccountHeads] = useState<LinkOption[] | null>(null);
+    useEffect(() => {
+        if (!projectNoForHeads) {
+            setProjectAccountHeads(null);
+            return;
+        }
+        let isCancelled = false;
+        fetchProjectAccountHeads({ project_name: projectNoForHeads })
+            .then((res) => { if (!isCancelled) setProjectAccountHeads(res?.message || []); })
+            .catch(() => { if (!isCancelled) setProjectAccountHeads(null); });
+        return () => { isCancelled = true; };
+    }, [projectNoForHeads, fetchProjectAccountHeads]);
 
     // ── Aggregations: compute parent-level values from child table data ──
     const computedAggregations = useMemo(() => {
@@ -2503,6 +2526,7 @@ const DirectPurchase: React.FC = () => {
                     }
                     return merged;
                 });
+                setAllAccountHeadOptions(link_options?.account_head || []);
                 setDataLoaded(true);
                 setLoading(false);
             };
@@ -2515,6 +2539,21 @@ const DirectPurchase: React.FC = () => {
             setLoading(false);
         }
     }, [result, error, projectName, editDocName, dataLoaded, fetchExistingDoc]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        if (!projectAccountHeads) return;
+        setLinkOptions(prev => ({ ...prev, account_head: projectAccountHeads }));
+    }, [dataLoaded, projectNoForHeads, projectAccountHeads, allAccountHeadOptions]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));

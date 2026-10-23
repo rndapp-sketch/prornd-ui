@@ -587,10 +587,10 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const isAtDirectorApproval = workflowState === "Pending Director Approval";
     const sendToDirector = Boolean(Number(formData.send_to_director || 0));
     const directorSignedPdf = String(formData.director_signed_pdf || "").trim();
-    // Backend auto-routes Dean → Director above ₹2,00,000; this opt-in is only
-    // for the Dean's discretionary escalation of a smaller amount.
+    // Director approval is required only above ₹2,00,000; the Dean must send
+    // such applications to the Director. Smaller amounts don't need it.
     const totalAmount = Number(formData.total_amount || 0);
-    const autoRequiresDirector = totalAmount > 200000;
+    const requiresDirector = totalAmount > 200000;
     const directorPdfBlocked = isDeanRnD && isAtDirectorApproval && !directorSignedPdf;
 
     const handleSendToDirector = async () => {
@@ -688,6 +688,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                                     isCommittedForGate === false
                                 }
                                 directorPdfBlocked={directorPdfBlocked}
+                                sendToDirectorRequired={isDeanRnD && isAtDeanApproval && requiresDirector && !sendToDirector}
                             />
                         )}
                     </div>
@@ -757,24 +758,27 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         </div>
 
 
-                        {/* Dean's discretionary escalation to Director — only
-                            when the amount doesn't already auto-route there */}
-                        {isDeanRnD && isAtDeanApproval && !autoRequiresDirector && !sendToDirector && (
-                            <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                        {/* Director approval note for Dean — button only when required (above ₹2,00,000) */}
+                        {isDeanRnD && isAtDeanApproval && !sendToDirector && (
+                            <div className={`p-4 rounded-xl border shadow-sm ${requiresDirector
+                                ? "bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700"
+                                : "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700"}`}>
+                                <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 ${requiresDirector ? "text-amber-800 dark:text-amber-300" : "text-emerald-800 dark:text-emerald-300"}`}>
                                     Director Approval
                                 </h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-                                    Optionally escalate this application for Director sign-off before approving.
+                                <p className={`text-xs font-medium mb-3 ${requiresDirector ? "text-amber-700 dark:text-amber-200" : "text-emerald-700 dark:text-emerald-200"}`}>
+                                    {requiresDirector
+                                        ? "Required: the total amount exceeds ₹2,00,000, so this application must be sent for Director sign-off before approving."
+                                        : "Not required: the total amount is ₹2,00,000 or less, so Director approval is not needed."}
                                 </p>
-                                <FrappeButton
+                                {requiresDirector && <FrappeButton
                                     className="w-full"
                                     variant="outline"
                                     onClick={handleSendToDirector}
                                     disabled={isUpdatingDirectorFlag}
                                 >
                                     {isUpdatingDirectorFlag ? "Saving…" : "Send for Director Approval"}
-                                </FrappeButton>
+                                </FrappeButton>}
                             </div>
                         )}
 

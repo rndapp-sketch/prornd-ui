@@ -2,7 +2,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { Save, Send, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -130,6 +130,9 @@ const IndentGeneralForm: React.FC = () => {
     // rendering, so the shared rule picks it up once this flag is set.
     const isOverheadProject = useIsOverheadProject(projectNoParam || projectNameParam);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // Full, unfiltered Account Head options (all Budget Heads). Kept around so the
+    // dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const isSavingRef = useRef(false);
@@ -148,6 +151,17 @@ const IndentGeneralForm: React.FC = () => {
     const { call: performActionCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.performAction);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const projectNoForHeads = formData.igf_project_code || projectNoParam || '';
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
+    );
 
     // ------ Client-script logic (mirrors Frappe's IGF client script) ------
     const applyClientScript = useCallback((data: Record<string, any>): Record<string, any> => {
@@ -265,6 +279,7 @@ const IndentGeneralForm: React.FC = () => {
                     value: h.budget_head || h.name,
                     label: h.budget_head || h.name,
                 }));
+                setAllAccountHeadOptions(budgetHeadOptions);
 
                 // User options for committee member webmail autocomplete
                 // Include the email in the label: distinct accounts can share the
@@ -387,6 +402,24 @@ const IndentGeneralForm: React.FC = () => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editDocName, currentUser]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (loading) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => ({ ...prev, igf_account_head: allAccountHeadOptions, budget_head: allAccountHeadOptions }));
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.budget_head, label: h.budget_head }));
+        setLinkOptions(prev => ({ ...prev, igf_account_head: filtered, budget_head: filtered }));
+    }, [loading, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     const handleChange = useCallback(
         (fieldname: string, value: any) => {
