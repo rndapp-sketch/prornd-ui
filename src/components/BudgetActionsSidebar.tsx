@@ -189,7 +189,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                         payment_amount: row.committed || 0,
                         budget_head: accountHeadValue?.name || row.head || '',
                         payment_bmr: row.bmr || '',
-                        payment_particular: row.particulars || '',
+                        payment_particular: (row.particulars || '').slice(0, 140),
                         commit_id: row.transactionId || ''
                     });
                     setIsPaymentOpen(true);

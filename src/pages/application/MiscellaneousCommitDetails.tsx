@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import {
     CalendarIcon, EditIcon, Send,
     CheckCircle2, UserIcon, IndianRupeeIcon,
-    LinkIcon, Briefcase, ArrowLeftRightIcon, ArrowLeft, X, ExternalLink,
+    LinkIcon, Briefcase, FileSpreadsheet, ArrowLeftRightIcon, ArrowLeft, X, ExternalLink,
 } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { miscellaneousCommitAPI, prepareFormDataForApi } from '@/services/apiService';
@@ -16,6 +16,8 @@ import { type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
+import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
+import { FRAPPE_BASE_URL } from '@/utils/frappeUrl';
 import { CommentModal } from '@/components/CommentModal';
 
 // --- WORKFLOW STAGES ---
@@ -148,9 +150,11 @@ const StateBadge = ({ state }: { state: string }) => {
     );
 };
 
+const isDecommit = (t?: string) => (t || '').replace(/[\s-]/g, '').toLowerCase() === 'decommit';
+
 // --- COMMIT TYPE BADGE ---
 const CommitBadge = ({ type }: { type: string }) => {
-    const isCommit = type === 'Commit';
+    const isCommit = !isDecommit(type);
     return (
         <span className={cn(
             'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-extrabold border',
@@ -174,6 +178,8 @@ const MiscellaneousCommitDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
@@ -208,6 +214,15 @@ const MiscellaneousCommitDetails: React.FC = () => {
         };
         load();
     }, [formDataResult, formDataError, id]);
+
+    useEffect(() => {
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`)
+            .then((r) => r.json())
+            .then((json) => {
+                if (json?.data) setBudgetHeadList(json.data.map((i: any) => ({ name: i.budget_head, id: i.id })));
+            })
+            .catch(() => {});
+    }, []);
 
     const handleRefresh = useCallback(() => {
         setLoading(true);
@@ -262,6 +277,8 @@ const MiscellaneousCommitDetails: React.FC = () => {
     );
 
     if (loading) return <GlobalLoader isLoading={true} />;
+
+    const typeLabel = isDecommit(formData.commit_decommit) ? 'De-Commit' : 'Commit';
 
     const commitAmountFmt = formData.commit_amount != null
         ? Number(formData.commit_amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 })
@@ -318,6 +335,15 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                     View Project
+                                </button>
+                            )}
+                            {formData.project_number && (
+                                <button
+                                    onClick={() => setIsLedgerOpen(true)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#D97757] hover:border-[#D97757]/50 transition-all shadow-sm"
+                                >
+                                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                                    View Ledger
                                 </button>
                             )}
                             {isDraft && id ? (
@@ -387,7 +413,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
 
                         {/* Commit Details */}
                         <FrappeCard>
-                            <CardHeader icon={IndianRupeeIcon} label="Commit Details" accent />
+                            <CardHeader icon={IndianRupeeIcon} label={`${typeLabel} Details`} accent />
                             <div className="p-4 space-y-3">
 
                                 {/* Amount highlight */}
@@ -397,7 +423,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                             <IndianRupeeIcon className="w-5 h-5" />
                                         </span>
                                         <div>
-                                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#A1A1AA]">Commit Amount</p>
+                                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#A1A1AA]">{typeLabel} Amount</p>
                                             <p className="text-[20px] font-extrabold text-[#D97757] leading-tight">{commitAmountFmt}</p>
                                         </div>
                                         <div className="ml-auto">
@@ -420,7 +446,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                             : <span className="text-[#A1A1AA] font-normal">—</span>
                                         }
                                     </InfoRow>
-                                    <InfoRow label="Commit Particular" value={formData.commit_particular} />
+                                    <InfoRow label={`${typeLabel} Particular`} value={formData.commit_particular} />
                                 </div>
 
                                 {formData.linked_application && (
@@ -463,7 +489,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                     <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                                         <p className="text-[13px] font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
                                             <CheckCircle2 className="w-4 h-4" />
-                                            Commit Approved
+                                            {typeLabel} Approved
                                         </p>
                                     </div>
                                 )}
@@ -509,6 +535,16 @@ const MiscellaneousCommitDetails: React.FC = () => {
             </main>
 
             {id && <FloatingActivityLogButton doctype="Miscellaneous Commit" docname={id} />}
+
+            {isLedgerOpen && (
+                <ProjectLedgerModal
+                    isOpen={isLedgerOpen}
+                    onClose={() => setIsLedgerOpen(false)}
+                    projectName={String(resolvedProjectNo || '')}
+                    highlightAppId={id}
+                    budgetHeadList={budgetHeadList}
+                />
+            )}
 
             {/* ── View Project Modal ── */}
             {prPreviewName && (

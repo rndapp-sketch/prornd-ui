@@ -546,12 +546,6 @@ const TopUpFellowshipForm: React.FC = () => {
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
             const updatedRow = { ...table[rowIndex], [fieldname]: value };
-            // Auto-compute per-row total = hours * rate when either changes
-            if (tableName === 'students' && (fieldname === 'hours_per_month' || fieldname === 'rate_per_hour')) {
-                const hours = Number(fieldname === 'hours_per_month' ? value : updatedRow.hours_per_month) || 0;
-                const rate = Number(fieldname === 'rate_per_hour' ? value : updatedRow.rate_per_hour) || 0;
-                updatedRow.total_amount_per_month = hours * rate;
-            }
             table[rowIndex] = updatedRow;
             // When period_from changes, refresh monthly status for this student
             if (tableName === 'students' && fieldname === 'period_from' && updatedRow.email_of_student) {

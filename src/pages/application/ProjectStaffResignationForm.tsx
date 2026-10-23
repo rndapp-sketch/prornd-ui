@@ -634,6 +634,35 @@ const ProjectStaffResignationForm: React.FC = () => {
     Object.entries(headBalances || {}).find(
       ([, hb]) => String(hb.id) === String(ledgerCommit?.accountHeadId),
     )?.[0] || undefined;
+  // Decommitment already staged against this resignation (shown in every state, not just while staff act on it).
+  const { call: fetchStagedDecommit } = useFrappePostCall<{ message: { status: string; data?: any[] } }>(
+    "rndopsapp.rndopsapp.commitPayment.get_commit_staging_status",
+  );
+  const [stagedDecommit, setStagedDecommit] = useState<{ amount: number; head?: string; status?: string; particular?: string } | null>(null);
+  useEffect(() => {
+    if (!docName) return;
+    let cancelled = false;
+    fetchStagedDecommit({ reference_name: docName })
+      .then((res) => {
+        const rec = res?.message?.status === "success" ? res.message.data?.[0] : null;
+        if (!rec || cancelled) return;
+        let payload: any = {};
+        try {
+          const raw = rec.payload ?? rec.commit_payload ?? "{}";
+          payload = typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch { /* ignore malformed payload */ }
+        const amount = Number(payload.commit_amount ?? payload.commitAmount ?? payload.bill_amount ?? 0);
+        if (!amount) return;
+        setStagedDecommit({
+          amount,
+          head: payload.budget_head ?? payload.budgetHead,
+          status: rec.status === "PUBLISHED" ? "Committed" : rec.status,
+          particular: payload.commit_particular ?? payload.commitParticular,
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [docName, workflowState]);
   const isFromRegistry = searchParams.get("fromRegistry") === "true";
 
   const isPI = roles.some((r) => {
@@ -942,6 +971,17 @@ const ProjectStaffResignationForm: React.FC = () => {
                     </div>
                   </div>
                 </FrappeCard>
+
+                {stagedDecommit && (
+                  <FrappeCard title="Decommitted Amount" accent="emerald" icon={<CheckCircle2 className="h-4 w-4" />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <InfoRow icon={<IdCard className="h-4 w-4" />} label="Decommitted amount" value={formatINR(stagedDecommit.amount)} hint="Amount released from the project commitment for this resignation." />
+                      {stagedDecommit.head && <InfoRow icon={<FolderOpen className="h-4 w-4" />} label="Budget head" value={stagedDecommit.head} />}
+                      {stagedDecommit.status && <InfoRow icon={<CheckCircle2 className="h-4 w-4" />} label="Status" value={stagedDecommit.status} />}
+                      {stagedDecommit.particular && <InfoRow icon={<FileText className="h-4 w-4" />} label="Particulars" value={stagedDecommit.particular} />}
+                    </div>
+                  </FrappeCard>
+                )}
 
                 {staffCommit && (
                   <FrappeCard title="Staff Commitment" accent="emerald" icon={<FolderOpen className="h-4 w-4" />}>

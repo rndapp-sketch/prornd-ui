@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { CommentModal } from "@/components/CommentModal";
+import { usePutBack } from "@/components/PutBack";
 import {
   User as UserIcon, IdCard, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
@@ -966,6 +967,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
     workflowState === "Pending Staff Approval";
   const commitRequired = showCommitSection && isCommittedForGate === false;
 
+  // Level-based Put To options; refresh the state and actions once a put-back lands.
+  const putBack = usePutBack("Project Staff Extension", docName || undefined, () => {
+    if (docName) refreshActions(docName);
+  });
+
   const workflowActions = canUserActOnCurrentState
     ? availableActions.length > 0
       ? availableActions
@@ -1130,7 +1136,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
                   (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
                 );
-                const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable;
+                const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable || putBack.hasPutBack;
 
                 const categoriseAction = (action: string) => {
                   const a = action.toLowerCase();
@@ -1244,6 +1250,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 Submit
                               </button>
                             )}
+                            {putBack.menu(() => setActionsMenuOpen(false), workflowActions.length > 0 || fallbackSubmitAvailable)}
                           </div>,
                           document.body,
                         )}
@@ -1275,6 +1282,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 );
               })()}
           </PageHeader>
+
+          {putBack.modal}
 
           <CommentModal
             isOpen={!!modalAction}
