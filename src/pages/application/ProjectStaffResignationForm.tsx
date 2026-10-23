@@ -663,6 +663,7 @@ const ProjectStaffResignationForm: React.FC = () => {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [docName, workflowState]);
+  const showSidebar = showCommitSection || !!stagedDecommit;
   const isFromRegistry = searchParams.get("fromRegistry") === "true";
 
   const isPI = roles.some((r) => {
@@ -860,8 +861,8 @@ const ProjectStaffResignationForm: React.FC = () => {
               </p>
             </FrappeCard>
           ) : (
-            <div className={cn(showCommitSection ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
-              <div className={cn("space-y-5", showCommitSection && "lg:col-span-3")}>
+            <div className={cn(showSidebar ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
+              <div className={cn("space-y-5", showSidebar && "lg:col-span-3")}>
 
                 {/* Workflow Timeline */}
                 {docName && (
@@ -971,17 +972,6 @@ const ProjectStaffResignationForm: React.FC = () => {
                     </div>
                   </div>
                 </FrappeCard>
-
-                {stagedDecommit && (
-                  <FrappeCard title="Decommitted Amount" accent="emerald" icon={<CheckCircle2 className="h-4 w-4" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <InfoRow icon={<IdCard className="h-4 w-4" />} label="Decommitted amount" value={formatINR(stagedDecommit.amount)} hint="Amount released from the project commitment for this resignation." />
-                      {stagedDecommit.head && <InfoRow icon={<FolderOpen className="h-4 w-4" />} label="Budget head" value={stagedDecommit.head} />}
-                      {stagedDecommit.status && <InfoRow icon={<CheckCircle2 className="h-4 w-4" />} label="Status" value={stagedDecommit.status} />}
-                      {stagedDecommit.particular && <InfoRow icon={<FileText className="h-4 w-4" />} label="Particulars" value={stagedDecommit.particular} />}
-                    </div>
-                  </FrappeCard>
-                )}
 
                 {staffCommit && (
                   <FrappeCard title="Staff Commitment" accent="emerald" icon={<FolderOpen className="h-4 w-4" />}>
@@ -1168,8 +1158,20 @@ const ProjectStaffResignationForm: React.FC = () => {
               </div>
 
               {/* Commit window — R&D staff must stage a commitment before forwarding */}
-              {showCommitSection && (
+              {showSidebar && (
                 <aside className="lg:col-span-1 space-y-5">
+                  {/* While staff are staging, CommitPayment shows the committed details itself. */}
+                  {stagedDecommit && !showCommitSection && (
+                    <FrappeCard title="Decommitted Amount" accent="emerald" icon={<CheckCircle2 className="h-4 w-4" />}>
+                      <div className="space-y-4">
+                        <InfoRow icon={<IdCard className="h-4 w-4" />} label="Decommitted amount" value={formatINR(stagedDecommit.amount)} hint="Amount released from the project commitment for this resignation." />
+                        {stagedDecommit.head && <InfoRow icon={<FolderOpen className="h-4 w-4" />} label="Budget head" value={stagedDecommit.head} />}
+                        {stagedDecommit.status && <InfoRow icon={<CheckCircle2 className="h-4 w-4" />} label="Status" value={stagedDecommit.status} />}
+                        {stagedDecommit.particular && <InfoRow icon={<FileText className="h-4 w-4" />} label="Particulars" value={stagedDecommit.particular} />}
+                      </div>
+                    </FrappeCard>
+                  )}
+                  {showCommitSection && (
                   <CommitPayment
                     doctype="Project Staff Resignation"
                     docName={docName}
@@ -1191,6 +1193,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                     onCommitSuccess={() => showToast("success", "Decommitment staged successfully.")}
                     onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                   />
+                  )}
                 </aside>
               )}
             </div>
