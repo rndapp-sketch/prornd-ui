@@ -11,6 +11,7 @@ interface Props {
   onActionComplete: () => void;
   commitRequired?: boolean;
   directorPdfBlocked?: boolean;
+  sendToDirectorRequired?: boolean;
   onPrint?: () => void;
 }
 
@@ -71,6 +72,7 @@ const DisbursalOfHonorariumActionButtons = ({
   onActionComplete,
   commitRequired = false,
   directorPdfBlocked = false,
+  sendToDirectorRequired = false,
   onPrint,
 }: Props) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
@@ -234,13 +236,19 @@ const DisbursalOfHonorariumActionButtons = ({
               </div>
             )}
 
+            {sendToDirectorRequired && (
+              <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                Amount exceeds ₹2,00,000. Send for Director Approval first.
+              </div>
+            )}
+
             {[forwardActions, neutralActions, rejectActions]
               .filter((g) => g.length > 0)
               .map((group, gi) => (
                 <React.Fragment key={gi}>
                   {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                   {group.map((action) => {
-                    const blockedByPdf = directorPdfBlocked && categorise(action) === "forward";
+                    const blockedByPdf = (directorPdfBlocked || sendToDirectorRequired) && categorise(action) === "forward";
                     const blocked = commitRequired || blockedByPdf;
                     const { icon, cls, iconCls } = itemStyle(action);
                     return (
