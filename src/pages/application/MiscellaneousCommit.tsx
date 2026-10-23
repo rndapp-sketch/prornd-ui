@@ -1,6 +1,6 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 import {
@@ -158,6 +158,7 @@ interface MiscellaneousCommitListItem {
     commit_amount?: number;
     commit_decommit?: string;
     commit_particular?: string;
+    module?: string;
     project_number?: string;
     applicant_department?: string;
     applicant_webmail?: string;
@@ -172,15 +173,24 @@ const MiscellaneousCommit: React.FC = () => {
     const [helpOpen, setHelpOpen] = useState(false);
     const [guideExpanded, setGuideExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState<"Commit" | "De-Commit">("Commit");
-    const [currentPage, setCurrentPage] = useState(1);
+    // Tab lives in the URL so going back from a details page returns to the same tab.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab: "Commit" | "De-Commit" = searchParams.get("tab") === "decommit" ? "De-Commit" : "Commit";
+    const requestedPage = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const updateParams = (tab: "Commit" | "De-Commit", page: number) => {
+        const next: Record<string, string> = {};
+        if (tab === "De-Commit") next.tab = "decommit";
+        if (page > 1) next.page = String(page);
+        setSearchParams(next, { replace: true });
+    };
+    const setActiveTab = (tab: "Commit" | "De-Commit") => updateParams(tab, 1);
     const PAGE_SIZE = 10;
 
     const fetchList = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(
-                `${FRAPPE_BASE_URL}/api/resource/Miscellaneous Commit?fields=["name","creation","workflow_state","commit_amount","commit_decommit","commit_particular","project_number","applicant_department","applicant_webmail","owner"]&order_by=creation desc&limit_page_length=0`,
+                `${FRAPPE_BASE_URL}/api/resource/Miscellaneous Commit?fields=["name","creation","workflow_state","commit_amount","commit_decommit","commit_particular","module","project_number","applicant_department","applicant_webmail","owner"]&order_by=creation desc&limit_page_length=0`,
             );
             const data = await response.json();
             if (data.data) {
@@ -227,11 +237,9 @@ const MiscellaneousCommit: React.FC = () => {
         );
     }, [tabList, searchQuery]);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, activeTab]);
-
     const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+    const currentPage = Math.min(requestedPage, totalPages);
+    const setCurrentPage = (updater: (p: number) => number) => updateParams(activeTab, updater(currentPage));
     const paginatedList = useMemo(
         () => filteredList.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
         [filteredList, currentPage],
@@ -343,7 +351,10 @@ const MiscellaneousCommit: React.FC = () => {
                     <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            if (requestedPage > 1) updateParams(activeTab, 1);
+                        }}
                         placeholder="Search any field..."
                         className="w-full pl-9 pr-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
                     />
@@ -378,6 +389,7 @@ const MiscellaneousCommit: React.FC = () => {
                                             ["Application ID", "text-left"],
                                             ["Date", "text-left"],
                                             ["Project", "text-left"],
+                                            ["Module", "text-left"],
                                             ["Type", "text-left"],
                                             ["Commit Particular", "text-left"],
                                             ["Amount", "text-right"],
@@ -415,6 +427,9 @@ const MiscellaneousCommit: React.FC = () => {
                                                 </td>
                                                 <td className={cn(cell, "whitespace-nowrap font-medium text-[#3F3F46] dark:text-[#E4E4E7]")}>
                                                     {item.project_number || "-"}
+                                                </td>
+                                                <td className={cn(cell, "min-w-[10rem] whitespace-normal text-[#3F3F46] dark:text-[#E4E4E7]")}>
+                                                    {item.module || "-"}
                                                 </td>
                                                 <td className={cell}>
                                                     {item.commit_decommit ? (

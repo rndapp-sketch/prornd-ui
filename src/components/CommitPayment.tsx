@@ -39,6 +39,21 @@ import { cn } from "@/lib/utils";
 // Types
 // ---------------------------------------------------------------------------
 
+export interface CommitPaymentCustomSubmit {
+    budgetHead: string;
+    amount: number;
+    particular: string;
+    /** Parent commit TID the new commit/decommit is linked to */
+    refDetails?: string;
+    /** Send commit_amount as a negative number (a decommit releases commitment). `amount` stays positive. */
+    asDecommit?: boolean;
+}
+
+export interface CommitPaymentCustomFormContext {
+    submit: (args: CommitPaymentCustomSubmit) => Promise<void>;
+    isSubmitting: boolean;
+}
+
 export interface CommitPaymentProps {
     /** Frappe doctype name (e.g. "Disbursal of Honorarium") */
     doctype: string;
@@ -121,6 +136,12 @@ export interface CommitPaymentProps {
      * If it throws, the commit is aborted and the error is shown to the user.
      */
     resolveRefDetails?: (head: string, amount: number) => Promise<string | undefined>;
+    /**
+     * Optional: replace the built-in form with a custom UI (e.g. the decommitment wizard).
+     * It receives `submit`, which sends the same submit_commit_data payload as the built-in
+     * form (after a fresh duplicate check) and rejects with a readable Error on failure.
+     */
+    customForm?: (ctx: CommitPaymentCustomFormContext) => React.ReactNode;
     /** Optional: only treat staging rows whose payload trigger_state equals this as "the" commitment (duplicate check per trigger_state) */
     stagingTriggerState?: string;
     /** Optional: ignore staging rows whose payload trigger_state equals this (e.g. the first commit ignores the PO commit) */
@@ -607,6 +628,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     onCommitSuccess,
     onStagingStatusChange,
     resolveRefDetails,
+    customForm,
     className,
 }) => {
     // ── Staging check state ──────────────────────────────────────────────────
@@ -809,6 +831,56 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         }
     }, [ownLedgerHeads.length]);
     const viewLedgerHandler = onViewLedger ?? (projectName ? openOwnLedger : undefined);
+
+    // ── Custom-form submit (same payload as handleCommit, refDetails supplied by caller) ──
+    const submittingRef = useRef(false);
+    const submitCustom = useCallback(async ({ budgetHead, amount, particular, refDetails, asDecommit }: CommitPaymentCustomSubmit) => {
+        if (submittingRef.current) throw new Error("A submission is already in progress.");
+        if (!budgetHead) throw new Error("Please select a budget head.");
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error("Please enter a valid positive amount.");
+        if (!commitReferenceName || !payloadFrapAppId || !projectName) {
+            throw new Error("Missing document reference or project number. Reload the page and try again.");
+        }
+        submittingRef.current = true;
+        setIsSubmitting(true);
+        try {
+            // Fresh duplicate check — the staging state on screen may be stale.
+            const existing = await callGetStagingStatus({ reference_name: commitReferenceName });
+            if (existing?.message?.status === "success" && (existing.message.data ?? []).length > 0) {
+                throw new Error("A commitment has already been staged for this application.");
+            }
+            const payload = {
+                doctype,
+                frapAppId: payloadFrapAppId,
+                name: commitReferenceName,
+                project_name: projectName,
+                commit_amount: asDecommit ? -Math.abs(amount) : amount,
+                budget_head: budgetHead,
+                bmr: bmr || "",
+                ...(includeBillAmount ? { bill_amount: amount } : {}),
+                ...(moduleId !== undefined ? { moduleId } : {}),
+                ...(refDetails ? { refDetails } : {}),
+                ...(triggerState ? { trigger_state: triggerState } : {}),
+                commitParticular: particular.trim(),
+            };
+            let res;
+            try {
+                res = await callCommit(payload);
+            } catch (error: any) {
+                throw new Error(extractCommitErrorMessage(error, "Commitment failed. Please try again."));
+            }
+            if (res?.message?.status === "error") {
+                throw new Error(res.message.message || "Commitment failed. Please try again.");
+            }
+            setSubmitSuccess({ amount, head: budgetHead });
+            onCommitSuccess?.(budgetHead, amount);
+            onStagingStatusChangeRef.current?.(true);
+            setTimeout(() => checkStagingRecord(), 1200);
+        } finally {
+            submittingRef.current = false;
+            setIsSubmitting(false);
+        }
+    }, [commitReferenceName, payloadFrapAppId, projectName, doctype, bmr, includeBillAmount, moduleId, triggerState, callGetStagingStatus, callCommit, onCommitSuccess, checkStagingRecord]);
 
     // ── Validate & open confirmation dialog ─────────────────────────────────
     const handleSubmitClick = () => {
@@ -1024,6 +1096,22 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         </p>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    // ── Render: Custom form (e.g. decommitment wizard) ───────────────────────
+    if (customForm) {
+        return (
+            <div className={cn("bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm", className)}>
+                <div className="flex items-center gap-2 mb-3">
+                    <CreditCard className="w-4 h-4 text-[#D97757]" />
+                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{title}</h3>
+                </div>
+                {description && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">{description}</p>
+                )}
+                {customForm({ submit: submitCustom, isSubmitting })}
             </div>
         );
     }
