@@ -940,7 +940,7 @@ const SalaryModule: React.FC = () => {
                     project_no: commitData.salary_backend_details?.project_no || commitData.projectNumber || "",
                     payment_amount: commitData.commitAmount,
                     budget_head: commitData.budget_head ?? String(commitData.accountHeadId ?? ""),
-                    payment_particular: commitData.commitParticular,
+                    payment_particular: String(commitData.commitParticular ?? "").slice(0, 140),
                     payment_date: new Date().toISOString().split("T")[0],
                     payment_status: "PENDING",
                     bmr,

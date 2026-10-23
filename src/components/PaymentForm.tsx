@@ -3,7 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { FormRender } from './FormRender';
 import type { CommitRecord } from '@/types/ledgerTypes';
 import { ErrorModal } from './ErrorModal';
+import { CharLimitAlert } from './CharLimitAlert';
 import { parseFrappeError } from '../utils/errorUtils';
+
+// Payment Particular is a Data column in Frappe — max 140 characters
+const PAYMENT_PARTICULAR_MAX_LENGTH = 140;
 
 interface PaymentFormProps {
     docName?: string; // If provided, we are editing an existing payment
@@ -99,7 +103,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                             project_ref_number: docNameValue,
                             _project_title: titleValue, // keep track of title for the header
                             payment_amount: commitData.commitAmount,
-                            payment_particular: commitData.commitParticular || commitData.refDetails,
+                            payment_particular: String(commitData.commitParticular || commitData.refDetails || '').slice(0, PAYMENT_PARTICULAR_MAX_LENGTH),
                             payment_date: new Date().toISOString().split('T')[0],
                             payment_status: 'PENDING',
                             budget_head: budgetHeadValue,
@@ -143,7 +147,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     bmr: data.payment_bmr || data.bmr || undefined,
                     // Additional fields read from frappe.form_dict by the backend
                     payment_date: data.payment_date || undefined,
-                    payment_particular: data.payment_particular || undefined,
+                    payment_particular: data.payment_particular ? String(data.payment_particular).slice(0, PAYMENT_PARTICULAR_MAX_LENGTH) : undefined,
                     payment_status: data.payment_status || undefined,
                     payment_reference_details: data.payment_reference_details || undefined,
                     bank_transaction_number: data.bank_transaction_number || undefined,
@@ -365,9 +369,11 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                             <textarea
                                 rows={4}
                                 value={formData.payment_particular ?? ''}
+                                maxLength={PAYMENT_PARTICULAR_MAX_LENGTH}
                                 onChange={(e) => set('payment_particular', e.target.value)}
                                 className={`${inputCls} resize-y`}
                             />
+                            <CharLimitAlert value={formData.payment_particular} maxLength={PAYMENT_PARTICULAR_MAX_LENGTH} />
                         </div>
                         <div>
                             <label className={labelCls}>Payment Reference Details</label>
@@ -428,7 +434,10 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                         return { ...f, read_only: 1 };
                     }
                     // Free-text fields get a multi-line box instead of a one-line input
-                    if (f.fieldname === 'payment_particular' || f.fieldname === 'payment_reference_details') {
+                    if (f.fieldname === 'payment_particular') {
+                        return { ...f, fieldtype: 'Small Text', max_length: PAYMENT_PARTICULAR_MAX_LENGTH };
+                    }
+                    if (f.fieldname === 'payment_reference_details') {
                         return { ...f, fieldtype: 'Long Text' };
                     }
                     return f;

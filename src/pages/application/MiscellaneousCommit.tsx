@@ -172,6 +172,7 @@ const MiscellaneousCommit: React.FC = () => {
     const [helpOpen, setHelpOpen] = useState(false);
     const [guideExpanded, setGuideExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [activeTab, setActiveTab] = useState<"Commit" | "De-Commit">("Commit");
     const [currentPage, setCurrentPage] = useState(1);
     const PAGE_SIZE = 10;
 
@@ -206,19 +207,29 @@ const MiscellaneousCommit: React.FC = () => {
     };
 
     // Searches across every field on each row, not just the visible columns.
+    const isDecommitType = (t?: string) => (t || "").replace(/[\s-]/g, "").toLowerCase() === "decommit";
+    const tabList = useMemo(
+        () => list.filter((item) => (activeTab === "De-Commit") === isDecommitType(item.commit_decommit)),
+        [list, activeTab],
+    );
+    const tabCounts = useMemo(() => {
+        const de = list.filter((i) => isDecommitType(i.commit_decommit)).length;
+        return { Commit: list.length - de, "De-Commit": de };
+    }, [list]);
+
     const filteredList = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        if (!query) return list;
-        return list.filter((item) =>
+        if (!query) return tabList;
+        return tabList.filter((item) =>
             Object.values(item).some(
                 (value) => value !== null && value !== undefined && String(value).toLowerCase().includes(query),
             ),
         );
-    }, [list, searchQuery]);
+    }, [tabList, searchQuery]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery]);
+    }, [searchQuery, activeTab]);
 
     const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
     const paginatedList = useMemo(
@@ -269,6 +280,63 @@ const MiscellaneousCommit: React.FC = () => {
                     </div>
                 </header>
 
+                {/* Tabs */}
+                <div className="mb-4 flex flex-wrap gap-3">
+                    {(["Commit", "De-Commit"] as const).map((tab) => {
+                        const active = activeTab === tab;
+                        const isC = tab === "Commit";
+                        return (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                aria-pressed={active}
+                                className={cn(
+                                    "group flex min-w-[170px] items-center justify-between gap-4 rounded-xl border px-4 py-2.5 text-left transition-all duration-150",
+                                    active
+                                        ? isC
+                                            ? "border-[#D97757] bg-[#FFF3EE] shadow-md ring-2 ring-[#D97757]/25 dark:bg-[#D97757]/15"
+                                            : "border-[#2563EB] bg-[#EFF4FF] shadow-md ring-2 ring-[#2563EB]/25 dark:bg-[#2563EB]/15"
+                                        : "border-zinc-200 bg-white hover:-translate-y-0.5 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
+                                )}
+                            >
+                                <span className="flex items-center gap-2.5">
+                                    <span
+                                        className={cn(
+                                            "h-2.5 w-2.5 rounded-full",
+                                            isC ? "bg-[#D97757]" : "bg-[#2563EB]",
+                                            !active && "opacity-40",
+                                        )}
+                                    />
+                                    <span
+                                        className={cn(
+                                            "text-[14px] font-extrabold tracking-tight",
+                                            active
+                                                ? isC
+                                                    ? "text-[#9A3F22] dark:text-[#F4A58A]"
+                                                    : "text-[#1E3A8A] dark:text-[#BFD1FF]"
+                                                : "text-zinc-600 dark:text-zinc-300",
+                                        )}
+                                    >
+                                        {tab}
+                                    </span>
+                                </span>
+                                <span
+                                    className={cn(
+                                        "min-w-[2rem] rounded-full px-2.5 py-0.5 text-center text-[12px] font-extrabold tabular-nums",
+                                        active
+                                            ? isC
+                                                ? "bg-[#D97757] text-white"
+                                                : "bg-[#2563EB] text-white"
+                                            : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+                                    )}
+                                >
+                                    {tabCounts[tab]}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+
                 {/* Search */}
                 <div className="mb-3 relative max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
@@ -283,12 +351,12 @@ const MiscellaneousCommit: React.FC = () => {
 
                 {/* Table */}
                 <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                    {list.length === 0 ? (
+                    {tabList.length === 0 && !searchQuery.trim() ? (
                         <div className="p-10 text-center">
                             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
                                 <Plus className="h-6 w-6 text-[#4A6CF7]" />
                             </div>
-                            <h4 className="mb-1 text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">No applications yet</h4>
+                            <h4 className="mb-1 text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">No {activeTab} applications yet</h4>
                             <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
                                 Click "Apply New" to create your first application.
                             </p>
@@ -331,7 +399,7 @@ const MiscellaneousCommit: React.FC = () => {
                                 <tbody>
                                     {paginatedList.map((item) => {
                                         const state = item.workflow_state || "Draft";
-                                        const isCommit = item.commit_decommit === "Commit";
+                                        const isCommit = !isDecommitType(item.commit_decommit);
                                         const cell = "border-r border-[#F4F4F5] px-3 py-2 align-middle text-[12px] last:border-r-0 dark:border-[#3F3F46]/80";
                                         return (
                                             <tr

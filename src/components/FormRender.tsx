@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // Keeps free-form typing (partial "-", trailing ".") while capping to 2 decimal places.
 const sanitizeDecimalInput = (raw: string): string => {
@@ -31,6 +32,8 @@ interface Field {
     hidden: boolean;
     options?: string | null;
     description?: string | null;
+    /** Character limit enforced on the input (e.g. a 140-char Data column shown as a textarea) */
+    max_length?: number;
 }
 
 interface LinkOption {
@@ -214,6 +217,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
         readOnly: field.read_only,
         required: field.mandatory,
         disabled: field.read_only,
+        maxLength: field.max_length,
     };
 
     const renderInput = () => {
@@ -351,6 +355,9 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
         <div className="min-w-0 space-y-2">
             <FieldLabel field={field} />
             {renderInput()}
+            {!field.read_only && field.max_length && (
+                <CharLimitAlert value={value} maxLength={field.max_length} />
+            )}
             {!!field.description && (
                 <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
                     {field.description}
