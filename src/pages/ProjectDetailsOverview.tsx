@@ -3925,7 +3925,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             accountHeadValue?.name || (row as any).head || "",
                         payment_bmr: row.bmr || "",
                         payment_date: new Date().toISOString().split("T")[0],
-                        payment_particular: row.particulars || "",
+                        payment_particular: (row.particulars || "").slice(0, 140),
                         commit_id: (row as any).transactionId || "",
                     });
                 }
