@@ -53,6 +53,8 @@ interface ProjectLedgerModalProps {
     onPaymentClick?: (row: BudgetEntry) => void;
     /** When the page that opened this popup goes away, hand it to the global host so it stays open (default true). */
     persistOnNavigate?: boolean;
+    /** App ID (frapAppId) of the ledger row to highlight and scroll into view; its head is selected on open. */
+    highlightAppId?: string;
 }
 
 export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
@@ -62,7 +64,9 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
     budgetHeadList,
     onPaymentClick,
     persistOnNavigate = true,
+    highlightAppId,
 }) => {
+    const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
     const [activeLedgerHeadId, setActiveLedgerHeadId] = useState<string | number>('');
     const [ledgerTransactions, setLedgerTransactions] = useState<LedgerTransaction[]>([]);
     const [isLedgerLoading, setIsLedgerLoading] = useState(false);
@@ -101,6 +105,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
             setIsCheckingHeads(true);
             const validHeads = new Set<string | number>();
+            let highlightHeadId: string | number | undefined;
 
             // A PDF fund is one pool with no head dimension, and its data must not go
             // through /ledger-api (see services/overheadLedger). Select the single Overhead
@@ -121,6 +126,9 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                             const data = await response.json();
                             if (Array.isArray(data) && data.length > 0) {
                                 validHeads.add(head.id);
+                                if (highlightAppId && highlightHeadId === undefined && data.some((t: any) => t.frapAppId === highlightAppId)) {
+                                    highlightHeadId = head.id;
+                                }
                             }
                         }
                     } catch (err) {
@@ -132,8 +140,9 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
                 // Set default active head
                 if (validHeads.size > 0) {
-                    // If current active head is not valid, switch to first valid one
-                    if (!activeLedgerHeadId || !validHeads.has(activeLedgerHeadId)) {
+                    if (highlightHeadId !== undefined) {
+                        setActiveLedgerHeadId(highlightHeadId);
+                    } else if (!activeLedgerHeadId || !validHeads.has(activeLedgerHeadId)) {
                         const firstHead = budgetHeadList.find(h => validHeads.has(h.id));
                         if (firstHead) setActiveLedgerHeadId(firstHead.id);
                     }
@@ -278,6 +287,10 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
             setIsLedgerLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (highlightAppId) highlightRowRef.current?.scrollIntoView({ block: 'center' });
+    }, [highlightAppId, ledgerTransactions, activeLedgerHeadId, isLedgerLoading]);
 
     useEffect(() => {
         if (isOpen && activeLedgerHeadId) {
@@ -433,7 +446,16 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                         </thead>
                                         <tbody className="divide-y divide-zinc-300 dark:divide-zinc-700">
                                             {filteredLedgerTransactions.map((txn) => (
-                                                <tr key={txn.transactionId} className="hover:bg-[#D97757]/5 transition-colors">
+                                                <tr
+                                                    key={txn.transactionId}
+                                                    ref={highlightAppId && txn.frapAppId === highlightAppId ? highlightRowRef : undefined}
+                                                    className={cn(
+                                                        'transition-colors',
+                                                        highlightAppId && txn.frapAppId === highlightAppId
+                                                            ? 'bg-amber-100 dark:bg-amber-500/20 outline outline-2 -outline-offset-2 outline-[#D97757]'
+                                                            : 'hover:bg-[#D97757]/5',
+                                                    )}
+                                                >
                                                     <td className="px-4 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">{txn.transactionId || '-'}</td>
                                                     <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-zinc-700 dark:text-zinc-300">{txn.frapAppId || '-'}</td>
                                                     <td className="px-4 py-2 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
