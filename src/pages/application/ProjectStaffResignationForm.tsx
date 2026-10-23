@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { CommitPayment } from "@/components/CommitPayment";
+import { DecommitWizard } from "@/components/DecommitWizard";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
@@ -651,7 +652,7 @@ const ProjectStaffResignationForm: React.FC = () => {
           const raw = rec.payload ?? rec.commit_payload ?? "{}";
           payload = typeof raw === "string" ? JSON.parse(raw) : raw;
         } catch { /* ignore malformed payload */ }
-        const amount = Number(payload.commit_amount ?? payload.commitAmount ?? payload.bill_amount ?? 0);
+        const amount = Math.abs(Number(payload.commit_amount ?? payload.commitAmount ?? payload.bill_amount ?? 0));
         if (!amount) return;
         setStagedDecommit({
           amount,
@@ -1190,6 +1191,25 @@ const ProjectStaffResignationForm: React.FC = () => {
                         ? `Decommit on resignation of ${applicantEmpId}${ledgerCommit?.transactionCommitNumber ? ` (commit #${ledgerCommit.transactionCommitNumber})` : ""}`
                         : ""
                     }
+                    customForm={({ submit, isSubmitting }) => (
+                      <DecommitWizard
+                        projectName={projectNo}
+                        budgetHeads={budgetHeads}
+                        budgetHeadIds={Object.fromEntries(
+                          Object.entries(headBalances || {}).map(([name, hb]) => [name, hb.id]),
+                        )}
+                        defaultBudgetHead={staffCommitHead}
+                        preferredTid={ledgerCommit?.transactionCommitNumber}
+                        defaultParticular={
+                          staffCommit
+                            ? `Decommit on resignation of ${applicantEmpId}${ledgerCommit?.transactionCommitNumber ? ` (commit #${ledgerCommit.transactionCommitNumber})` : ""}`
+                            : ""
+                        }
+                        suggestedAmount={staffCommitAmount > 0 ? staffCommitAmount : undefined}
+                        isSubmitting={isSubmitting}
+                        submit={submit}
+                      />
+                    )}
                     onCommitSuccess={() => showToast("success", "Decommitment staged successfully.")}
                     onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                   />
