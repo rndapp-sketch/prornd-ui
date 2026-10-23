@@ -2134,6 +2134,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [icssSelectedProject, setIcssSelectedProject] = React.useState("");
   const [icssSelectedHead, setIcssSelectedHead] = React.useState("");
 
+  // Account Head field names used across the ICSS parent form and its sub-forms
+  // (Proprietary Purchase, Rate Contract, AMC, etc. each use a different fieldname
+  // for the same concept) — all get narrowed down together.
+  const ACCOUNT_HEAD_FIELD_KEYS = [
+    "icss_account_head",
+    "icss_other_account_head",
+    "account_head",
+    "budget_head",
+  ] as const;
+  const { call: fetchProjectAccountHeadsForMainForm } = useFrappePostCall<{ message: LinkOption[] }>(icssAPI.getProjectAccountHeads);
+  const [projectAccountHeads, setProjectAccountHeads] = React.useState<LinkOption[] | null>(null);
+
   // Other-PI approval step: only the assigned PI charges one of their own projects.
   const isIcssPiStep =
     workflowState === "Pending Other PI" &&
@@ -2399,6 +2411,50 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
     fetchBudgetHeads();
   }, []);
+
+  // Budget Heads actually sanctioned/received against the selected project, used to
+  // narrow the Account Head dropdown(s) down from the global Budget Head list.
+  useEffect(() => {
+    if (!projectCode) {
+      setProjectAccountHeads(null);
+      return;
+    }
+    let isCancelled = false;
+    fetchProjectAccountHeadsForMainForm({ project_name: projectCode })
+      .then((r) => {
+        if (!isCancelled) setProjectAccountHeads(r?.message || []);
+      })
+      .catch(() => {
+        if (!isCancelled) setProjectAccountHeads(null);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [projectCode, fetchProjectAccountHeadsForMainForm]);
+
+  // Narrow the Account Head dropdown(s) to the Budget Heads actually sanctioned/received
+  // for the selected project. Falls back to the full Budget Head list once the project
+  // is cleared, or while the project-scoped list hasn't loaded yet.
+  useEffect(() => {
+    const fallback: LinkOption[] = budgetHeadList.map((b) => ({ value: b.docname, label: b.name }));
+
+    if (!projectCode) {
+      setLinkOptions((prev) => {
+        const next = { ...prev };
+        ACCOUNT_HEAD_FIELD_KEYS.forEach((key) => { next[key] = fallback; });
+        return next;
+      });
+      return;
+    }
+
+    if (!projectAccountHeads) return;
+
+    setLinkOptions((prev) => {
+      const next = { ...prev };
+      ACCOUNT_HEAD_FIELD_KEYS.forEach((key) => { next[key] = projectAccountHeads; });
+      return next;
+    });
+  }, [projectCode, projectAccountHeads, budgetHeadList]);
 
   useEffect(() => {
     let isCancelled = false;

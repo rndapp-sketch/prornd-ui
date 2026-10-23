@@ -125,8 +125,16 @@ export const ChildTableComponent = memo(({
 
     // Per-row visibility — some columns (e.g. "specify other mode") only apply
     // depending on another field's value within the *same* row.
+    // "upfa_duration_months" (Duration) is excluded from this: its backend
+    // depends_on caps the value (<=11 for Month, <=336 for Days) and hides the
+    // column entirely once exceeded instead of just validating it, so it's
+    // kept always visible here regardless of the entered value.
     const getRowColumns = useCallback(
-        (row: any) => visibleColumns.filter(col => !col.depends_on || evaluateExpression(col.depends_on, row)),
+        (row: any) => visibleColumns.filter(col =>
+            col.fieldname === 'upfa_duration_months' ||
+            !col.depends_on ||
+            evaluateExpression(col.depends_on, row)
+        ),
         [visibleColumns],
     );
 
@@ -198,6 +206,45 @@ export const ChildTableComponent = memo(({
             col.fieldname === 'applicant_department';
         if (isDeptField && value) {
             return <DepartmentName name={value} />;
+        }
+
+        // Duration: dropdown of 1-11 when "Month" is selected for this row,
+        // free-typed number when "Days" is selected.
+        if (col.fieldname === 'upfa_duration_months') {
+            if (row.month_days === 'Month') {
+                return (
+                    <select
+                        className={inputClasses}
+                        value={String(value ?? '')}
+                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value ? parseInt(e.target.value, 10) : '')}
+                        disabled={isReadOnly}
+                    >
+                        <option value="">Select...</option>
+                        {Array.from({ length: 11 }, (_, i) => i + 1).map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                        ))}
+                    </select>
+                );
+            }
+            return (
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    title="Enter a positive whole number"
+                    className={inputClasses}
+                    maxLength={INT_MAX_LENGTH}
+                    value={String(value ?? '')}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '' || /^\d*$/.test(v)) onRowChange(tableName, rowIndex, col.fieldname, v);
+                    }}
+                    onBlur={(e) => {
+                        const v = e.target.value;
+                        if (v !== '') onRowChange(tableName, rowIndex, col.fieldname, parseInt(v, 10) || 0);
+                    }}
+                    disabled={isReadOnly}
+                />
+            );
         }
 
         switch (col.fieldtype) {
@@ -519,6 +566,13 @@ export const ChildTableComponent = memo(({
                                                             maxLength={getWarnableMaxLength(col.fieldtype)}
                                                             className="mt-1 text-[10px]"
                                                         />
+                                                    )}
+                                                    {col.fieldname === 'upfa_duration_months' && (
+                                                        <p className="mt-1 text-[10px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                            {row.month_days === 'Month'
+                                                                ? 'Select duration in months (1–11).'
+                                                                : 'Enter duration in days (maximum 336).'}
+                                                        </p>
                                                     )}
                                                 </div>
                                             </div>

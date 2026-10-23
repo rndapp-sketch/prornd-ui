@@ -47,6 +47,7 @@ interface AdvanceSettlementData {
     expenditure_date: string;
     description: string;
     particulars: string;
+    vendors_name: string;
     amount: number;
     amount_in_rs: number;
     [key: string]: any;
@@ -671,7 +672,7 @@ const AdvanceSettlementDetails: React.FC = () => {
 
             {/* Project & Advance Info */}
             <FrappeCard title="Details">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-5 gap-x-8">
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Project Name
@@ -696,22 +697,12 @@ const AdvanceSettlementDetails: React.FC = () => {
                     {data.temporary_advance_application || "-"}
                   </p>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
-                    Budget Head
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-zinc-400"></div>
-                    <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold">
-                      {budgetHeadName || data.account_head || "-"}
-                    </p>
-                  </div>
-                  {budgetHeadName && data.account_head !== budgetHeadName && (
-                    <p className="text-xs text-zinc-400 ml-4">
-                      {data.account_head}
-                    </p>
-                  )}
-                </div>
+              </div>
+            </FrappeCard>
+
+            {/* Bank Details */}
+            <FrappeCard title="Bank Details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-8">
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Account Holder
@@ -739,7 +730,13 @@ const AdvanceSettlementDetails: React.FC = () => {
                     <thead className="bg-[#EEF2FF] dark:bg-blue-950/20 text-[#71717A] dark:text-[#A1A1AA] uppercase font-semibold text-xs">
                       <tr>
                         <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                          Sl No.
+                        </th>
+                        <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                           Date
+                        </th>
+                        <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                          Vendor Name
                         </th>
                         <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                           Particulars
@@ -755,10 +752,16 @@ const AdvanceSettlementDetails: React.FC = () => {
                           key={idx}
                           className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
                         >
+                          <td className="px-4 py-3 text-[#71717A] dark:text-[#A1A1AA]">
+                            {idx + 1}
+                          </td>
                           <td className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7] font-semibold whitespace-nowrap">
                             {item.expenditure_date
                               ? formatDate(item.expenditure_date)
                               : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-[#71717A] dark:text-[#A1A1AA]">
+                            {item.vendors_name || "-"}
                           </td>
                           <td className="px-4 py-3 text-[#71717A] dark:text-[#A1A1AA]">
                             {item.description || item.particulars}
@@ -773,7 +776,7 @@ const AdvanceSettlementDetails: React.FC = () => {
                       ))}
                       <tr className="bg-[#FAFAF9] dark:bg-[#18181B] font-bold">
                         <td
-                          colSpan={2}
+                          colSpan={4}
                           className="px-4 py-3 text-right text-[#71717A] dark:text-[#A1A1AA] uppercase text-xs tracking-wider"
                         >
                           Total Expenditure

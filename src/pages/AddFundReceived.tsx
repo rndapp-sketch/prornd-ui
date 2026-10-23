@@ -1627,6 +1627,14 @@ const AddFundReceived: React.FC = () => {
 
                 const processedFields = apiFields.map((field) => {
                     if (field.fieldtype === "Section Break") return field;
+                    if (
+                        field.fieldname === "fund_received_ref_number" ||
+                        /^\s*fund received ref\.? ?no\.?\s*$/i.test(
+                            field.label || "",
+                        )
+                    ) {
+                        return { ...field, hidden: 1 };
+                    }
                     if (prefillData[field.fieldname] !== undefined) {
                         return {
                             ...field,
