@@ -615,12 +615,17 @@ const ProjectStaffResignationForm: React.FC = () => {
     isRnDStaff &&
     workflowState === "Pending Staff Approval";
   const commitRequired = showCommitSection && isCommittedForGate === false;
+  // Opened from the Salary Module's Resigned tab: R&D staff get the read-only commitment and
+  // payment details in every workflow state, without the decommit/forward gating above.
+  const showCommitDetails =
+    showCommitSection ||
+    (!!docName && !!projectNo && isRnDStaff && searchParams.get("fromSalary") === "true");
 
   // Trace the staff member to the ledger commit that funds them, to prefill the decommit.
   const { data: staffCommitResp } = useFrappeGetCall<{ message: StaffCommitDetails }>(
     "rndopsapp.rndopsapp.commitPayment.get_staff_commit_details",
     { ps_emp_id: applicantEmpId, project_no: projectNo },
-    showCommitSection && applicantEmpId ? undefined : null,
+    showCommitDetails && applicantEmpId ? undefined : null,
     { revalidateOnFocus: false },
   );
   const staffCommit = staffCommitResp?.message?.status === "success" ? staffCommitResp.message : null;
