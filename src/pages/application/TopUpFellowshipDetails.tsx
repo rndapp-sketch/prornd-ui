@@ -2,7 +2,8 @@ import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
+import { CancellationStatusBanner } from '@/components/CancellationStatusBanner';
 import { cn } from '@/lib/utils';
 import {
     ActivityIcon, CheckCircle2, Clock, XCircle, ChevronRight,
@@ -219,6 +220,13 @@ const TopUpFellowshipDetails: React.FC = () => {
     const { call: fetchValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
     const { call: fetchActivity } = useFrappePostCall<{ message: any[] }>('rndopsapp.rndopsapp.doctype.rnd_activity_log.rnd_activity_log.get_document_activity');
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>("rndopsapp.rndopsapp.api.get_user_details");
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: { has_pending: boolean; has_cancellation: boolean; cancellation_requests: any[] };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        { reference_doctype: "Top Up Fellowship", reference_name: docName },
+        docName ? undefined : null,
+    );
 
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
@@ -395,7 +403,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                             Faculty Admission PDF
                         </a>
                     )}
-                    {docName && (
+                    {docName && !cancellationStatus?.message?.has_pending && (
                         <TopUpFellowshipActionButtons
                             docname={docName}
                             onActionComplete={handleRefresh}
@@ -408,13 +416,22 @@ const TopUpFellowshipDetails: React.FC = () => {
                     )}
                 </PageHeader>
 
+                {cancellationStatus?.message?.has_cancellation && (
+                    <div className="mt-4">
+                        <CancellationStatusBanner
+                            requests={cancellationStatus.message.cancellation_requests}
+                            currentUser={currentUser}
+                        />
+                    </div>
+                )}
+
                 {/* Warning banners */}
-                {isPendingStaff && !sentToFa && (
+                {isPendingStaff && !sentToFa && !cancellationStatus?.message?.has_pending && (
                     <div className="mt-4 max-w-fit rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                         Send to Faculty Admission first using the Actions menu before forwarding.
                     </div>
                 )}
-                {isPendingStaff && sentToFa && !hasFacultyPdf && (
+                {isPendingStaff && sentToFa && !hasFacultyPdf && !cancellationStatus?.message?.has_pending && (
                     <div className="mt-4 max-w-fit rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] font-semibold text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
                         Waiting for Faculty Admission to upload the signed PDF.
                     </div>

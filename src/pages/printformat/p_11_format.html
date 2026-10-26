@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <title>P-11 Form</title>
     <style>
+        @media screen {
+            [contenteditable="true"] { outline: 1px dashed #D97757; background: #fff7f3; padding: 0 2px; cursor: text; }
+        }
         * {
             box-sizing: border-box;
             -webkit-print-color-adjust: exact;
@@ -392,12 +395,18 @@
                                         <span class="doc-ref-label">Direct Purchase Ref: </span><span
                                             class="doc-ref-value">{{DIRECT_PURCHASE_REF}}</span>
                                     </div>
+                                    <div class="form-type-ref">
+                                        <span class="doc-ref-label">Project No: </span><span
+                                            class="doc-ref-value">{{PROJECT_NO}}</span>
+                                    </div>
+                                    <div class="form-type-ref">
+                                        <span class="doc-ref-label">Currency: </span><span
+                                            class="doc-ref-value">{{CURRENCY}}</span>
+                                    </div>
                                 </div>
                                 <div class="doc-ref-right" style="margin: 0;">
                                     <span class="doc-ref-label">P_11 Ref: </span><span
                                         class="doc-ref-value">{{DOC_REF}}</span>
-                                    &nbsp;&nbsp;
-                                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
                                 </div>
                             </div>
                             <div style="text-align: right; font-size: 9.5pt; margin-bottom: 10px;">
@@ -415,7 +424,7 @@
                                 <p>Indenter's Name: <strong>{{INDENTER_NAME}}</strong></p>
                                 <p>The purchase committee recommends purchase of <strong>{{ITEM_CATEGORY}}</strong>,
                                     from M/s
-                                    <strong>{{RECOMMENDATION_FROM}}</strong> as per details mentioned below.
+                                    <strong{{RECOMMENDATION_EDIT_ATTRS}}>{{RECOMMENDATION_FROM}}</strong> as per details mentioned below.
                                 </p>
                             </div>
 
@@ -433,7 +442,7 @@
                                         <th rowspan="2">Sl.<br>No.</th>
                                         <th rowspan="2">Description</th>
                                         <th rowspan="2">Qty</th>
-                                        <th colspan="2">Price</th>
+                                        <th colspan="2">Price ({{CURRENCY}})</th>
                                     </tr>
                                     <tr>
                                         <th>Unit</th>

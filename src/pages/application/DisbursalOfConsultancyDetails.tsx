@@ -1,4 +1,5 @@
 import { getConsultancyBudgetHead } from "@/utils/budgetHead";
+import { CancellationLockBanner } from "@/components/CancellationLock";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -548,6 +549,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                             )}
                     </div>
                 </PageHeader>
+                <CancellationLockBanner doctype="Disbursal of Consultancy" name={id} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content — read-only form */}

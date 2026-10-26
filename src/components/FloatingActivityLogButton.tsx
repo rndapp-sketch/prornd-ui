@@ -1,7 +1,15 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { MessageSquare, X, Send } from "lucide-react";
 import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import { useFrappePostCall } from "frappe-react-sdk";
+
+const POSITION_KEY = "activity-log-button-bottom";
+const DEFAULT_BOTTOM = 32;
+const BUTTON_HEIGHT = 44;
+const EDGE_GAP = 8;
+
+const clampBottom = (value: number) =>
+  Math.min(Math.max(value, EDGE_GAP), Math.max(EDGE_GAP, window.innerHeight - BUTTON_HEIGHT - EDGE_GAP));
 
 interface FloatingActivityLogButtonProps {
   doctype: string;
@@ -17,6 +25,39 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [filter, setFilter] = useState<"comments" | "all">("comments");
+
+  // Vertical offset from the bottom edge; draggable so it can be moved off whatever it overlaps.
+  const [bottom, setBottom] = useState(() => {
+    const saved = Number(localStorage.getItem(POSITION_KEY));
+    return clampBottom(Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_BOTTOM);
+  });
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef({ startY: 0, startBottom: 0, moved: false });
+
+  useEffect(() => {
+    const onResize = () => setBottom((b) => clampBottom(b));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    drag.current = { startY: e.clientY, startBottom: bottom, moved: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  }, [bottom]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragging) return;
+    const dy = e.clientY - drag.current.startY;
+    if (Math.abs(dy) > 4) drag.current.moved = true;
+    if (drag.current.moved) setBottom(clampBottom(drag.current.startBottom - dy));
+  }, [dragging]);
+
+  const onPointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setDragging(false);
+    if (drag.current.moved) localStorage.setItem(POSITION_KEY, String(bottom));
+  }, [bottom]);
 
   const { call: addComment } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.add_project_comment"
@@ -40,8 +81,17 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]"
+        onClick={() => {
+          if (drag.current.moved) { drag.current.moved = false; return; }
+          setOpen(true);
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{ bottom }}
+        title="Drag up or down to move"
+        className={`fixed right-7 z-40 flex h-11 touch-none select-none ${dragging ? "cursor-grabbing" : "cursor-grab"} items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur ${dragging ? "" : "transition-all hover:-translate-y-0.5"} hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]`}
         aria-label="Open Activity Log"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
