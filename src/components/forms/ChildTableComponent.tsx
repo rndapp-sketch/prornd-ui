@@ -12,6 +12,10 @@ import { getFileUrl } from '@/utils/fileUtils';
 import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
 import { CharLimitAlert } from '@/components/CharLimitAlert';
 
+const MAX_HOURS_PER_MONTH = 50;
+const MIN_RATE_PER_HOUR = 100;
+const MAX_RATE_PER_HOUR = 1000;
+
 // --- TYPE DEFINITIONS ---
 export interface ChildField {
     fieldname: string;
@@ -125,8 +129,16 @@ export const ChildTableComponent = memo(({
 
     // Per-row visibility — some columns (e.g. "specify other mode") only apply
     // depending on another field's value within the *same* row.
+    // "upfa_duration_months" (Duration) is excluded from this: its backend
+    // depends_on caps the value (<=11 for Month, <=336 for Days) and hides the
+    // column entirely once exceeded instead of just validating it, so it's
+    // kept always visible here regardless of the entered value.
     const getRowColumns = useCallback(
-        (row: any) => visibleColumns.filter(col => !col.depends_on || evaluateExpression(col.depends_on, row)),
+        (row: any) => visibleColumns.filter(col =>
+            col.fieldname === 'upfa_duration_months' ||
+            !col.depends_on ||
+            evaluateExpression(col.depends_on, row)
+        ),
         [visibleColumns],
     );
 
@@ -200,6 +212,45 @@ export const ChildTableComponent = memo(({
             return <DepartmentName name={value} />;
         }
 
+        // Duration: dropdown of 1-11 when "Month" is selected for this row,
+        // free-typed number when "Days" is selected.
+        if (col.fieldname === 'upfa_duration_months') {
+            if (row.month_days === 'Month') {
+                return (
+                    <select
+                        className={inputClasses}
+                        value={String(value ?? '')}
+                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value ? parseInt(e.target.value, 10) : '')}
+                        disabled={isReadOnly}
+                    >
+                        <option value="">Select...</option>
+                        {Array.from({ length: 11 }, (_, i) => i + 1).map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                        ))}
+                    </select>
+                );
+            }
+            return (
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    title="Enter a positive whole number"
+                    className={inputClasses}
+                    maxLength={INT_MAX_LENGTH}
+                    value={String(value ?? '')}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '' || /^\d*$/.test(v)) onRowChange(tableName, rowIndex, col.fieldname, v);
+                    }}
+                    onBlur={(e) => {
+                        const v = e.target.value;
+                        if (v !== '') onRowChange(tableName, rowIndex, col.fieldname, parseInt(v, 10) || 0);
+                    }}
+                    disabled={isReadOnly}
+                />
+            );
+        }
+
         switch (col.fieldtype) {
             case 'Int':
                 return (
@@ -212,11 +263,15 @@ export const ChildTableComponent = memo(({
                         value={String(value ?? '')}
                         onChange={(e) => {
                             const v = e.target.value;
-                            if (v === '' || /^\d*$/.test(v)) onRowChange(tableName, rowIndex, col.fieldname, v);
+                            if ((v === '' || /^\d*$/.test(v)) && !(col.fieldname === 'hours_per_month' && Number(v) > MAX_HOURS_PER_MONTH) && !(col.fieldname === 'rate_per_hour' && Number(v) > MAX_RATE_PER_HOUR)) onRowChange(tableName, rowIndex, col.fieldname, v);
                         }}
                         onBlur={(e) => {
                             const v = e.target.value;
-                            if (v !== '') onRowChange(tableName, rowIndex, col.fieldname, parseInt(v, 10) || 0);
+                            if (v !== '') {
+                                let n = parseInt(v, 10) || 0;
+                                if (col.fieldname === 'rate_per_hour') n = Math.min(MAX_RATE_PER_HOUR, Math.max(MIN_RATE_PER_HOUR, n));
+                                onRowChange(tableName, rowIndex, col.fieldname, n);
+                            }
                         }}
                         disabled={isReadOnly}
                     />
@@ -503,7 +558,11 @@ export const ChildTableComponent = memo(({
                                     </div>
 
                                     <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
-                                        {getRowColumns(row).map(col => (
+                                        {getRowColumns(row).map(col => col.fieldtype === 'Section Break' ? (
+                                            <div key={col.fieldname} className="col-span-full border-b border-[#E4E4E7] dark:border-[#3F3F46] pb-1.5 pt-2">
+                                                <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#D97757]">{col.label}</h4>
+                                            </div>
+                                        ) : (
                                             <div key={col.fieldname} className="space-y-1.5 flex flex-col">
                                                 <label className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
                                                     <span className="whitespace-normal break-words leading-snug">
@@ -520,6 +579,23 @@ export const ChildTableComponent = memo(({
                                                             className="mt-1 text-[10px]"
                                                         />
                                                     )}
+                                                    {col.fieldname === 'hours_per_month' && (
+                                                        <p className="mt-1.5 inline-block rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                                                            Total hours of engagement per month (maximum {MAX_HOURS_PER_MONTH} hours).
+                                                        </p>
+                                                    )}
+                                                    {col.fieldname === 'rate_per_hour' && (
+                                                        <p className="mt-1.5 inline-block rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                                                            Hourly rate in rupees (minimum ₹{MIN_RATE_PER_HOUR}, maximum ₹{MAX_RATE_PER_HOUR}).
+                                                        </p>
+                                                    )}
+                                                    {col.fieldname === 'upfa_duration_months' && (
+                                                        <p className="mt-1 text-[10px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                            {row.month_days === 'Month'
+                                                                ? 'Select duration in months (1–11).'
+                                                                : 'Enter duration in days (maximum 336).'}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -532,7 +608,7 @@ export const ChildTableComponent = memo(({
                                             {rowIndex + 1}
                                         </div>
                                         <div className="flex flex-wrap gap-x-8 gap-y-1 flex-1">
-                                            {getRowColumns(row).slice(0, 3).map(col => (
+                                            {getRowColumns(row).filter(c => c.fieldtype !== 'Section Break' && c.fieldtype !== 'Column Break').slice(0, 3).map(col => (
                                                 <div key={col.fieldname} className="flex flex-col max-w-[200px]">
                                                     <span className="text-[10px] uppercase tracking-widest font-bold text-[#71717A] dark:text-[#A1A1AA]">
                                                         {col.label === 'Total Experience' ? 'Total Exp. (Mo.)' : col.label}

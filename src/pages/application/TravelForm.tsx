@@ -210,6 +210,9 @@ const TravelForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // Full, unfiltered Account Head options (all Budget Heads). Kept around so the
+    // dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
 
     // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
     // dimension — every spend books to "Overhead". Passed to DynamicFormRenderer as
@@ -243,6 +246,24 @@ const TravelForm: React.FC = () => {
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list. Reuses the
+    // same endpoint TravelDetails already calls for its Other-PI account head picker.
+    const { call: fetchProjectAccountHeads } = useFrappePostCall<{ message: LinkOption[] }>(travelAPI.getProjectAccountHeads);
+    const projectNoForHeads = formData.travel_project_number || '';
+    const [projectAccountHeads, setProjectAccountHeads] = useState<LinkOption[] | null>(null);
+    useEffect(() => {
+        if (!projectNoForHeads) {
+            setProjectAccountHeads(null);
+            return;
+        }
+        let isCancelled = false;
+        fetchProjectAccountHeads({ project_name: projectNoForHeads })
+            .then((res) => { if (!isCancelled) setProjectAccountHeads(res?.message || []); })
+            .catch(() => { if (!isCancelled) setProjectAccountHeads(null); });
+        return () => { isCancelled = true; };
+    }, [projectNoForHeads, fetchProjectAccountHeads]);
 
     // --- Computed: Total Estimate ---
     const totalEstimate = useMemo(() => {
@@ -372,10 +393,12 @@ const TravelForm: React.FC = () => {
                         limit_page_length: 0,
                     });
                     if (headsRes?.message) {
-                        baseLinkOptions['account_head'] = headsRes.message.map((h: any) => ({
+                        const headOpts = headsRes.message.map((h: any) => ({
                             value: h.name,
                             label: h.budget_head || h.name,
                         }));
+                        baseLinkOptions['account_head'] = headOpts;
+                        setAllAccountHeadOptions(headOpts);
                     }
                 } catch (err) {
                 }
@@ -510,6 +533,21 @@ const TravelForm: React.FC = () => {
         projectName,
         dataLoaded,
     ]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        if (!projectAccountHeads) return;
+        setLinkOptions(prev => ({ ...prev, account_head: projectAccountHeads }));
+    }, [dataLoaded, projectNoForHeads, projectAccountHeads, allAccountHeadOptions]);
 
     useEffect(() => {
         const applicant = formData.webmail_id_travel;

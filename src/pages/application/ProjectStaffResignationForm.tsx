@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { CommitPayment } from "@/components/CommitPayment";
+import { DecommitWizard } from "@/components/DecommitWizard";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
@@ -634,6 +635,36 @@ const ProjectStaffResignationForm: React.FC = () => {
     Object.entries(headBalances || {}).find(
       ([, hb]) => String(hb.id) === String(ledgerCommit?.accountHeadId),
     )?.[0] || undefined;
+  // Decommitment already staged against this resignation (shown in every state, not just while staff act on it).
+  const { call: fetchStagedDecommit } = useFrappePostCall<{ message: { status: string; data?: any[] } }>(
+    "rndopsapp.rndopsapp.commitPayment.get_commit_staging_status",
+  );
+  const [stagedDecommit, setStagedDecommit] = useState<{ amount: number; head?: string; status?: string; particular?: string } | null>(null);
+  useEffect(() => {
+    if (!docName) return;
+    let cancelled = false;
+    fetchStagedDecommit({ reference_name: docName })
+      .then((res) => {
+        const rec = res?.message?.status === "success" ? res.message.data?.[0] : null;
+        if (!rec || cancelled) return;
+        let payload: any = {};
+        try {
+          const raw = rec.payload ?? rec.commit_payload ?? "{}";
+          payload = typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch { /* ignore malformed payload */ }
+        const amount = Math.abs(Number(payload.commit_amount ?? payload.commitAmount ?? payload.bill_amount ?? 0));
+        if (!amount) return;
+        setStagedDecommit({
+          amount,
+          head: payload.budget_head ?? payload.budgetHead,
+          status: rec.status === "PUBLISHED" ? "Committed" : rec.status,
+          particular: payload.commit_particular ?? payload.commitParticular,
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [docName, workflowState]);
+  const showSidebar = showCommitSection || !!stagedDecommit;
   const isFromRegistry = searchParams.get("fromRegistry") === "true";
 
   const isPI = roles.some((r) => {
@@ -831,8 +862,8 @@ const ProjectStaffResignationForm: React.FC = () => {
               </p>
             </FrappeCard>
           ) : (
-            <div className={cn(showCommitSection ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
-              <div className={cn("space-y-5", showCommitSection && "lg:col-span-3")}>
+            <div className={cn(showSidebar ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
+              <div className={cn("space-y-5", showSidebar && "lg:col-span-3")}>
 
                 {/* Workflow Timeline */}
                 {docName && (
@@ -1128,8 +1159,20 @@ const ProjectStaffResignationForm: React.FC = () => {
               </div>
 
               {/* Commit window — R&D staff must stage a commitment before forwarding */}
-              {showCommitSection && (
+              {showSidebar && (
                 <aside className="lg:col-span-1 space-y-5">
+                  {/* While staff are staging, CommitPayment shows the committed details itself. */}
+                  {stagedDecommit && !showCommitSection && (
+                    <FrappeCard title="Decommitted Amount" accent="emerald" icon={<CheckCircle2 className="h-4 w-4" />}>
+                      <div className="space-y-4">
+                        <InfoRow icon={<IdCard className="h-4 w-4" />} label="Decommitted amount" value={formatINR(stagedDecommit.amount)} hint="Amount released from the project commitment for this resignation." />
+                        {stagedDecommit.head && <InfoRow icon={<FolderOpen className="h-4 w-4" />} label="Budget head" value={stagedDecommit.head} />}
+                        {stagedDecommit.status && <InfoRow icon={<CheckCircle2 className="h-4 w-4" />} label="Status" value={stagedDecommit.status} />}
+                        {stagedDecommit.particular && <InfoRow icon={<FileText className="h-4 w-4" />} label="Particulars" value={stagedDecommit.particular} />}
+                      </div>
+                    </FrappeCard>
+                  )}
+                  {showCommitSection && (
                   <CommitPayment
                     doctype="Project Staff Resignation"
                     docName={docName}
@@ -1148,9 +1191,29 @@ const ProjectStaffResignationForm: React.FC = () => {
                         ? `Decommit on resignation of ${applicantEmpId}${ledgerCommit?.transactionCommitNumber ? ` (commit #${ledgerCommit.transactionCommitNumber})` : ""}`
                         : ""
                     }
+                    customForm={({ submit, isSubmitting }) => (
+                      <DecommitWizard
+                        projectName={projectNo}
+                        budgetHeads={budgetHeads}
+                        budgetHeadIds={Object.fromEntries(
+                          Object.entries(headBalances || {}).map(([name, hb]) => [name, hb.id]),
+                        )}
+                        defaultBudgetHead={staffCommitHead}
+                        preferredTid={ledgerCommit?.transactionCommitNumber}
+                        defaultParticular={
+                          staffCommit
+                            ? `Decommit on resignation of ${applicantEmpId}${ledgerCommit?.transactionCommitNumber ? ` (commit #${ledgerCommit.transactionCommitNumber})` : ""}`
+                            : ""
+                        }
+                        suggestedAmount={staffCommitAmount > 0 ? staffCommitAmount : undefined}
+                        isSubmitting={isSubmitting}
+                        submit={submit}
+                      />
+                    )}
                     onCommitSuccess={() => showToast("success", "Decommitment staged successfully.")}
                     onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                   />
+                  )}
                 </aside>
               )}
             </div>

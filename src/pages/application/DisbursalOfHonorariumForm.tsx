@@ -1,7 +1,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetDoc, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { Save, Send, Printer } from 'lucide-react';
 import ViewProjectButton from '@/components/ViewProjectButton';
@@ -154,6 +154,9 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // Full, unfiltered Account Head options (all Budget Heads). Kept around so the
+    // dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
 
     // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
     // dimension — every spend books to "Overhead". Passed to DynamicFormRenderer as
@@ -194,6 +197,17 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     
     const { call: getOwnerDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const projectNoForHeads = formData.project_no || formData.project_number || '';
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
+    );
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -271,10 +285,12 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                         limit_page_length: 0
                     });
                     if (headsRes?.message) {
-                        baseLinkOptions['account_head'] = headsRes.message.map((head: any) => ({
+                        const headOpts = headsRes.message.map((head: any) => ({
                             value: head.name,
                             label: head.budget_head || head.name
                         }));
+                        baseLinkOptions['account_head'] = headOpts;
+                        setAllAccountHeadOptions(headOpts);
                     }
                 } catch (err) {
                 }
@@ -424,6 +440,24 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
         loadFormAndDocument();
     }, [formDataResult, formDataError, id, fetchExistingDoc, projectFromUrl, dataLoaded, currentUserData, fetchUsersList, fetchAccountHeads]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
+        setLinkOptions(prev => ({ ...prev, account_head: filtered }));
+    }, [dataLoaded, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {

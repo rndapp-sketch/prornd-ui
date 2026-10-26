@@ -1538,7 +1538,7 @@ const QuickActions = ({
                                     : item.docstatus === 2
                                         ? "Cancelled"
                                         : "Draft"),
-                            applicant_webmail: item.pi_webmail || item.owner,
+                            applicant_webmail: item.owner,
                         }));
                 } catch (fetchError) {
                     data = [];
@@ -3280,6 +3280,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         { revalidateOnFocus: false },
     );
 
+    // Sanction can be edited only until a fund has been received against it
+    const hasFundReceived = normalizeResponse(fundReceivedData).length > 0;
+
     const { data: activityData } = useFrappeGetCall<{
         message: ActivityItem[];
     }>(
@@ -3969,7 +3972,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             accountHeadValue?.name || (row as any).head || "",
                         payment_bmr: row.bmr || "",
                         payment_date: new Date().toISOString().split("T")[0],
-                        payment_particular: row.particulars || "",
+                        payment_particular: (row.particulars || "").slice(0, 140),
                         commit_id: (row as any).transactionId || "",
                     });
                 }
@@ -6307,6 +6310,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                             getStatusBadgeClass(
                                                                                                 sanction.sanction_workflow_status,
                                                                                             ),
+                                                                                            sanction.sanction_workflow_status?.toLowerCase() === "sanction approved" &&
+                                                                                            "font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 ring-2 ring-emerald-400 shadow-sm",
                                                                                         )}
                                                                                     >
                                                                                         {sanction.sanction_workflow_status ||
@@ -6386,14 +6391,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                 <FrappeButton
                                                                                     onClick={handleAddFunds}
                                                                                     aria-label="Add fund received"
+                                                                                    className="h-8 px-3 text-xs gap-1.5"
                                                                                 >
-                                                                                    <PlusIcon className="h-4 w-4" />
+                                                                                    <PlusIcon className="h-3.5 w-3.5" />
                                                                                     Add Fund Received
                                                                                 </FrappeButton>
                                                                             )}
                                                                         {(isDraft || isSanctionOwner) && (
                                                                             <div className="flex-shrink-0 flex items-center gap-2">
-                                                                                {isSanctionOwner && !isEditingSB && (
+                                                                                {isSanctionOwner && !isEditingSB && !hasFundReceived && (
                                                                                     <Button
                                                                                         size="sm"
                                                                                         variant="outline"
@@ -6433,6 +6439,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </div>
                                                                         )}
                                                                     </div>
+                                                                    {isSanctionOwner && !isEditingSB && (
+                                                                        <p className={`text-xs font-medium text-right ml-auto w-fit max-w-md rounded-md px-3 py-2 mb-2 border ${hasFundReceived
+                                                                            ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
+                                                                            : "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"}`}>
+                                                                            {hasFundReceived
+                                                                                ? "Editing is disabled because a fund has already been received against this sanction."
+                                                                                : "Editable until a fund is received. Once a fund is added, editing is locked."}
+                                                                        </p>
+                                                                    )}
                                                                     {isDraft && !canSubmitSanction && !isEditingSB && (
                                                                         <p className="text-xs text-red-600 dark:text-red-400 mb-2">
                                                                             Sanction Letter No is missing — edit the sanction and fill it in before it can be submitted.
@@ -7477,52 +7492,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             activeTab === "ledger" && "hidden",
                         )}
                     >
-                        <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
-                                <div className="w-0.5 h-3 rounded-full bg-[#4A6CF7]" />
-                                <h3 className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#1E3A8A] dark:text-blue-200">
-                                    Balances
-                                </h3>
-                            </div>
-                            <div className="p-2 space-y-1.5">
-                                <div className="rounded border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-2">
-                                    <div className="flex items-center justify-between gap-1">
-                                        <span className="text-[9px] font-bold uppercase text-blue-700 dark:text-blue-300">Commitable</span>
-                                        <span className="text-[8px] font-medium text-blue-600 dark:text-blue-400">Available</span>
-                                    </div>
-                                    <div className="text-[16px] font-extrabold text-blue-900 dark:text-blue-100 mt-0.5 leading-tight">
-                                        ₹ {commitableBalance.toLocaleString("en-IN", {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="rounded border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30 p-2">
-                                    <div className="flex items-center justify-between gap-1">
-                                        <span className="text-[9px] font-bold uppercase text-orange-700 dark:text-orange-300">Actual</span>
-                                        <span className="text-[8px] font-medium text-orange-600 dark:text-orange-400">After Payments</span>
-                                    </div>
-                                    <div className="text-[16px] font-extrabold text-orange-900 dark:text-orange-100 mt-0.5 leading-tight">
-                                        ₹ {actualBalance.toLocaleString("en-IN", {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}
-                                    </div>
-                                </div>
-                                {commitableBalance !== actualBalance && (
-                                    <div className="rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-2">
-                                        <div className="text-[8px] font-bold text-amber-700 dark:text-amber-300">Difference</div>
-                                        <div className="text-[14px] font-extrabold text-amber-900 dark:text-amber-100 mt-0.5 leading-tight">
-                                            ₹ {(commitableBalance - actualBalance).toLocaleString("en-IN", {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
                         <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
                             <div className="px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                                 <div className="flex items-center gap-2 mb-3">

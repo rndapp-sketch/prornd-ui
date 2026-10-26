@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 // import { ArrowLeftIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -94,6 +94,9 @@ const Reimbursement: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>('');
+    // Full, unfiltered Account Head options as returned by get_reimbursement_fields.
+    // Kept around so the dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>(
         { open: false, title: '', message: '' }
@@ -108,6 +111,17 @@ const Reimbursement: React.FC = () => {
     const { call: fetchPiDetails } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_user_details_for_pi');
     const { call: fetchProjectDetails } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: getListCall } = useFrappePostCall('frappe.client.get_list');
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const projectNoForHeads = formData.project_number || '';
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
+    );
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -158,6 +172,7 @@ const Reimbursement: React.FC = () => {
 
                 setFields(enhancedFields);
                 setLinkOptions(link_options || {});
+                setAllAccountHeadOptions(link_options?.account_head || []);
                 console.log("link_options keys:", Object.keys(link_options || {}));
                 console.log("link_options:", link_options);
 
@@ -379,6 +394,24 @@ const Reimbursement: React.FC = () => {
         }).catch(() => { });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dataLoaded, formData.project_name, projectTitle]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectNoForHeads) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
+        setLinkOptions(prev => ({ ...prev, account_head: filtered }));
+    }, [dataLoaded, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {

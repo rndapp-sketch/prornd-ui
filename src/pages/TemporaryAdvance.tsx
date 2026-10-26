@@ -2,7 +2,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ToWords } from 'to-words';
@@ -342,6 +342,9 @@ const TemporaryAdvance: React.FC = () => {
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [formData, setFormData] = useState<Record<string, any>>({});
+    // Full, unfiltered Account Head options as returned by get_temporary_advance_fields.
+    // Kept around so the dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     // --- OVERHEAD FUNDS: the account head is fixed, not chosen ---
     // This page renders its own field loop rather than using DynamicFormRenderer, so the
     // rule is applied here too — from the same shared helpers, so it cannot drift from the
@@ -381,6 +384,17 @@ const TemporaryAdvance: React.FC = () => {
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>(
         'frappe.client.get'
+    );
+
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const projectCodeForHeads = formData.project_code || '';
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectCodeForHeads },
+        projectCodeForHeads ? `project-budget-heads-${projectCodeForHeads}` : null,
     );
 
     // Initial data fetch - only run once
@@ -477,6 +491,7 @@ const TemporaryAdvance: React.FC = () => {
                 }
 
                 setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+                setAllAccountHeadOptions(link_options?.account_head || []);
                 setDataLoaded(true);
                 setLoading(false);
             };
@@ -492,6 +507,24 @@ const TemporaryAdvance: React.FC = () => {
             setLoading(false);
         }
     }, [result, error, projectName, editDocName, dataLoaded, fetchUserDetails, fetchExistingDoc]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (!dataLoaded) return;
+
+        if (!projectCodeForHeads) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
+        setLinkOptions(prev => ({ ...prev, account_head: filtered }));
+    }, [dataLoaded, projectCodeForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         // When project_code changes, resolve and fill project_name

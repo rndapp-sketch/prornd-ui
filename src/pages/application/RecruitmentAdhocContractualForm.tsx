@@ -1,7 +1,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
-import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
 import {
     DynamicFormRenderer,
     type FormField,
@@ -170,6 +170,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     // Head selector on the form. Ordinary projects are untouched.
     const isOverheadProject = useIsOverheadProject(formData.upfa_project_code);
     const [linkOptions, setLinkOptions] = useState<LinkOptionsMap>({});
+    // Full, unfiltered Account Head options (all Budget Heads). Kept around so the
+    // dropdown can be restored if the project is cleared.
+    const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
@@ -255,6 +258,15 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
     // --- PROJECT BUDGET for commit/payment ---
     const projectCode = formData.upfa_project_code || formData.project_code || "";
+    // Budget Heads actually sanctioned/received against the selected project, used to
+    // narrow the Account Head dropdown down from the global Budget Head list.
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectCode },
+        projectCode ? `project-budget-heads-${projectCode}` : null,
+    );
     const { budgetData, actualBalance, commitableBalance } = useProjectBudget(projectCode);
     const currentDocName = editDocName || savedDocName || "";
     const linkedCommitment = budgetData.find(
@@ -425,10 +437,12 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         limit_page_length: 0,
                     });
                     if (headsRes?.message) {
-                        finalLinkOptions['account_head'] = headsRes.message.map((head: any) => ({
+                        const headOpts = headsRes.message.map((head: any) => ({
                             value: head.name,
                             label: head.budget_head || head.name,
                         }));
+                        finalLinkOptions['account_head'] = headOpts;
+                        setAllAccountHeadOptions(headOpts);
                     }
                 } catch (e) {
                 }
@@ -655,6 +669,24 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     useEffect(() => {
         fetchFormConfiguration();
     }, [fetchFormConfiguration]);
+
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received
+    // for the selected project. Falls back to the full list once the project is cleared,
+    // or while the project-scoped list hasn't loaded yet.
+    useEffect(() => {
+        if (isLoadingFields) return;
+
+        if (!projectCode) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
+        const heads = projectBudgetHeadsResult?.message;
+        if (!heads) return;
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
+        setLinkOptions(prev => ({ ...prev, account_head: filtered }));
+    }, [isLoadingFields, projectCode, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     // Fetch actions if we have a saved document (or if it's being edited)
     useEffect(() => {

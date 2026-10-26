@@ -1,7 +1,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { Save, Send, UserIcon, IndianRupeeIcon, FolderOpen, X } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -11,6 +11,8 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 import { DepartmentName } from '@/components/DepartmentName';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
+import { DecommitCommitmentPicker, type PickedCommitment } from '@/components/DecommitCommitmentPicker';
+import { validateDecommitAmount } from '@/utils/decommitCalc';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -157,6 +159,86 @@ const MiscellaneousCommitForm: React.FC = () => {
 
     const { currentUser } = useFrappeAuth();
 
+    // Narrow the Account Head dropdown to the Budget Heads actually sanctioned/received for the
+    // selected project (same endpoint every other form uses). `headerProjectCode` is the
+    // project_no resolved from the selected Project Registration.
+    const { data: projectBudgetHeadsResult, error: projectBudgetHeadsError } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: headerProjectCode },
+        headerProjectCode ? `project-budget-heads-${headerProjectCode}` : null,
+    );
+    // Unfiltered list as first delivered by the form API, kept so it can be restored when the project is cleared.
+    const allBudgetHeadOptions = useRef<LinkOption[] | null>(null);
+    if (allBudgetHeadOptions.current === null && dataLoaded && linkOptions.budget_head) {
+        allBudgetHeadOptions.current = linkOptions.budget_head;
+    }
+    useEffect(() => {
+        if (!dataLoaded) return;
+        const heads = projectBudgetHeadsResult?.message;
+        if (!headerProjectCode) {
+            const all = allBudgetHeadOptions.current;
+            if (all) setLinkOptions(prev => (prev.budget_head === all ? prev : { ...prev, budget_head: all }));
+            return;
+        }
+        const all = allBudgetHeadOptions.current;
+        const scoped = (heads || [])
+            .filter(h => h && h.name)
+            .map(h => ({ value: h.name, label: h.budget_head || h.name }));
+        if (scoped.length > 0) {
+            setLinkOptions(prev => ({ ...prev, budget_head: scoped }));
+        } else if (heads || projectBudgetHeadsError) {
+            // The project has no sanctioned heads (or the lookup failed): an empty dropdown would
+            // block the form entirely, so keep the full list rather than offering nothing.
+            if (all) setLinkOptions(prev => (prev.budget_head === all ? prev : { ...prev, budget_head: all }));
+        }
+    }, [dataLoaded, headerProjectCode, projectBudgetHeadsResult, projectBudgetHeadsError]);
+
+    // A budget head the new project doesn't have is no longer valid.
+    useEffect(() => {
+        const heads = projectBudgetHeadsResult?.message;
+        if (!headerProjectCode || !heads?.length || !formData.budget_head) return;
+        if (!heads.some(h => h.name === formData.budget_head)) {
+            setFormData(prev => ({ ...prev, budget_head: '' }));
+        }
+    }, [headerProjectCode, projectBudgetHeadsResult, formData.budget_head]);
+
+    // De-Commit: the commitment being released is picked from the project's ledger.
+    const [picked, setPicked] = useState<{ key: string; max: number } | null>(null);
+    const isDecommit = String(formData.commit_decommit ?? '').replace(/[\s-]/g, '').toLowerCase() === 'decommit';
+    const headCandidates = useMemo(() => {
+        const v = formData.budget_head;
+        if (!v) return [];
+        const label = linkOptions.budget_head?.find(o => o.value === v)?.label;
+        return [String(v), label ? String(label) : ''].filter(Boolean);
+    }, [formData.budget_head, linkOptions.budget_head]);
+
+    const handlePick = useCallback((p: PickedCommitment | null) => {
+        if (!p) {
+            setPicked(null);
+            setFormData(prev => ({ ...prev, linked_application: '', commit_amount: '' }));
+            return;
+        }
+        setPicked({ key: `commit:${p.row.transactionId}`, max: p.summary.maxDecommit });
+        setFormData(prev => ({
+            ...prev,
+            linked_application: p.row.frapAppId || prev.linked_application || '',
+            commit_amount: p.summary.maxDecommit,
+        }));
+    }, []);
+
+    // A different project / head / type invalidates the picked commitment.
+    useEffect(() => {
+        setPicked(null);
+    }, [formData.project_number, formData.budget_head, isDecommit]);
+
+    const decommitError = (): string | null => {
+        if (!isDecommit) return null;
+        if (!picked) return 'Select the commitment to decommit from.';
+        return validateDecommitAmount(String(formData.commit_amount ?? ''), picked.max);
+    };
+
     const { call: fetchFormData, result: formDataResult, error: formDataError } =
         useFrappePostCall<FormDataResponse>(miscellaneousCommitAPI.getFields);
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
@@ -268,6 +350,11 @@ const MiscellaneousCommitForm: React.FC = () => {
     }, [formData.project_number, linkOptions.project_number]);
 
     const handleSave = async () => {
+        const dErr = decommitError();
+        if (dErr) {
+            setErrorModal({ open: true, title: 'Cannot Save', message: dErr });
+            return;
+        }
         setIsSaving(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -288,6 +375,11 @@ const MiscellaneousCommitForm: React.FC = () => {
     };
 
     const handleSubmit = async () => {
+        const dErr = decommitError();
+        if (dErr) {
+            setErrorModal({ open: true, title: 'Cannot Submit', message: dErr });
+            return;
+        }
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -327,13 +419,45 @@ const MiscellaneousCommitForm: React.FC = () => {
         fields.filter(f => GROUP_A_FIELDS.has(f.fieldname))
             .map(f => READ_ONLY_A.has(f.fieldname) ? { ...f, read_only: 1 } : f),
         [fields, READ_ONLY_A]);
-    const groupB = useMemo(() => fields.filter(f => GROUP_B_FIELDS.has(f.fieldname)), [fields]);
+    const groupB = useMemo(() =>
+        fields.filter(f => GROUP_B_FIELDS.has(f.fieldname))
+            .map(f => isDecommit && f.fieldname === 'commit_details_section' ? { ...f, label: 'De-Commit Details' } : f),
+        [fields, isDecommit]);
 
+
+    // De-Commit amount guard: it can be lowered freely but never above the picked commitment's
+    // decommitable balance, and never before a commitment is picked.
+    const [amountNotice, setAmountNotice] = useState<string | null>(null);
+    useEffect(() => {
+        setAmountNotice(null);
+    }, [picked?.key]);
+    const handleFormChange = useCallback((fieldname: string, value: any) => {
+        if (fieldname === 'commit_amount' && isDecommit) {
+            if (!picked) {
+                setAmountNotice('Select the commitment to decommit from first.');
+                handleChange(fieldname, '');
+                return;
+            }
+            const n = Number(String(value ?? '').replace(/,/g, ''));
+            if (String(value ?? '').trim() !== '' && Number.isFinite(n)) {
+                const capped = Math.min(Math.abs(n), picked.max);
+                if (Math.abs(n) > picked.max) {
+                    setAmountNotice(`Amount cannot exceed the decommitable balance of ₹${picked.max.toLocaleString('en-IN')}.`);
+                } else {
+                    setAmountNotice(null);
+                }
+                handleChange(fieldname, capped);
+                return;
+            }
+            setAmountNotice(null);
+        }
+        handleChange(fieldname, value);
+    }, [handleChange, isDecommit, picked]);
 
     const commonRendererProps = {
         formData,
         linkOptions,
-        onChange: handleChange,
+        onChange: handleFormChange,
         onFileChange: noOpFile,
         onTableRowChange: noOpFile,
         onTableFileChange: noOpFile,
@@ -401,9 +525,31 @@ const MiscellaneousCommitForm: React.FC = () => {
                     </GroupCard>
 
                     {/* GROUP B — Commit Details */}
-                    <GroupCard icon={IndianRupeeIcon} label="Commit Details" badge="B">
+                    <GroupCard icon={IndianRupeeIcon} label={isDecommit ? "De-Commit Details" : "Commit Details"} badge="B">
                         <DynamicFormRenderer fields={groupB} {...commonRendererProps} />
                     </GroupCard>
+
+                    {/* GROUP C — pick the commitment to release (De-Commit only) */}
+                    {isDecommit && (
+                        <GroupCard icon={FolderOpen} label="Select Commitment to Decommit" badge="C">
+                            <DecommitCommitmentPicker
+                                projectNo={headerProjectCode}
+                                headCandidates={headCandidates}
+                                selectedKey={picked?.key ?? ''}
+                                onSelect={handlePick}
+                            />
+                            {amountNotice && (
+                                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                                    {amountNotice}
+                                </p>
+                            )}
+                            {picked && (
+                                <p className="mt-3 text-xs text-zinc-500">
+                                    Amount is prefilled with the decommitable balance of ₹{picked.max.toLocaleString('en-IN')}. You can lower it, but not exceed it.
+                                </p>
+                            )}
+                        </GroupCard>
+                    )}
                 </div>
             </main>
 
