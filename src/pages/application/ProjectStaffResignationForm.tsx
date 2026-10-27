@@ -14,8 +14,10 @@ import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButto
 import {
   User as UserIcon, IdCard, Mail, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-  Loader2,
+  Loader2, RefreshCw,
 } from "lucide-react";
+import { fetchOverheadLedger, isOverheadProjectNo } from "@/services/overheadLedger";
+import type { LedgerRow } from "@/utils/decommitCalc";
 import { cn } from "@/lib/utils";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
@@ -644,7 +646,7 @@ const ProjectStaffResignationForm: React.FC = () => {
   const { call: fetchStagedDecommit } = useFrappePostCall<{ message: { status: string; data?: any[] } }>(
     "rndopsapp.rndopsapp.commitPayment.get_commit_staging_status",
   );
-  const [stagedDecommit, setStagedDecommit] = useState<{ amount: number; head?: string; status?: string; particular?: string } | null>(null);
+  const [stagedDecommit, setStagedDecommit] = useState<{ amount: number; head?: string; status?: string; particular?: string; refDetails?: string; stagedAt?: string } | null>(null);
   useEffect(() => {
     if (!docName) return;
     let cancelled = false;
@@ -664,11 +666,55 @@ const ProjectStaffResignationForm: React.FC = () => {
           head: payload.budget_head ?? payload.budgetHead,
           status: rec.status === "PUBLISHED" ? "Committed" : rec.status,
           particular: payload.commit_particular ?? payload.commitParticular,
+          refDetails: String(payload.refDetails ?? payload.ref_details ?? "").trim() || undefined,
+          stagedAt: rec.creation ?? rec.modified ?? undefined,
         });
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [docName, workflowState]);
+  // Has the ledger actually consumed the staged decommitment? "Committed" only means it was published to the
+  // queue; a matching negative commit row in the ledger (pointing at the same TID) proves it was consumed.
+  type LedgerSync =
+    | { state: "idle" | "checking" }
+    | { state: "consumed"; tid?: string | number | null; date?: string }
+    | { state: "pending" }
+    | { state: "error"; message: string };
+  const [ledgerSync, setLedgerSync] = useState<LedgerSync>({ state: "idle" });
+  const checkLedgerSync = useCallback(async () => {
+    if (!stagedDecommit || !projectNo) return;
+    setLedgerSync({ state: "checking" });
+    try {
+      let rows: LedgerRow[];
+      if (isOverheadProjectNo(projectNo)) {
+        rows = (await fetchOverheadLedger(projectNo)) as LedgerRow[];
+      } else {
+        const headId = stagedDecommit.head ? headBalances?.[stagedDecommit.head]?.id : undefined;
+        if (headId === undefined) throw new Error("Budget head id not available yet.");
+        const res = await fetch(
+          `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${encodeURIComponent(String(headId))}`,
+        );
+        if (!res.ok) throw new Error(`Ledger service returned ${res.status}.`);
+        const data = await res.json();
+        rows = Array.isArray(data) ? data : [];
+      }
+      const ref = stagedDecommit.refDetails;
+      const match = rows.find((r) => {
+        const amt = Number(r.commitAmount ?? 0);
+        const isCancelled = (r.status || "").toUpperCase().includes("CANCEL");
+        const sameRef = ref ? String(r.refDetails ?? "").trim() === ref : r.frapAppId === docName;
+        return !isCancelled && amt < 0 && Math.round(Math.abs(amt)) === Math.round(stagedDecommit.amount) && sameRef;
+      });
+      setLedgerSync(match ? { state: "consumed", tid: match.transactionId, date: match.transactionDate } : { state: "pending" });
+    } catch (e) {
+      setLedgerSync({ state: "error", message: e instanceof Error ? e.message : "Could not read the ledger." });
+    }
+  }, [stagedDecommit, projectNo, headBalances, docName]);
+  useEffect(() => {
+    if (stagedDecommit && headBalances) checkLedgerSync();
+  }, [stagedDecommit, headBalances, checkLedgerSync]);
+  const stagedMinutes = stagedDecommit?.stagedAt ? (Date.now() - new Date(stagedDecommit.stagedAt).getTime()) / 60000 : null;
+
   const showSidebar = showCommitSection || !!stagedDecommit;
   const isFromRegistry = searchParams.get("fromRegistry") === "true";
 
@@ -1173,6 +1219,35 @@ const ProjectStaffResignationForm: React.FC = () => {
                         <InfoRow icon={<IdCard className="h-4 w-4" />} label="Decommitted amount" value={formatINR(stagedDecommit.amount)} hint="Amount released from the project commitment for this resignation." />
                         {stagedDecommit.head && <InfoRow icon={<FolderOpen className="h-4 w-4" />} label="Budget head" value={stagedDecommit.head} />}
                         {stagedDecommit.status && <InfoRow icon={<CheckCircle2 className="h-4 w-4" />} label="Status" value={stagedDecommit.status} />}
+                        <InfoRow icon={<FileText className="h-4 w-4" />} label="Ref details" value={stagedDecommit.refDetails ?? "—"} hint="Transaction ID of the commitment this decommitment releases." />
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-zinc-600 dark:text-zinc-300">Ledger status</span>
+                            <button
+                              type="button"
+                              onClick={checkLedgerSync}
+                              disabled={ledgerSync.state === "checking"}
+                              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            >
+                              <RefreshCw className={cn("h-3 w-3", ledgerSync.state === "checking" && "animate-spin")} /> Re-check
+                            </button>
+                          </div>
+                          {ledgerSync.state === "checking" || ledgerSync.state === "idle" ? (
+                            <p className="mt-1 text-zinc-500">Checking the ledger…</p>
+                          ) : ledgerSync.state === "consumed" ? (
+                            <p className="mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                              Consumed: recorded in the ledger{ledgerSync.tid != null ? ` as TID ${ledgerSync.tid}` : ""}.
+                            </p>
+                          ) : ledgerSync.state === "pending" ? (
+                            <p className={cn("mt-1 font-semibold", stagedMinutes != null && stagedMinutes > 15 ? "text-red-600 dark:text-red-400" : "text-amber-700 dark:text-amber-400")}>
+                              {stagedMinutes != null && stagedMinutes > 15
+                                ? "Not in the ledger after more than 15 minutes. It has probably failed (dead-letter queue); ask the system admin to check the DLQ."
+                                : "Published, but not in the ledger yet. It may still be processing; re-check shortly."}
+                            </p>
+                          ) : ledgerSync.state === "error" ? (
+                            <p className="mt-1 text-red-600 dark:text-red-400">Could not check the ledger: {ledgerSync.message}</p>
+                          ) : null}
+                        </div>
                         {stagedDecommit.particular && <InfoRow icon={<FileText className="h-4 w-4" />} label="Particulars" value={stagedDecommit.particular} />}
                       </div>
                     </FrappeCard>

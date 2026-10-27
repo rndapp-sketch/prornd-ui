@@ -41,6 +41,7 @@ import {
   Pencil,
   ChevronDown,
   Printer,
+  AlertTriangle,
 } from "lucide-react";
 import { generateIcssHtml } from "@/utils/icssPrint";
 import { Button } from "@/components/ui/button";
@@ -2130,9 +2131,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   );
   const { call: performActionCall } = useFrappePostCall(icssAPI.performAction);
   const { call: fetchIcssPiProjects } = useFrappePostCall(icssAPI.getPiProjects);
-  const { call: fetchIcssProjectHeads } = useFrappePostCall(icssAPI.getProjectAccountHeads);
   const [icssPiProjects, setIcssPiProjects] = React.useState<any[]>([]);
-  const [icssPiHeads, setIcssPiHeads] = React.useState<any[]>([]);
   const [icssSelectedProject, setIcssSelectedProject] = React.useState("");
   const [icssSelectedHead, setIcssSelectedHead] = React.useState("");
 
@@ -2144,9 +2143,49 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     "icss_other_account_head",
     "account_head",
     "budget_head",
+    // DynamicFormRenderer merges linkOptions["Budget Head"] (keyed by the Link's doctype) into every
+    // Budget Head field's options, so this key must be narrowed too or the full list leaks back in.
+    "Budget Head",
   ] as const;
-  const { call: fetchProjectAccountHeadsForMainForm } = useFrappePostCall<{ message: LinkOption[] }>(icssAPI.getProjectAccountHeads);
-  const [projectAccountHeads, setProjectAccountHeads] = React.useState<LinkOption[] | null>(null);
+  // Account heads for a project always come from get_budget_heads_by_project ({ name, id, budget_head }[]):
+  // option value = name, label = budget_head. An empty result falls back to the full Budget Head list.
+  const toHeadOptions = (rows?: { name: string; budget_head: string }[]): LinkOption[] | null =>
+    rows && rows.length > 0 ? rows.map((h) => ({ value: h.name, label: h.budget_head })) : null;
+  const { data: projectHeadsResult } = useFrappeGetCall<{
+    message: { name: string; id: number | null; budget_head: string }[];
+  }>(
+    "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project",
+    { project_no: projectCode },
+    projectCode ? `project-budget-heads-${projectCode}` : null,
+  );
+  const projectAccountHeads = React.useMemo(
+    () => (projectCode ? toHeadOptions(projectHeadsResult?.message) : null),
+    [projectCode, projectHeadsResult],
+  );
+  // Applied when rendering (not stored in linkOptions): the form's own link options are replaced wholesale
+  // when the fields load, which would otherwise bring the full Budget Head list back.
+  const withProjectHeads = React.useCallback(
+    <T extends Record<string, LinkOption[]>>(opts: T): T => {
+      if (!projectAccountHeads) return opts;
+      const next: Record<string, LinkOption[]> = { ...opts };
+      ACCOUNT_HEAD_FIELD_KEYS.forEach((key) => { next[key] = projectAccountHeads; });
+      return next as T;
+    },
+    [projectAccountHeads], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const scopedDisplayLinkOptions = React.useMemo(() => withProjectHeads(displayLinkOptions), [withProjectHeads, displayLinkOptions]);
+  const scopedLinkOptions = React.useMemo(() => withProjectHeads(linkOptions), [withProjectHeads, linkOptions]);
+  const { data: piHeadsResult } = useFrappeGetCall<{
+    message: { name: string; id: number | null; budget_head: string }[];
+  }>(
+    "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project",
+    { project_no: icssSelectedProject },
+    icssSelectedProject ? `project-budget-heads-${icssSelectedProject}` : null,
+  );
+  const icssPiHeads = React.useMemo(
+    () => (icssSelectedProject ? toHeadOptions(piHeadsResult?.message) ?? [] : []),
+    [icssSelectedProject, piHeadsResult],
+  );
 
   // Other-PI approval step: only the assigned PI charges one of their own projects.
   const isIcssPiStep =
@@ -2163,10 +2202,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
   React.useEffect(() => {
     setIcssSelectedHead("");
-    if (!icssSelectedProject) { setIcssPiHeads([]); return; }
-    fetchIcssProjectHeads({ project_name: icssSelectedProject })
-      .then((r: any) => setIcssPiHeads(r?.message || []))
-      .catch(() => setIcssPiHeads([]));
   }, [icssSelectedProject]);
 
   const { call: updateSendToDirectorCall } = useFrappePostCall(
@@ -2413,26 +2448,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
     fetchBudgetHeads();
   }, []);
-
-  // Budget Heads actually sanctioned/received against the selected project, used to
-  // narrow the Account Head dropdown(s) down from the global Budget Head list.
-  useEffect(() => {
-    if (!projectCode) {
-      setProjectAccountHeads(null);
-      return;
-    }
-    let isCancelled = false;
-    fetchProjectAccountHeadsForMainForm({ project_name: projectCode })
-      .then((r) => {
-        if (!isCancelled) setProjectAccountHeads(r?.message || []);
-      })
-      .catch(() => {
-        if (!isCancelled) setProjectAccountHeads(null);
-      });
-    return () => {
-      isCancelled = true;
-    };
-  }, [projectCode, fetchProjectAccountHeadsForMainForm]);
 
   // Narrow the Account Head dropdown(s) to the Budget Heads actually sanctioned/received
   // for the selected project. Falls back to the full Budget Head list once the project
@@ -5767,7 +5782,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsEditMode(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition-all hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition-all hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
             >
               <Pencil className="h-4 w-4" />
               Edit
@@ -5779,7 +5794,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               onClick={handleSave}
               disabled={draftBusy}
               className={cn(
-                "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-all",
+                "inline-flex h-8 items-center gap-1.5 rounded-lg border px-4 text-sm font-semibold transition-all",
                 "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400",
                 "dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700",
                 draftBusy && "cursor-not-allowed opacity-50",
@@ -5798,7 +5813,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             onClick={() => setPendingAction("Submit")}
             disabled={draftBusy}
             className={cn(
-              "inline-flex h-10 items-center gap-2 rounded-xl border border-transparent px-5 text-sm font-semibold text-white shadow-sm transition-all",
+              "inline-flex h-8 items-center gap-1.5 rounded-lg border border-transparent px-5 text-sm font-semibold text-white shadow-sm transition-all",
               "bg-[#D97757] hover:bg-[#c66a4e] hover:shadow-md",
               draftBusy && "cursor-not-allowed opacity-50",
             )}
@@ -5824,15 +5839,15 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     return (
       <>
         {isIcssPiStep && (
-          <div className="w-full flex flex-col gap-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-              Approve against one of your projects
+          <div className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+              Approve against
             </span>
-            <div className="flex flex-col sm:flex-row gap-2 min-w-0 w-full">
+            <div className="flex flex-row gap-2 min-w-0">
               <select
                 value={icssSelectedProject}
                 onChange={(e) => setIcssSelectedProject(e.target.value)}
-                className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+                className="h-8 min-w-0 w-48 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-xs text-zinc-900 dark:text-zinc-100"
               >
                 <option value="">Select project…</option>
                 {icssPiProjects.map((p) => (
@@ -5843,7 +5858,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 value={icssSelectedHead}
                 onChange={(e) => setIcssSelectedHead(e.target.value)}
                 disabled={!icssSelectedProject}
-                className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                className="h-8 min-w-0 w-48 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-xs text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
               >
                 <option value="">Select account head…</option>
                 {icssPiHeads.map((h) => (
@@ -5854,8 +5869,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           </div>
         )}
         {commitRequired && (
-          <div className="w-full text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-medium">
-            A commitment must be submitted before forwarding this application.
+          <div
+            title="A commitment must be submitted before forwarding this application."
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            Commitment required before forwarding
           </div>
         )}
         {(filteredWorkflowActions.length > 0 || canPutBack) && (
@@ -5864,7 +5883,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               onClick={() => setShowActionsDropdown((v) => !v)}
               disabled={dropdownDisabled}
               className={cn(
-                "inline-flex h-10 items-center gap-2 px-5 rounded-xl text-sm font-semibold border transition-all duration-200 shadow-sm",
+                "inline-flex h-8 items-center gap-1.5 px-4 rounded-lg text-sm font-semibold border transition-all duration-200 shadow-sm",
                 dropdownDisabled
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
                   : "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
@@ -5880,10 +5899,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             {showActionsDropdown && !dropdownDisabled && (
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-40"
                   onClick={() => setShowActionsDropdown(false)}
                 />
-                <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg overflow-hidden">
                   {filteredWorkflowActions.map((action) => {
                     const isApproveAction = action === "Approve";
                     const isCommitBlocked = commitRequired && !isPutToPiAction(action);
@@ -5950,20 +5969,20 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
       <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
         {/* Header */}
-        <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="h-1 w-full bg-gradient-to-r from-[#D97757] via-[#e8a58f] to-transparent" />
-          <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
+        <div className="relative z-30 mb-3 rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="h-0.5 w-full rounded-t-xl bg-gradient-to-r from-[#D97757] via-[#e8a58f] to-transparent" />
+          <div className="flex flex-col gap-2 px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 onClick={() => navigate(-1)}
                 aria-label="Go back"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
               >
-                <ArrowLeft className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+                <ArrowLeft className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
               </button>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100">
+                  <h1 className="text-lg font-serif font-medium leading-tight text-zinc-900 dark:text-zinc-100">
                     Indent Cum Sanction Sheet
                   </h1>
                   {(editDocName || savedDocName) && (
@@ -5984,7 +6003,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                   {editDocName || savedDocName ? (
                     <>
                       <span>Application ID</span>
@@ -6004,7 +6023,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               {showDirectorControls && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
                   <FrappeButton
@@ -6436,7 +6455,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                       overheadFund={isOverheadProject}
                       fields={displayBaseFields}
                       formData={formData}
-                      linkOptions={displayLinkOptions}
+                      linkOptions={scopedDisplayLinkOptions}
                       onChange={handleFieldChange}
                       onFileChange={handleFileChange}
                       onTableRowChange={handleTableRowChange}
@@ -6546,7 +6565,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                           <DynamicFormRenderer
                             fields={displaySubFormFields}
                             formData={formData}
-                            linkOptions={linkOptions}
+                            linkOptions={scopedLinkOptions}
                             onChange={handleFieldChange}
                             onFileChange={handleFileChange}
                             onTableRowChange={handleTableRowChange}

@@ -17,7 +17,7 @@ import {
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
   ChevronDown, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
-  UserCheck, TrendingUp, Printer,
+  UserCheck, TrendingUp, Printer, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { printExtensionOrder } from "@/utils/extensionOrderPrint";
@@ -1119,7 +1119,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   type="button"
                   onClick={handlePrintOrder}
                   disabled={printing}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 py-2 text-sm font-semibold text-[#4A6CF7] hover:bg-[#4A6CF7]/10 disabled:opacity-60"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 text-xs font-bold uppercase tracking-wide text-[#4A6CF7] hover:bg-[#4A6CF7]/10 disabled:opacity-60"
                 >
                   {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                   Print Office Order
@@ -1157,7 +1157,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 ].filter((g) => g.length > 0);
 
                 return (
-                  <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     {/* Edit — switch from read-only to edit mode while in Draft */}
                     {isEditable && !isEditing && (
                       <button
@@ -1165,7 +1165,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         onClick={() => setIsEditing(true)}
                         disabled={isBusy}
                         className={cn(
-                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
+                          "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
                           "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
                           "disabled:opacity-50 disabled:cursor-not-allowed",
                         )}
@@ -1181,7 +1181,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         onClick={handleSave}
                         disabled={isBusy}
                         className={cn(
-                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
+                          "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
                           "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
                           "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
                           "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -1264,19 +1264,31 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     )}
 
                     {commitRequired && (
-                      <p className="basis-full text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        A commitment must be submitted before forwarding this application.
-                      </p>
+                      <span
+                        title="A commitment must be submitted before forwarding this application."
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        Commitment required before forwarding
+                      </span>
                     )}
                     {hasUnsavedEvaluationChanges && (
-                      <p className="basis-full text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        Please click "Save Changes" before forwarding.
-                      </p>
+                      <span
+                        title='Please click "Save Changes" before forwarding.'
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        Save changes before forwarding
+                      </span>
                     )}
                     {workflowState === "Draft" && !docName && (
-                      <p className="basis-full text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        Please Save as draft before submitting.
-                      </p>
+                      <span
+                        title="Please Save as draft before submitting."
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        Save as draft before submitting
+                      </span>
                     )}
                   </div>
                 );
