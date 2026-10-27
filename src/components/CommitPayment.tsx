@@ -29,7 +29,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { fetchOverheadLedger, isOverheadProjectNo } from "@/services/overheadLedger";
 import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X, BookOpen } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X, BookOpen, RefreshCw, Circle } from "lucide-react";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
@@ -364,9 +364,154 @@ const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
 // ---------------------------------------------------------------------------
 interface CommittedDataCardProps {
     stagingRecord: Record<string, any>;
+    /** Budget head label → ledger account head id (used to look the entry up in the ledger) */
+    budgetHeadIds?: Record<string, string | number>;
 }
 
-const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) => {
+type LedgerCheck =
+    | { state: "idle" | "checking" | "pending" }
+    | { state: "consumed"; tid?: string | number | null }
+    | { state: "error"; message: string };
+
+const minutesSince = (iso?: unknown) => {
+    if (!iso) return null;
+    const t = new Date(String(iso)).getTime();
+    return Number.isNaN(t) ? null : (Date.now() - t) / 60000;
+};
+
+/**
+ * Where a staged commitment is in its journey: Approval → Published → In ledger.
+ * "Published" only means it was sent to the queue; the ledger row is the proof it was consumed.
+ */
+const SyncProgress: React.FC<{
+    stagingRecord: Record<string, unknown>;
+    payloadObj: Record<string, unknown>;
+    budgetHeadIds?: Record<string, string | number>;
+}> = ({ stagingRecord, payloadObj, budgetHeadIds }) => {
+    const raw = String(stagingRecord.status ?? "").toUpperCase();
+    const failed = raw.includes("FAIL") || raw.includes("ERROR") || raw.includes("REJECT");
+    const awaitingApproval = raw.includes("APPROVAL");
+    const queued = raw.includes("PENDING_PUBLISH") || raw === "PENDING";
+    const published = raw === "PUBLISHED";
+
+    const [ledger, setLedger] = useState<LedgerCheck>({ state: "idle" });
+    const projectNo = String(payloadObj.project_name ?? payloadObj.projectName ?? "").trim();
+    const headLabel = String(payloadObj.budget_head ?? payloadObj.budgetHead ?? "").trim();
+    const frapAppId = String(payloadObj.frapAppId ?? payloadObj.frap_app_id ?? "").trim();
+    const refDetails = String(payloadObj.refDetails ?? payloadObj.ref_details ?? "").trim();
+    const signedAmount = Number(payloadObj.commit_amount ?? payloadObj.commitAmount ?? 0);
+
+    const checkLedger = useCallback(async () => {
+        if (!projectNo || !signedAmount) return;
+        setLedger({ state: "checking" });
+        try {
+            type LedgerEntry = { status?: unknown; commitAmount?: unknown; frapAppId?: unknown; refDetails?: unknown; transactionId?: string | number | null };
+            let rows: LedgerEntry[];
+            if (isOverheadProjectNo(projectNo)) {
+                rows = (await fetchOverheadLedger(projectNo)) as LedgerEntry[];
+            } else {
+                const headId = budgetHeadIds?.[headLabel] ?? headLabel;
+                if (!headId) throw new Error("Budget head is unknown.");
+                const res = await fetch(
+                    `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${encodeURIComponent(String(headId))}`,
+                );
+                if (!res.ok) throw new Error(`Ledger service returned ${res.status}.`);
+                const data = await res.json();
+                rows = Array.isArray(data) ? data : [];
+            }
+            const match = rows.find((r) => {
+                const cancelled = String(r.status ?? "").toUpperCase().includes("CANCEL");
+                const sameAmount = Math.round(Number(r.commitAmount ?? 0)) === Math.round(signedAmount);
+                const sameApp = (frapAppId && r.frapAppId === frapAppId) || (refDetails && String(r.refDetails ?? "").trim() === refDetails);
+                return !cancelled && sameAmount && sameApp;
+            });
+            setLedger(match ? { state: "consumed", tid: match.transactionId } : { state: "pending" });
+        } catch (e) {
+            setLedger({ state: "error", message: e instanceof Error ? e.message : "Could not read the ledger." });
+        }
+    }, [projectNo, headLabel, frapAppId, refDetails, signedAmount, budgetHeadIds]);
+
+    useEffect(() => {
+        if (published) checkLedger();
+    }, [published, checkLedger]);
+
+    const age = minutesSince(stagingRecord.modified ?? stagingRecord.creation);
+    const stuckQueued = queued && age !== null && age > 10;
+    const notConsumed = published && ledger.state === "pending" && age !== null && age > 15;
+    const consumed = published && ledger.state === "consumed";
+
+    const step = (label: string, done: boolean, bad = false, active = false) => (
+        <div className="flex items-center gap-1.5">
+            {bad ? (
+                <AlertCircle className="h-4 w-4 text-red-500" />
+            ) : done ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            ) : active ? (
+                <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+            ) : (
+                <Circle className="h-4 w-4 text-zinc-300 dark:text-zinc-600" />
+            )}
+            <span className={cn("text-[11px] font-semibold", bad ? "text-red-600" : done ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-400")}>{label}</span>
+        </div>
+    );
+
+    let message: { tone: "ok" | "wait" | "bad"; text: string } | null = null;
+    if (failed) {
+        const reason = stagingRecord.error_message ?? stagingRecord.error ?? stagingRecord.remarks ?? stagingRecord.message;
+        message = { tone: "bad", text: `Publishing failed${reason ? `: ${String(reason)}` : "."} Ask the system admin to check the error.` };
+    } else if (awaitingApproval) {
+        message = { tone: "wait", text: "Waiting for approval. Nothing has been sent to the ledger yet." };
+    } else if (queued) {
+        message = stuckQueued
+            ? { tone: "bad", text: `Not published after ${Math.round(age!)} minutes. It may be stuck; ask the system admin to check.` }
+            : { tone: "wait", text: "Queued, waiting to be published." };
+    } else if (consumed) {
+        message = { tone: "ok", text: `Consumed: recorded in the ledger${(ledger as { tid?: string | number | null }).tid != null ? ` as TID ${(ledger as { tid?: string | number | null }).tid}` : ""}.` };
+    } else if (published) {
+        if (ledger.state === "error") message = { tone: "bad", text: `Could not check the ledger: ${ledger.message}` };
+        else if (notConsumed) message = { tone: "bad", text: "Published, but not in the ledger after more than 15 minutes. It has probably failed (dead-letter queue); ask the system admin to check the DLQ." };
+        else if (ledger.state === "pending") message = { tone: "wait", text: "Published, but not in the ledger yet. It may still be processing; re-check shortly." };
+        else message = { tone: "wait", text: "Checking the ledger…" };
+    }
+
+    const approvalDone = !awaitingApproval && !failed;
+    return (
+        <div className="mt-4 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+            <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Processing status</span>
+                {published && (
+                    <button
+                        type="button"
+                        onClick={checkLedger}
+                        disabled={ledger.state === "checking"}
+                        className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                        <RefreshCw className={cn("h-3 w-3", ledger.state === "checking" && "animate-spin")} /> Re-check
+                    </button>
+                )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {step("Approval", approvalDone, false, awaitingApproval)}
+                <span className="text-zinc-300">›</span>
+                {step("Published", published || consumed, failed || stuckQueued, queued && !stuckQueued)}
+                <span className="text-zinc-300">›</span>
+                {step("In ledger", consumed, notConsumed, published && !consumed && !notConsumed && ledger.state !== "error")}
+            </div>
+            {message && (
+                <p className={cn(
+                    "mt-2 text-xs font-semibold",
+                    message.tone === "ok" && "text-emerald-700 dark:text-emerald-400",
+                    message.tone === "wait" && "text-amber-700 dark:text-amber-400",
+                    message.tone === "bad" && "text-red-600 dark:text-red-400",
+                )}>
+                    {message.text}
+                </p>
+            )}
+        </div>
+    );
+};
+
+const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord, budgetHeadIds }) => {
     // Parse payload JSON
     let payloadObj: Record<string, any> = {};
     try {
@@ -387,6 +532,9 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
                 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                 : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
 
+    // A negative commit amount is a decommitment (release), so the card is worded accordingly.
+    const isDecommit = Number(payloadObj.commit_amount ?? payloadObj.commitAmount ?? 0) < 0;
+
     // The PO commit is labelled by its refDetails (e.g. "PO 10071 to …"); a bare numeric
     // transaction id isn't descriptive, so fall back to the particulars in that case.
     const refDetails = String(payloadObj.refDetails ?? payloadObj.ref_details ?? "").trim();
@@ -394,7 +542,7 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
     const cardTitle =
         (payloadObj.trigger_state === "POGenerated" || String(stagingRecord.reference_name ?? payloadObj.name ?? "").endsWith("-po"))
             ? (refDetails && !/^\d+$/.test(refDetails) ? refDetails : particulars || "PO Commitment")
-            : "Commitment Details";
+            : isDecommit ? "Decommitment Details" : "Commitment Details";
 
     return (
         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -408,7 +556,7 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
 
             {/* Already-committed notice */}
             <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                A commitment has already been submitted for this application. Duplicate submissions are blocked.
+                {isDecommit ? "A decommitment" : "A commitment"} has already been submitted for this application. Duplicate submissions are blocked.
             </div>
 
             {/* Non-empty payload fields */}
@@ -421,7 +569,7 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
                     return (
                         <div key={key} className="flex justify-between items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
                             <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium shrink-0">
-                                {label}
+                                {isDecommit && key === "commit_amount" ? "Decommit Amount" : label}
                             </span>
                             <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-right break-all">
                                 {typeof val === "number"
@@ -444,6 +592,8 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
                     </div>
                 )}
             </div>
+
+            <SyncProgress stagingRecord={stagingRecord} payloadObj={payloadObj} budgetHeadIds={budgetHeadIds} />
         </div>
     );
 };
@@ -838,6 +988,10 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         if (submittingRef.current) throw new Error("A submission is already in progress.");
         if (!budgetHead) throw new Error("Please select a budget head.");
         if (!Number.isFinite(amount) || amount <= 0) throw new Error("Please enter a valid positive amount.");
+        // A decommitment must point at the commitment (TID) it releases.
+        if (asDecommit && !String(refDetails ?? "").trim()) {
+            throw new Error("Reference details are required: select the commitment (TID) being decommitted.");
+        }
         if (!commitReferenceName || !payloadFrapAppId || !projectName) {
             throw new Error("Missing document reference or project number. Reload the page and try again.");
         }
@@ -1074,7 +1228,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     if (stagingStatus === "found" && stagingRecord) {
         return (
             <div className={cn(className)}>
-                <CommittedDataCard stagingRecord={stagingRecord} />
+                <CommittedDataCard stagingRecord={stagingRecord} budgetHeadIds={budgetHeadIds ?? Object.fromEntries(Object.entries(headBalances ?? {}).map(([k, v]) => [k, v.id]))} />
             </div>
         );
     }

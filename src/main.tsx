@@ -77,6 +77,7 @@ import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
 import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
 import IDCardRequestForm from './pages/application/IDCardRequestForm.tsx';
+import MySalarySlip from './pages/application/MySalarySlip';
 import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
 import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
@@ -637,6 +638,15 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <ProjectStaffExtensionForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                // Project staff — download own salary slip
+                {
+                    path: "my-salary-slip",
+                    element: (
+                        <AuthRouteWrapper allowedRole="project staff">
+                            <MySalarySlip />
                         </AuthRouteWrapper>
                     )
                 },
