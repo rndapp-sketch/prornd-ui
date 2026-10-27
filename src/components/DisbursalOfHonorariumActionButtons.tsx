@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { withCancellationLock } from "./CancellationLock";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { usePutBack } from "@/components/PutBack";
@@ -291,4 +292,4 @@ const DisbursalOfHonorariumActionButtons = ({
   );
 };
 
-export default DisbursalOfHonorariumActionButtons;
+export default withCancellationLock(DisbursalOfHonorariumActionButtons, "Disbursal of Honorarium", (p) => p.docname);

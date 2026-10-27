@@ -82,6 +82,7 @@ import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
+import { CancellationRequestView } from "@/components/CancellationRequestView";
 import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
 import { resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 import { CancellationStatusBanner } from "../components/CancellationStatusBanner";
@@ -1489,6 +1490,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/direct-purchase/${name}`;
         case "Advance Settlement":
             return `/advance-settlement/${name}`;
+        case "Top Up Fellowship":
+            return `/top-up-fellowship/${name}`;
         default:
             return `/pending-tasks/${encodeURIComponent(refDoctype)}/${name}`;
     }
@@ -2506,25 +2509,8 @@ const DirectPurchaseTabView = ({
     );
 };
 
-const PendingTaskDetails: React.FC = () => {
-    const { doctype: rawDoctype, name } = useParams<{
-        doctype: string;
-        name: string;
-    }>();
+const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({ doctype, name }) => {
     const navigate = useNavigate();
-    // Decode the doctype URL parameter
-    const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : "";
-
-    // Top Up Fellowship has its own dedicated details page
-    if (doctype === "Top Up Fellowship" && name) {
-        return <Navigate to={`/top-up-fellowship/${name}`} replace />;
-    }
-
-    // Proforma Invoice renders as the invoice document (review + approve), never
-    // as raw doctype fields.
-    if (doctype === "Proforma_Invoice" && name) {
-        return <Navigate to={`/proforma-invoice/${name}`} replace />;
-    }
 
     const { data, isLoading, error, mutate } = useFrappeGetDoc(
         doctype || "",
@@ -4894,194 +4880,13 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             </div>
                         ) : doctype === "Cancellation Request" && data ? (
-                            <div className="space-y-3">
-                                {/* Reference Document Banner */}
-                                <div className="relative overflow-hidden rounded-lg border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50/30 dark:from-amber-900/10 dark:via-orange-900/5 dark:to-zinc-900/0 p-3 sm:p-4">
-                                    <div className="absolute top-0 right-0 w-56 h-56 bg-amber-100/40 dark:bg-amber-800/10 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                                    <div className="relative flex items-start gap-3">
-                                        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-700/40 flex items-center justify-center shadow-sm">
-                                            <XCircleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-[0.16em] mb-1.5">
-                                                Cancellation Request
-                                            </p>
-                                            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 leading-snug">
-                                                Requesting cancellation of{" "}
-                                                <span className="text-[#D97757]">
-                                                    {data.reference_doctype || data.doctype_name || "document"}
-                                                </span>
-                                            </p>
-                                            {(data.reference_document || data.original_document) && (
-                                                <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-white/80 dark:bg-zinc-900/60 border border-amber-200/60 dark:border-amber-800/30">
-                                                    <span className="font-mono text-xs text-[#D97757] font-semibold tracking-tight">
-                                                        {data.reference_document || data.original_document}
-                                                    </span>
-                                                    {data.reference_doctype && (
-                                                        <button
-                                                            onClick={() => navigate(`/pending-tasks/${encodeURIComponent(data.reference_doctype)}/${data.reference_document || data.original_document}`)}
-                                                            className="p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-                                                            title="View original document"
-                                                        >
-                                                            <ExternalLinkIcon className="w-3 h-3 text-amber-500 dark:text-amber-400" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        {data.total_amount != null && Number(data.total_amount) > 0 && (
-                                            <div className="flex-shrink-0 text-right">
-                                                <p className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wider mb-0.5">Amount</p>
-                                                <p className="text-xl font-bold text-amber-800 dark:text-amber-200 tabular-nums">
-                                                    {Number(data.total_amount).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Reason for Cancellation */}
-                                {(data.reason || data.cancellation_reason || data.remarks) && (
-                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-1 h-4 rounded-full bg-[#D97757]" />
-                                            <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
-                                                Reason for Cancellation
-                                            </h3>
-                                        </div>
-                                        <p className="text-[13.5px] text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-4 py-3 border border-zinc-100 dark:border-zinc-700/60">
-                                            {data.reason || data.cancellation_reason || data.remarks}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Request Details */}
-                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                    <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                        <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
-                                            Request Details
-                                        </h3>
-                                    </div>
-                                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
-                                        {[
-                                            { label: "Applicant", value: data.applicant_name || data.applicant },
-                                            { label: "Department", value: data.department || data.applicant_department },
-                                            { label: "Project", value: data.project_no || data.project_name || data.project_code },
-                                            { label: "Submitted On", value: data.creation ? new Date(data.creation).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }) : null },
-                                            { label: "Last Updated", value: data.modified ? new Date(data.modified).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }) : null },
-                                            { label: "Submitted By", value: data.owner },
-                                        ].filter((f) => f.value != null && f.value !== "").map(({ label, value }) => (
-                                            <div key={label} className="flex flex-col gap-1">
-                                                <span className={labelClasses}>{label}</span>
-                                                <span className={valueClasses}>{String(value)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Additional scalar fields not already shown */}
-                                {(() => {
-                                    const shown = new Set([
-                                        "name", "doctype", "docstatus", "idx", "owner", "creation", "modified", "modified_by",
-                                        "_user_tags", "_comments", "_assign", "_liked_by", "_seen", "workflow_state",
-                                        "reference_doctype", "reference_document", "original_document", "doctype_name",
-                                        "reason", "cancellation_reason", "remarks",
-                                        "applicant_name", "applicant", "department", "applicant_department",
-                                        "project_no", "project_name", "project_code",
-                                        "total_amount", "amount",
-                                        ...HIDDEN_FIELDS,
-                                    ]);
-                                    const extras = Object.entries(data).filter(
-                                        ([key, value]) =>
-                                            !shown.has(key) &&
-                                            !key.startsWith("_") &&
-                                            !Array.isArray(value) &&
-                                            value !== null &&
-                                            value !== undefined &&
-                                            value !== "",
-                                    );
-                                    if (extras.length === 0) return null;
-                                    return (
-                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                            <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                                <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
-                                                    Additional Information
-                                                </h3>
-                                            </div>
-                                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
-                                                {extras.map(([key, value]) => {
-                                                    const isFile = isFilePath(String(value));
-                                                    return (
-                                                        <div key={key} className="flex flex-col gap-1">
-                                                            <span className={labelClasses}>
-                                                                {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                                                            </span>
-                                                            {isFile ? (
-                                                                <a
-                                                                    href={getFileUrl(String(value))}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="group flex items-center gap-2 mt-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-700/50 text-[#D97757] rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-medium border border-zinc-200 dark:border-zinc-700"
-                                                                >
-                                                                    <FileIcon className="h-4 w-4 flex-shrink-0" />
-                                                                    <span className="truncate text-sm">{getFileName(String(value))}</span>
-                                                                    <ExternalLinkIcon className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                                </a>
-                                                            ) : (
-                                                                <span className={valueClasses}>{String(value)}</span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* Child tables */}
-                                {Object.entries(data)
-                                    .filter(([key, value]) => Array.isArray(value) && (value as any[]).length > 0 && !key.startsWith("_"))
-                                    .map(([key, rows]) => {
-                                        const cols = Object.keys((rows as any[])[0] || {}).filter(
-                                            (k) => !k.startsWith("_") && !DP_EXCLUDED.includes(k),
-                                        );
-                                        return (
-                                            <div key={key} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                                <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                                    <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
-                                                        {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                                                    </h3>
-                                                </div>
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-sm">
-                                                        <thead>
-                                                            <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/50">
-                                                                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">#</th>
-                                                                {cols.map((col) => (
-                                                                    <th key={col} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                                                        {col.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                                                                    </th>
-                                                                ))}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                                            {(rows as any[]).map((row, idx) => (
-                                                                <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", idx % 2 === 1 && "bg-zinc-50/40 dark:bg-zinc-800/10")}>
-                                                                    <td className="px-3 py-2 text-xs text-zinc-400 font-mono">{idx + 1}</td>
-                                                                    {cols.map((k) => (
-                                                                        <td key={k} className="px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300">
-                                                                            {row[k] != null ? String(row[k]) : "—"}
-                                                                        </td>
-                                                                    ))}
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                            </div>
+                            <CancellationRequestView
+                                data={data}
+                                onOpenOriginal={(refDoctype, refName) => {
+                                    const route = getOriginalApplicationRoute(refDoctype, refName);
+                                    if (route) navigate(route);
+                                }}
+                            />
                         ) : doctype === "Leave Module" && data ? (
                             <div className="space-y-3">
                                 {/* Applicant */}
@@ -5347,6 +5152,21 @@ const PendingTaskDetails: React.FC = () => {
             />
         </div>
     );
+};
+
+// Doctypes with a dedicated page redirect before any hooks run, so switching
+// between doctypes on the same route never changes the hook count.
+const PendingTaskDetails: React.FC = () => {
+    const { doctype: rawDoctype, name } = useParams<{ doctype: string; name: string }>();
+    const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : "";
+
+    if (doctype === "Top Up Fellowship" && name) {
+        return <Navigate to={`/top-up-fellowship/${name}`} replace />;
+    }
+    if (doctype === "Proforma_Invoice" && name) {
+        return <Navigate to={`/proforma-invoice/${name}`} replace />;
+    }
+    return <PendingTaskDetailsInner key={`${doctype}/${name}`} doctype={doctype} name={name} />;
 };
 
 export default PendingTaskDetails;

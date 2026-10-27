@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CancellationLockBanner } from "@/components/CancellationLock";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
@@ -375,6 +376,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
 
                     {/* ── Compact Workflow Timeline ── */}
                     <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] px-4 py-2">
+                        <CancellationLockBanner doctype="Miscellaneous Commit" name={id} />
                         <WorkflowTimeline currentState={workflowState} />
                     </div>
                 </FrappeCard>

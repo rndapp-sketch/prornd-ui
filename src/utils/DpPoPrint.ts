@@ -2,6 +2,7 @@ import poTemplateRaw from "@/pages/printformat/dp_po_format.html?raw";
 import { FRAPPE_BASE_URL, withFrappeBase } from "@/utils/frappeUrl";
 const poTemplate = withFrappeBase(poTemplateRaw);
 import { ToWords } from "to-words";
+import { getDpCurrency } from "@/utils/dpCurrency";
 
 // The logo needs a fully-qualified same-origin URL, not a bare "/files/..."
 // path: this HTML also gets rendered inside a blob: URL iframe (for the
@@ -148,11 +149,12 @@ export function generatePOHtml(poData: Record<string, any>): string {
   // IV = Total Estimated Basic Value from sanction sheet (ss_total_es_basic_value)
   // SV = Grand Total from sanction sheet (ss_grand_total)
   const ivRaw = poData.dp_indent_value || poData.ss_total_es_basic_value;
+  const currency = getDpCurrency(poData);
   const ivStr = ivRaw !== undefined && ivRaw !== "" && Number(ivRaw) !== 0
-    ? `IV: ₹${fmt(ivRaw)}`
+    ? `IV: ${currency.symbol}${fmt(ivRaw)}`
     : "";
   const svStr = poData.ss_grand_total !== undefined && poData.ss_grand_total !== "" && Number(poData.ss_grand_total) !== 0
-    ? `SV: ₹${fmt(poData.ss_grand_total)}`
+    ? `SV: ${currency.symbol}${fmt(poData.ss_grand_total)}`
     : "";
   const ivSvPart = [ivStr, svStr].filter(Boolean).join(", ");
   const accountHeadStr = poData.ss_account_head
@@ -160,6 +162,7 @@ export function generatePOHtml(poData: Record<string, any>): string {
     : "";
 
   return poTemplate
+    .replace(/\{\{CURRENCY_SYMBOL\}\}/g, currency.symbol)
     .replace(/\{\{LOGO_URL\}\}/g, LOGO_URL)
     .replace("{{VENDOR_ADDRESS}}", poData.vendor_address || poData.ss_name_of_firms || "")
     .replace("{{PO_NUMBER}}", poData.po_number || poData.name || "")
@@ -167,7 +170,7 @@ export function generatePOHtml(poData: Record<string, any>): string {
     .replace("{{QUOTATION_NO}}", poData.quotation_no || "")
     .replace("{{ITEM_ROWS}}", itemRows)
     .replace("{{SUMMARY_ROWS}}", summaryRows)
-    .replace("{{AMOUNT_IN_WORDS}}", poData.amount_in_words || (poData.ss_grand_total ? toWords.convert(Number(poData.ss_grand_total)) : ""))
+    .replace("{{AMOUNT_IN_WORDS}}", poData.amount_in_words || (poData.ss_grand_total ? `${currency.code === "INR" ? "" : currency.code + " "}${toWords.convert(Number(poData.ss_grand_total))}` : ""))
     .replace("{{ACCOUNT_HEAD}}", accountHeadStr)
     .replace("{{FILE_NUMBER}}", poData.ss_file_number || "")
     .replace("{{PO_CREATED_BY}}", poData.owner || "")

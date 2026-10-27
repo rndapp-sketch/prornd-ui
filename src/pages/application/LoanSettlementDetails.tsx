@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { CancellationLockBanner, useCancellationLock } from "@/components/CancellationLock";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { useUserRoles } from '@/components/UserRole';
@@ -115,6 +116,7 @@ const LoanSettlementDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
+    const { hasPending: cancellationPending } = useCancellationLock('Loan Settlement', id);
     const { roles } = useUserRoles(currentUser ?? null);
 
     const [doc, setDoc] = useState<LoanSettlementDoc | null>(null);
@@ -168,7 +170,7 @@ const LoanSettlementDetails: React.FC = () => {
     }, [id]);
 
     const workflowState = doc?.workflow_state || STATE_PENDING_STAFF;
-    const canProcess = workflowState === STATE_PENDING_STAFF && isRndStaff;
+    const canProcess = workflowState === STATE_PENDING_STAFF && isRndStaff && !cancellationPending;
     const showRetry = workflowState === STATE_PROCESSED && doc?.publish_status === 'Failed' && isRndStaff;
 
     const handleAction = async (action: 'Process' | 'Reject') => {
@@ -263,6 +265,7 @@ const LoanSettlementDetails: React.FC = () => {
                         Back
                     </button>
                 </PageHeader>
+                <CancellationLockBanner doctype="Loan Settlement" name={id} />
 
                 <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Settlement details */}

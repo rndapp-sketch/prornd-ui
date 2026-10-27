@@ -1569,10 +1569,11 @@ import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { directPurchaseAPI, prepareFormDataForApi } from '@/services/apiService';
+import { getDpCurrency, withCurrencyLabel, columnLabel } from '@/utils/dpCurrency';
 import { CommentModal } from '@/components/CommentModal';
 import { Plus, Trash2 } from 'lucide-react';
 import { DepartmentName } from "@/components/DepartmentName";
@@ -1586,6 +1587,12 @@ import {
     overheadHeadUpdates,
 } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../components/ErrorModal";
+
+// Help text shown under a field when the DocType defines no description of its own
+const FIELD_DESCRIPTION_FALLBACKS: Record<string, string> = {
+    is_foreign:
+        "Select Yes for a foreign purchase, then choose the quoted price currency. All follow-up forms (P-11, Sanction Sheet, etc.) will use that currency. If No, only Indian Rupees (INR) is used.",
+};
 
 // Person pickers rendered as type-to-search instead of a long <select>.
 const DP_AUTOCOMPLETE_FIELDS = ["dp_other_pi_id"];
@@ -1902,8 +1909,10 @@ const MemoizedFormField = memo(({
             {field.read_only !== 1 && (
                 <CharLimitAlert value={value} maxLength={getFieldMaxLength(field.fieldtype)} />
             )}
-            {field.description && field.fieldtype !== 'Check' && (
-                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">{field.description}</p>
+            {(field.description || FIELD_DESCRIPTION_FALLBACKS[field.fieldname]) && field.fieldtype !== 'Check' && (
+                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
+                    {field.description || FIELD_DESCRIPTION_FALLBACKS[field.fieldname]}
+                </p>
             )}
         </div>
     );
@@ -1919,7 +1928,9 @@ const ChildTableEditor = ({
     computationRules,
     linkOptions,
     onLinkSelect,
+    currency,
 }: {
+    currency: { code: string; symbol: string };
     field: Field;
     rows: any[];
     onChange: (rows: any[]) => void;
@@ -2037,7 +2048,7 @@ const ChildTableEditor = ({
                             <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest w-10">#</th>
                             {childFields.map(cf => (
                                 <th key={cf.fieldname} className="px-3 py-2.5 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest">
-                                    {cf.label}
+                                    {columnLabel(cf.fieldname, cf.label, currency.code)}
                                     {cf.mandatory === 1 && <span className="text-red-500 ml-0.5 normal-case font-bold">*</span>}
                                 </th>
                             ))}
@@ -2076,7 +2087,7 @@ const ChildTableEditor = ({
                                                 {computed ? (
                                                     <div className="px-2.5 py-1.5 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] bg-[#FAFAF9] dark:bg-[#18181B] rounded-md border border-[#E4E4E7] dark:border-[#3F3F46]">
                                                         {cf.fieldtype === 'Currency' || cf.fieldtype === 'Float'
-                                                            ? `₹ ${(parseFloat(row[cf.fieldname]) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                                                            ? `${currency.symbol} ${(parseFloat(row[cf.fieldname]) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                                                             : row[cf.fieldname] ?? 0
                                                         }
                                                     </div>
@@ -2270,22 +2281,29 @@ const DirectPurchase: React.FC = () => {
     // Budget Heads actually sanctioned/received against the selected project, used to
     // narrow the Account Head dropdown down from the global Budget Head list. Reuses the
     // same endpoint DirectPurchaseDetails already calls for its Other-PI account head picker.
-    const { call: fetchProjectAccountHeads } = useFrappePostCall<{ message: LinkOption[] }>(
-        directPurchaseAPI.getProjectAccountHeads
+    const { call: fetchBudgetHeads } = useFrappePostCall<{ message: { name: string; budget_head?: string }[] }>(
+        'frappe.client.get_list'
+    );
+    const dpCurrency = React.useMemo(
+        () => getDpCurrency(formData, linkOptions['quoted_price_currency'] || linkOptions['Currency'] || []),
+        [formData, linkOptions],
     );
     const projectNoForHeads = formData.project_no || formData.project_name || projectName || '';
-    const [projectAccountHeads, setProjectAccountHeads] = useState<LinkOption[] | null>(null);
-    useEffect(() => {
-        if (!projectNoForHeads) {
-            setProjectAccountHeads(null);
-            return;
-        }
-        let isCancelled = false;
-        fetchProjectAccountHeads({ project_name: projectNoForHeads })
-            .then((res) => { if (!isCancelled) setProjectAccountHeads(res?.message || []); })
-            .catch(() => { if (!isCancelled) setProjectAccountHeads(null); });
-        return () => { isCancelled = true; };
-    }, [projectNoForHeads, fetchProjectAccountHeads]);
+    // Budget Heads sanctioned/received against the selected project
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
+    );
+    const projectAccountHeads = React.useMemo<LinkOption[] | null>(() => {
+        if (!projectNoForHeads || !projectBudgetHeadsResult) return null;
+        return (projectBudgetHeadsResult.message || []).map((h) => ({
+            value: h.name,
+            label: h.budget_head || h.name,
+        }));
+    }, [projectNoForHeads, projectBudgetHeadsResult]);
 
     // ── Aggregations: compute parent-level values from child table data ──
     const computedAggregations = useMemo(() => {
@@ -2509,7 +2527,7 @@ const DirectPurchase: React.FC = () => {
                         initialData.project_no = projectName;
                     }
 
-                    setFields(apiFields);
+                    setFields(apiFields.map(f => (f.fieldname === 'account_head' ? { ...f, fieldtype: 'Link' } : f)));
                     setFormData(initialData);
                     setChildTableData(initialChildData);
                 } else {
@@ -2526,7 +2544,25 @@ const DirectPurchase: React.FC = () => {
                     }
                     return merged;
                 });
-                setAllAccountHeadOptions(link_options?.account_head || []);
+                // The form meta does not always ship Budget Head options, which leaves the
+                // dropdown empty — load them directly (same as Travel) when it doesn't.
+                let headOpts: LinkOption[] = link_options?.account_head || [];
+                if (!headOpts.length) {
+                    try {
+                        const headsRes = await fetchBudgetHeads({
+                            doctype: 'Budget Head',
+                            fields: ['name', 'budget_head'],
+                            limit_page_length: 0,
+                        });
+                        headOpts = (headsRes?.message || []).map((h) => ({
+                            value: h.name,
+                            label: h.budget_head || h.name,
+                        }));
+                    } catch (err) {
+                        console.error('Failed to load Budget Heads:', err);
+                    }
+                }
+                setAllAccountHeadOptions(headOpts);
                 setDataLoaded(true);
                 setLoading(false);
             };
@@ -2552,7 +2588,11 @@ const DirectPurchase: React.FC = () => {
         }
 
         if (!projectAccountHeads) return;
-        setLinkOptions(prev => ({ ...prev, account_head: projectAccountHeads }));
+        // A project with no sanctioned/received heads must not leave the dropdown empty
+        setLinkOptions(prev => ({
+            ...prev,
+            account_head: projectAccountHeads.length ? projectAccountHeads : allAccountHeadOptions,
+        }));
     }, [dataLoaded, projectNoForHeads, projectAccountHeads, allAccountHeadOptions]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
@@ -2913,6 +2953,7 @@ const DirectPurchase: React.FC = () => {
                                         if (field.fieldtype === 'Table') {
                                             return (
                                                 <ChildTableEditor
+                                                    currency={dpCurrency}
                                                     key={field.fieldname}
                                                     field={field}
                                                     rows={childTableData[field.fieldname] || []}
@@ -2946,6 +2987,7 @@ const DirectPurchase: React.FC = () => {
 
                                         const effectiveField = {
                                             ...field,
+                                            label: withCurrencyLabel(field.label, dpCurrency.code) ?? field.label,
                                             read_only: isReadOnly ? 1 : 0,
                                             mandatory: isMandatory ? 1 : 0
                                         };
@@ -2983,10 +3025,10 @@ const DirectPurchase: React.FC = () => {
                                     return (
                                         <div key={agg.target_field} className="mt-4 flex items-center justify-end gap-4 rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
                                             <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">
-                                                {agg.description || agg.target_field}
+                                                {withCurrencyLabel(agg.description, dpCurrency.code) || agg.target_field}
                                             </span>
                                             <span className="text-base font-black text-[#2563EB] dark:text-blue-300">
-                                                ₹ {(computedAggregations[agg.target_field] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                {dpCurrency.symbol} {(computedAggregations[agg.target_field] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                     );
