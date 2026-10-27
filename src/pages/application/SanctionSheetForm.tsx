@@ -1,5 +1,6 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { applyDpCurrency } from "@/utils/dpCurrency";
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -121,6 +122,31 @@ const SanctionSheetForm: React.FC = () => {
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
+    const formDataRef = useRef(formData);
+    formDataRef.current = formData;
+    // Account Head choices are the Budget Heads sanctioned/received for this form's project;
+    // the global Budget Head search is only the fallback when the project has none (or is unset).
+    const projectHeadsCache = useRef<{ project: string; heads: { value: string; label: string }[] } | null>(null);
+    const searchProjectBudgetHead = async (q: string) => {
+        const project = String(formDataRef.current.project_no || formDataRef.current.project_name || "");
+        if (!project) return searchBudgetHead(q);
+        if (projectHeadsCache.current?.project !== project) {
+            let heads: { value: string; label: string }[] = [];
+            try {
+                const res = await fetchProjectAccountHeads({ project_no: project });
+                heads = (res?.message || []).map((h) => ({ value: h.name, label: h.budget_head || h.name }));
+            } catch { /* fall back below */ }
+            projectHeadsCache.current = { project, heads };
+        }
+        const heads = projectHeadsCache.current.heads;
+        if (!heads.length) return searchBudgetHead(q);
+        const needle = q.trim().toLowerCase();
+        // The sheet stores the readable head name, not the Budget Head docname
+        return heads
+            .filter((h) => !needle || h.label.toLowerCase().includes(needle))
+            .map((h) => ({ value: h.label, label: h.label }));
+    };
+
     const [linkOptions, setLinkOptions] = useState<
         Record<string, LinkOption[]>
     >({});
@@ -151,6 +177,9 @@ const SanctionSheetForm: React.FC = () => {
         result: formDataResult,
         error: formDataError,
     } = useFrappePostCall<FormDataResponse>(sanctionSheetAPI.getFields);
+    const { call: fetchProjectAccountHeads } = useFrappePostCall<{ message: { name: string; budget_head: string }[] }>(
+        "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project",
+    );
     const { call: saveForm, error: saveError } = useFrappePostCall(
         sanctionSheetAPI.save,
     );
@@ -368,6 +397,17 @@ const SanctionSheetForm: React.FC = () => {
                     }
                     return field;
                 });
+
+                // Currency is dictated by the parent Direct Purchase's quoted price currency
+                const dpCurrencyRef = appId || initialData.direct_purchase || initialData.app_id;
+                if (dpCurrencyRef) {
+                    try {
+                        const dp = await fetchExistingDoc({ doctype: "Direct Purchase", name: dpCurrencyRef });
+                        overrideFields = applyDpCurrency(overrideFields, initialData, dp?.message);
+                        if (dp?.message) setDpDocData(dp.message);
+                    } catch (err) {
+                    }
+                }
 
                 setFields(overrideFields);
 
@@ -664,7 +704,7 @@ const SanctionSheetForm: React.FC = () => {
                                 linkOptions={linkOptions}
                                 autocompleteFields={["ss_account_head", "ss_funding_agency"]}
                                 asyncSearchFields={{
-                                    ss_account_head: searchBudgetHead,
+                                    ss_account_head: searchProjectBudgetHead,
                                     ss_funding_agency: searchFundingAgency,
                                 }}
                                 onChange={handleChange}
@@ -755,7 +795,7 @@ const SanctionSheetForm: React.FC = () => {
             <P11PrintModal
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
-                htmlContent={isPrintModalOpen ? generateSanctionSheetHtml(formData) : ''}
+                htmlContent={isPrintModalOpen ? generateSanctionSheetHtml({ ...formData, is_foreign: dpDocData?.is_foreign, quoted_price_currency: dpDocData?.quoted_price_currency }) : ''}
                 docName={editDocName || formData.name || ''}
             />
 

@@ -6,7 +6,9 @@ import {
     FileTextIcon, ClipboardListIcon, ShoppingCartIcon,
     LayoutGridIcon, PaperclipIcon, Printer, FolderOpenIcon, XIcon,
     ExternalLinkIcon, CreditCardIcon, CheckCircle2Icon,
+    UserIcon as UserRoundIcon, BriefcaseIcon, PackageIcon, ScrollTextIcon, WalletIcon, HashIcon,
 } from "lucide-react";
+import { ICSS_LAYOUT_TYPES, ICSS_HIDDEN_KEYS, IcssField, IcssSection, RegistryHtml, RegistryTable, RegistryFormView } from '@/components/RegistryFormView';
 import { cn } from '@/lib/utils';
 
 
@@ -15,7 +17,7 @@ import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButto
 import { ActivityLog } from '@/components/ActivityLog';
 import { P11PrintModal } from '@/components/P11PrintModal';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI, dpPoAPI, directPurchaseAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI, dpPoAPI, directPurchaseAPI, icssAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
 import { getFileUrl } from '@/utils/fileUtils';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
@@ -30,6 +32,9 @@ import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData, type ActivityItem } from '@/utils/disbursalOfHonorariumPrint';
 import { generateTopUpFellowshipHtml, resolveTopUpFellowshipPrintData } from '@/utils/topUpFellowshipPrint';
 import { generateSanctionSheetHtml } from '@/utils/sanctionSheetPrint';
+import { generateIcssHtml } from '@/utils/icssPrint';
+import { resolveDepartmentLabel } from '@/utils/resolveDepartmentLabel';
+import { resolveBudgetHeadLabel } from '@/utils/resolveBudgetHeadLabel';
 import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -134,6 +139,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/direct-purchase/${name}`;
         case "Advance Settlement":
             return `/advance-settlement/${name}`;
+        case "Top Up Fellowship":
+            return `/top-up-fellowship/${name}`;
         default:
             return `/pending-tasks/${encodeURIComponent(refDoctype)}/${name}`;
     }
@@ -1101,6 +1108,194 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
 };
 
 // ── GenericDocViewer ──────────────────────────────────────────────────────────
+// ── Indent Cum Sanction Sheet: single-card registry view ─────────────────────
+const IcssRegistryView = ({ data }: { data: Record<string, any> }) => {
+    const indentType = data?.icss_indent_type || data?.indent_type || '';
+    const childName = data?.sub_doctype_reference || '';
+    const { call: fetchChildFields } = useFrappePostCall<{ message: any }>(icssAPI.getChildFields);
+    const [state, setState] = React.useState<{ loading: boolean; fields: any[]; values: Record<string, any>; links: Record<string, any[]> }>(
+        { loading: true, fields: [], values: {}, links: {} }
+    );
+
+    React.useEffect(() => {
+        if (!indentType || !childName) { setState(s => ({ ...s, loading: false })); return; }
+        let cancelled = false;
+        fetchChildFields({ indent_type: indentType, child_docname: childName })
+            .then((res: any) => {
+                if (cancelled) return;
+                const m = res?.message || {};
+                const prefill = m.prefill_data || {};
+                setState({ loading: false, fields: m.fields || [], values: { ...prefill, ...(prefill.child_document || {}) }, links: m.link_options || {} });
+            })
+            .catch(() => { if (!cancelled) setState(s => ({ ...s, loading: false })); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [indentType, childName]);
+
+    // Department / account head are stored as ids; resolve to names for display and print.
+    const ICSS_DEPT_KEY = 'icss_applicant_department__centre__section';
+    const ICSS_HEAD_KEY = 'icss_account_head';
+    const [names, setNames] = React.useState<Record<string, string>>({});
+    React.useEffect(() => {
+        let cancelled = false;
+        const lookups: [string, Promise<string>][] = [];
+        if (data[ICSS_DEPT_KEY]) lookups.push([ICSS_DEPT_KEY, resolveDepartmentLabel(data[ICSS_DEPT_KEY])]);
+        if (data[ICSS_HEAD_KEY]) lookups.push([ICSS_HEAD_KEY, resolveBudgetHeadLabel(data[ICSS_HEAD_KEY])]);
+        Promise.all(lookups.map(([, p]) => p)).then(res => {
+            if (cancelled) return;
+            const out: Record<string, string> = {};
+            lookups.forEach(([k], i) => { if (res[i] && res[i] !== '-') out[k] = res[i]; });
+            setNames(out);
+        });
+        return () => { cancelled = true; };
+    }, [data[ICSS_DEPT_KEY], data[ICSS_HEAD_KEY]]);
+
+    const empty = (v: any) => v === null || v === undefined || v === '';
+    const label = (k: string) => k.replace(/^icss_/, '').replace(/_+/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const cell = (v: any, ft?: string): React.ReactNode => {
+        if (ft === 'Check') return <span className={cn('rounded px-1.5 py-0.5 text-[11px] font-bold', v ? 'bg-amber-50 text-amber-700' : 'bg-zinc-100 text-zinc-600')}>{v ? 'Yes' : 'No'}</span>;
+        if (empty(v)) return <span className="text-[#A1A1AA]">—</span>;
+        if (typeof v === 'number') return v.toLocaleString('en-IN');
+        if (typeof v === 'string' && isFilePath(v)) return <a href={getFileUrl(v)} target="_blank" rel="noreferrer" className="text-[#475569] underline">{getFileName(v)}</a>;
+        return String(v);
+    };
+
+    // Parent fields, grouped; anything not listed falls into "Other Details".
+    const groups: { title: string; icon: React.ReactNode; keys: string[] }[] = [
+        { title: 'Applicant', icon: <UserRoundIcon />, keys: ['icss_applicant_name', 'icss_applicant_designation', 'icss_applicant_webmail_id', 'icss_applicant_department__centre__section', 'self_other', 'icss_other_pi'] },
+        { title: 'Project & Indent', icon: <BriefcaseIcon />, keys: ['project_no', 'project_ref', 'icss_account_head', 'sub_doctype_reference', 'icss_indent_type'] },
+    ];
+    const grouped = new Set(groups.flatMap(g => g.keys));
+    const otherKeys = Object.keys(data).filter(k => !grouped.has(k) && !ICSS_HIDDEN_KEYS.has(k) && !k.startsWith('_') && !empty(data[k]) && typeof data[k] !== 'object');
+
+    // Sub-form fields, split into sections by the form's own Section Breaks.
+    const sections: { title: string; fields: any[] }[] = [];
+    let cur: { title: string; fields: any[] } | null = null;
+    state.fields.forEach((f: any) => {
+        if (f.hidden) return;
+        if (f.fieldtype === 'Section Break') { cur = { title: f.label || indentType || 'Details', fields: [] }; sections.push(cur); return; }
+        if (ICSS_LAYOUT_TYPES.includes(f.fieldtype) && !(f.fieldtype === 'HTML' && f.options)) return;
+        if (!cur) { cur = { title: indentType || 'Details', fields: [] }; sections.push(cur); }
+        cur.fields.push(f);
+    });
+
+    const grandField = state.fields.find((f: any) => /grand total/i.test(f.label || ''));
+    const gtRaw = grandField ? Number(state.values[grandField.fieldname]) : NaN;
+    const grandTotal = Number.isFinite(gtRaw) && gtRaw > 0 ? gtRaw : null;
+    const itemCount = state.fields
+        .filter((f: any) => f.fieldtype === 'Table')
+        .reduce((n: number, f: any) => n + ((state.values[f.fieldname] || []) as any[]).length, 0);
+
+    const grid = 'grid grid-cols-1 gap-x-8 gap-y-3.5 sm:grid-cols-2 lg:grid-cols-3';
+    const sendToDirector = !!Number(data.send_to_director || 0);
+    const [printOpen, setPrintOpen] = React.useState(false);
+
+    return (
+        <div className="overflow-hidden rounded-xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-amber-50 to-white px-5 py-4 text-[#18181B] dark:border-slate-500/20 dark:from-slate-950/40 dark:via-amber-950/30 dark:to-transparent dark:text-white">
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-sm"><ScrollTextIcon className="h-5 w-5" /></span>
+                    <div className="min-w-0">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-slate-300">Indent Cum Sanction Sheet</div>
+                        <div className="text-[18px] font-extrabold leading-tight tracking-tight">{data.name}</div>
+                    </div>
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                        {sendToDirector && <span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-800">Director sign-off</span>}
+                        <button
+                            onClick={() => setPrintOpen(true)}
+                            disabled={state.loading}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-bold text-[#334155] shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-slate-500/30 dark:bg-white/5 dark:text-slate-200"
+                        >
+                            <Printer className="h-3.5 w-3.5" />
+                            Print / PDF
+                        </button>
+                        {data.workflow_state && <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] font-extrabold text-white shadow-sm">{data.workflow_state}</span>}
+                    </div>
+                </div>
+                <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                        { icon: <UserRoundIcon />, k: 'Applicant', v: data.icss_applicant_name },
+                        { icon: <BriefcaseIcon />, k: 'Project', v: data.project_no },
+                        { icon: <PackageIcon />, k: 'Items', v: itemCount > 0 ? `${itemCount} item${itemCount > 1 ? 's' : ''}` : '' },
+                        { icon: <WalletIcon />, k: 'Grand Total', v: grandTotal != null ? grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }) : '' },
+                    ].filter(x => !empty(x.v)).map(x => (
+                        <div key={x.k} className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm dark:border-slate-500/20 dark:bg-white/5">
+                            <span className="text-[#475569] dark:text-slate-300 [&_svg]:h-4 [&_svg]:w-4">{x.icon}</span>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-bold uppercase tracking-wide text-[#475569] dark:text-slate-200">{x.k}</div>
+                                <div className="truncate text-[13px] font-bold">{x.v}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div>
+            {groups.map(g => {
+                const keys = g.keys.filter(k => !empty(data[k]));
+                if (keys.length === 0) return null;
+                return (
+                    <IcssSection key={g.title} title={g.title} icon={g.icon}>
+                        <div className={grid}>
+                            {keys.map(k => <IcssField key={k} label={label(k)} value={names[k] ?? cell(data[k])} wide={k === 'icss_indent_type'} />)}
+                        </div>
+                    </IcssSection>
+                );
+            })}
+
+            {otherKeys.length > 0 && (
+                <IcssSection title="Other Details" icon={<HashIcon />}>
+                    <div className={grid}>{otherKeys.map(k => <IcssField key={k} label={label(k)} value={cell(data[k])} />)}</div>
+                </IcssSection>
+            )}
+
+            {state.loading && <div className="border-t border-[#E4E4E7] px-5 py-4 dark:border-[#3F3F46]"><Spinner /></div>}
+
+            {sections.map((sec, si) => {
+                const plain = sec.fields.filter(f => f.fieldtype !== 'Table' && f.fieldtype !== 'HTML' && !empty(state.values[f.fieldname]));
+                const tables = sec.fields.filter(f => f.fieldtype === 'Table');
+                const htmls = sec.fields.filter(f => f.fieldtype === 'HTML' && f.options);
+                if (plain.length === 0 && tables.length === 0 && htmls.length === 0) return null;
+                return (
+                    <IcssSection key={si} title={sec.title} icon={sec.fields.some(f => f.fieldtype === 'Table') ? <PackageIcon /> : <ScrollTextIcon />}>
+                        {plain.length > 0 && (
+                            <div className={grid}>
+                                {plain.map(f => {
+                                    const v = state.values[f.fieldname];
+                                    const long = typeof v === 'string' && v.length > 70;
+                                    return <IcssField key={f.fieldname} label={f.label} value={cell(v, f.fieldtype)} wide={long} />;
+                                })}
+                            </div>
+                        )}
+                        {tables.map(t => {
+                            const cols = ((t.child_fields || []) as any[]).filter(c => !c.hidden && !ICSS_LAYOUT_TYPES.includes(c.fieldtype));
+                            const rows: any[] = state.values[t.fieldname] || [];
+                            if (rows.length === 0) return null;
+                            return (
+                                <div key={t.fieldname} className={cn(plain.length > 0 && 'mt-4')}>
+                                    {t.label && t.label !== sec.title && <div className="mb-1.5 text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{t.label}</div>}
+                                    <RegistryTable cols={cols} rows={rows} />
+                                </div>
+                            );
+                        })}
+                        {htmls.map(h => (
+                            <div key={h.fieldname} className="mt-4"><RegistryHtml html={h.options as string} /></div>
+                        ))}
+                    </IcssSection>
+                );
+            })}
+            </div>
+            <P11PrintModal
+                title="Indent Cum Sanction Sheet Preview"
+                isOpen={printOpen}
+                onClose={() => setPrintOpen(false)}
+                htmlContent={printOpen ? generateIcssHtml({ ...data, ...state.values, name: data.name, ...Object.fromEntries(Object.entries(names).map(([k, v]) => [`${k}_name`, v])) }, null, null, null, null, state.links) : ''}
+                docName={data.name || 'ICSS'}
+            />
+        </div>
+    );
+};
+
 const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctype?: string }) => {
     const navigate = useNavigate();
     const EXCLUDED = ['doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified', 'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', '_seen'];
@@ -2280,11 +2475,20 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'Disbursal of Honorarium') {
             if (isDohLoading) return <Spinner />;
             if (dohFields.length > 0) return (
-                <RegistryPanel title="Disbursal of Honorarium">
-                    <DynamicFormRenderer fields={dohFields} formData={displayData} linkOptions={dohLinkOptions} {...readOnlyRendererProps} />
-                </RegistryPanel>
+                <RegistryFormView
+                    kicker="Disbursal of Honorarium"
+                    name={String(displayData?.name || name)}
+                    workflowState={displayData?.workflow_state}
+                    fields={dohFields}
+                    values={displayData}
+                    linkOptions={dohLinkOptions}
+                    icon={<WalletIcon />}
+                    onPrint={handlePrintDisbursalOfHonorarium}
+                />
             );
         }
+
+        if (doctype === 'Indent Cum Sanction Sheet') return <IcssRegistryView data={displayData} />;
 
         return (
             <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
@@ -2369,16 +2573,6 @@ const TaskRegistryDetails: React.FC = () => {
                                     onClick={handlePrintTemporaryAdvance}
                                     className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
                                     title="Print Temporary Advance"
-                                >
-                                    <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
-                                    Print
-                                </button>
-                            )}
-                            {doctype === 'Disbursal of Honorarium' && isStaffRnD && (
-                                <button
-                                    onClick={handlePrintDisbursalOfHonorarium}
-                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
-                                    title="Print Disbursal of Honorarium"
                                 >
                                     <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
                                     Print

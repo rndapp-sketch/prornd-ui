@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { CancellationLockBanner, useCancellationLock } from "@/components/CancellationLock";
 import { usePutBack } from "@/components/PutBack";
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
@@ -2009,6 +2010,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     editDocName || null,
   );
   const currentDocName = editDocName || savedDocName || "";
+  const { hasPending: cancellationPending } = useCancellationLock("Indent Cum Sanction Sheet", currentDocName);
   const { call: fetchDirectorPdfValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
   const [fetchedDirectorPdf, setFetchedDirectorPdf] = useState("");
   // director_signed_pdf is a hidden field and isn't always part of the prefill data, so read it directly.
@@ -6087,7 +6089,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     View Project
                   </FrappeButton>
                 )}
-              {workflowState === "Pending PO Generation" &&
+              {!cancellationPending &&
+                workflowState === "Pending PO Generation" &&
                 poGenerateAction &&
                 isRnDStaff && (
                   <FrappeButton
@@ -6113,10 +6116,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     Generate PO
                   </FrappeButton>
                 )}
-              {renderActionButtons()}
+              {!cancellationPending && renderActionButtons()}
             </div>
           </div>
         </div>
+
+        {currentDocName && (
+          <CancellationLockBanner doctype="Indent Cum Sanction Sheet" name={currentDocName} />
+        )}
 
         {currentDocName && directorSignedPdf && !showDirectorControls && (
           <div className="mb-6 flex items-center gap-4 rounded-xl border border-blue-300 bg-blue-50 px-5 py-4 shadow-sm dark:border-blue-700 dark:bg-blue-900/20">

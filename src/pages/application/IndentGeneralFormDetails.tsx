@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { CancellationLockBanner } from "@/components/CancellationLock";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from "react-router-dom";
@@ -752,6 +753,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                         />
                     )}
                 </PageHeader>
+                <CancellationLockBanner doctype="Indent General Form" name={id} />
 
                 {isStaffRnD && isCommittedForGate === false && workflowState === "Pending Staff Approval" && (
                     <div className="mt-4 max-w-fit rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { withCancellationLock } from "./CancellationLock";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { ChevronDown, RotateCcw } from "lucide-react";
 import { usePutBack, putBackLabel } from "@/components/PutBack";
@@ -194,4 +195,4 @@ const DisbursalOfConsultancyActionButtons = ({
   );
 };
 
-export default DisbursalOfConsultancyActionButtons;
+export default withCancellationLock(DisbursalOfConsultancyActionButtons, "Disbursal of Consultancy", (p) => p.docname);

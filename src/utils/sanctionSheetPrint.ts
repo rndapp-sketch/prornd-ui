@@ -1,5 +1,6 @@
 import ssTemplateRaw from "@/pages/printformat/sanction_sheet_format.html?raw";
 import { withFrappeBase } from "@/utils/frappeUrl";
+import { getDpCurrency } from "@/utils/dpCurrency";
 const ssTemplate = withFrappeBase(ssTemplateRaw);
 
 
@@ -82,6 +83,7 @@ export function generateSanctionSheetHtml(
         : "";
 
     return ssTemplate
+        .replace(/\{\{CURRENCY\}\}/g, getDpCurrency(formData).code)
         .replace("{{FILE_NUMBER}}", formData.ss_file_number || "")
         .replace(
             "{{PROJECT_NO}}",

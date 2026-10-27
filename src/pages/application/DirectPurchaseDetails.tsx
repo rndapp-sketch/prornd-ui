@@ -3,6 +3,7 @@
 // -=-=-=======================================================================================
 
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { CancellationLockBanner, withCancellationLock } from "@/components/CancellationLock";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePutBack } from "@/components/PutBack";
@@ -1183,7 +1184,7 @@ const DocumentViewer = ({
 };
 
 // --- WORKFLOW ACTION BUTTONS ---
-const DirectPurchaseActionButtons = ({
+const DirectPurchaseActionButtonsBase = ({
     docname,
     onActionComplete,
     p11DocName,
@@ -1504,6 +1505,8 @@ const DirectPurchaseActionButtons = ({
         </>
     );
 };
+
+const DirectPurchaseActionButtons = withCancellationLock(DirectPurchaseActionButtonsBase, "Direct Purchase", (p) => p.docname);
 
 // --- P11 FORM WORKFLOW ACTION BUTTONS ---
 const P11FormActionButtons = ({
@@ -1914,6 +1917,9 @@ const LinkedDocTab = ({
     const checkLabels = useCheckLabels(doctype);
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const { currentUser: p11User } = useFrappeAuth();
+    const { roles: p11Roles } = useUserRoles(p11User ?? null);
+    const canEditP11Vendor = p11Roles.includes("staff, RnD");
 
     // Reload handler
     const handleReload = () => {
@@ -2007,7 +2013,7 @@ const LinkedDocTab = ({
                                 // Merge parent Direct Purchase fields so table_teqd (PC members) is available
                                 ...parentData,
                                 ...docData,
-                            }) : ""
+                            }, { editableRecommendation: canEditP11Vendor }) : ""
                         }
                         docName={docName}
                     />
@@ -2026,7 +2032,7 @@ const LinkedDocTab = ({
                         onClose={handleSanctionPrintModalClose}
                         htmlContent={
                             isPrintModalOpen
-                                ? generateSanctionSheetHtml(docData)
+                                ? generateSanctionSheetHtml({ ...docData, is_foreign: parentData?.is_foreign, quoted_price_currency: parentData?.quoted_price_currency })
                                 : ""
                         }
                         docName={docName}
@@ -2841,6 +2847,13 @@ const DirectPurchaseDetails: React.FC = () => {
         string,
         any
     > | null>(null);
+    // The sanction sheet / PO share the Direct Purchase's currency, so carry its fields along
+    const poSanctionWithCurrency = React.useMemo(
+        () => poSanctionData
+            ? { ...poSanctionData, is_foreign: data?.is_foreign, quoted_price_currency: data?.quoted_price_currency }
+            : null,
+        [poSanctionData, data?.is_foreign, data?.quoted_price_currency],
+    );
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
     const [dpPoDocname, setDpPoDocname] = useState<string | null>(null);
 
@@ -3598,6 +3611,7 @@ const DirectPurchaseDetails: React.FC = () => {
                         )}
                     </div>
                 </PageHeader>
+                <CancellationLockBanner doctype="Direct Purchase" name={id} />
 
                 {/* Other-PI approval: the assigned PI charges one of their own projects */}
                 {isDpOtherPiStep && (
@@ -3985,7 +3999,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                             (isStaffRnD ||
                                                 data?.workflow_state === "POGenerated") ? (
                                             <POEditor
-                                                ssData={poSanctionData}
+                                                ssData={poSanctionWithCurrency ?? poSanctionData}
                                                 dpId={id || ""}
                                                 isStaffRnD={isStaffRnD}
                                                 isPIReadOnly={
@@ -4189,7 +4203,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     isOpen={isPoPrintOpen}
                     onClose={() => setIsPoPrintOpen(false)}
                     htmlContent={
-                        isPoPrintOpen && poSanctionData ? generatePOHtml(poSanctionData) : ""
+                        isPoPrintOpen && poSanctionWithCurrency ? generatePOHtml(poSanctionWithCurrency) : ""
                     }
                     docName={dpPoDocname || id || ""}
                     title="Purchase Order Preview"

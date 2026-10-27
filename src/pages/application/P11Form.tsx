@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useUserRoles } from '@/components/UserRole';
 import { cn } from '@/lib/utils';
-import { AlertCircle, Printer, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Printer, CheckCircle2, X } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import ViewProjectButton from '@/components/ViewProjectButton';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { p11FormAPI, prepareFormDataForApi } from '@/services/apiService';
+import { p11FormAPI, directPurchaseAPI, prepareFormDataForApi } from '@/services/apiService';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
+import { applyDpCurrency } from '@/utils/dpCurrency';
 import { generateP11Html } from '@/utils/p11Print';
 import { P11PrintModal } from '@/components/P11PrintModal';
 import { CommentModal } from '@/components/CommentModal';
@@ -83,6 +85,8 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 );
 
 // --- MAIN COMPONENT ---
+const RECOMMENDATION_FIELD = 'the_purchase_committe_recommends_purchase_of_the_items_from_ms';
+
 const P11Form: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -100,9 +104,13 @@ const P11Form: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null);
-    const [savePopup, setSavePopup] = useState(false);
+    const [submitPrompt, setSubmitPrompt] = useState<{ step: 'ask' | 'later' | 'done'; docname: string; dpActions: string[] } | null>(null);
     const [clientScript, setClientScript] = useState('');
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [dpDoc, setDpDoc] = useState<Record<string, any> | null>(null);
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const canEditVendor = roles.includes('staff, RnD');
     const initializedTableSignatureRef = useRef('');
 
     // Workflow state
@@ -123,6 +131,42 @@ const P11Form: React.FC = () => {
     const { call: addActionComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
+
+    const { call: performDpAction } = useFrappePostCall(directPurchaseAPI.performAction);
+    const { call: fetchDpActions } = useFrappePostCall<{ message: string[] }>(directPurchaseAPI.getWorkflowActions);
+
+    const closeSubmitPrompt = () => {
+        const targetAppId = appId || formData.app_id;
+        setSubmitPrompt(null);
+        if (targetAppId) navigate(`/direct-purchase/${targetAppId}?tab=p11`);
+        else if (submitPrompt?.docname) navigate(`/p11-form/${submitPrompt.docname}`);
+        else navigate(-1);
+    };
+
+    const handlePromptSubmit = async (andPrint = false) => {
+        if (!submitPrompt || isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            // P-11 is a child form of Direct Purchase: the workflow runs on the Direct Purchase doc.
+            const targetAppId = appId || formData.app_id;
+            if (!targetAppId) throw new Error("No Direct Purchase linked to this P-11 Form.");
+            const res = await performDpAction({ docname: targetAppId, action: 'Submit P-11' });
+            if (res?.message?.status === 'error') {
+                throw new Error(res?.message?.message || "Failed to submit P-11 for Direct Purchase.");
+            }
+            let dpActions: string[] = [];
+            try {
+                const r = await fetchDpActions({ docname: targetAppId });
+                dpActions = Array.isArray(r?.message) ? r.message : [];
+            } catch { /* actions are informational only */ }
+            setSubmitPrompt({ step: 'done', docname: submitPrompt.docname, dpActions });
+            if (andPrint) setIsPrintModalOpen(true);
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const refreshWorkflowActions = () => {
         if (!savedDocName) {
@@ -157,7 +201,8 @@ const P11Form: React.FC = () => {
         const loadFormAndDocument = async () => {
             if (formDataResult?.message && !dataLoaded) {
                 const { fields: apiFields, prefill_data, link_options, client_scripts } = formDataResult.message;
-                setFields(apiFields || []);
+                let loadedFields: FormField[] = (apiFields || []).map((f: FormField) =>
+                    f.fieldname === RECOMMENDATION_FIELD ? { ...f, mandatory: 1 } : f);
                 setLinkOptions(link_options || {});
 
                 if (client_scripts && Array.isArray(client_scripts)) {
@@ -205,6 +250,19 @@ const P11Form: React.FC = () => {
                     } catch (err) {
                     }
                 }
+
+                // Currency is dictated by the parent Direct Purchase's quoted price currency
+                const dpRef = appId || initialData.app_id;
+                if (dpRef) {
+                    try {
+                        const dp = await fetchExistingDoc({ doctype: 'Direct Purchase', name: dpRef });
+                        initialData = { ...initialData };
+                        loadedFields = applyDpCurrency(loadedFields, initialData, dp?.message);
+                        setDpDoc(dp?.message || null);
+                    } catch (err) {
+                    }
+                }
+                setFields(loadedFields);
 
                 // Set defaults for any missing fields
                 (apiFields || []).forEach((field: FormField) => {
@@ -357,6 +415,10 @@ const P11Form: React.FC = () => {
     // --- Workflows & Saving ---
     const handleSave = async () => {
         if (isSubmitting) return;
+        if (!String(formData[RECOMMENDATION_FIELD] ?? '').trim()) {
+            setErrorModal({ open: true, title: "Missing Information", message: "Purchase Committee Recommendation is mandatory." });
+            return;
+        }
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -369,34 +431,7 @@ const P11Form: React.FC = () => {
                 const docname = res.message.docname || editDocName;
                 setSavedDocName(docname);
 
-                if (editDocName) {
-                    // If editing existing doc: show popup then navigate to direct-purchase p11 tab
-                    setSavePopup(true);
-                    const targetAppId = appId || formData.app_id;
-                    if (targetAppId) {
-                        setTimeout(() => {
-                            setSavePopup(false);
-                            navigate(`/direct-purchase/${targetAppId}?tab=p11`);
-                        }, 2500);
-                    } else {
-                        setTimeout(() => { setSavePopup(false); navigate(-1); }, 2500);
-                    }
-                } else {
-                    // If creating new, show popup then go to direct-purchase p11 tab for submission
-                    setSavePopup(true);
-                    const targetAppId = appId || formData.app_id;
-                    if (targetAppId) {
-                        setTimeout(() => {
-                            setSavePopup(false);
-                            navigate(`/direct-purchase/${targetAppId}?tab=p11`);
-                        }, 2500);
-                    } else {
-                        setTimeout(() => {
-                            setSavePopup(false);
-                            navigate(`/p11-form/${docname}`);
-                        }, 2500);
-                    }
-                }
+                setSubmitPrompt({ step: 'ask', docname, dpActions: [] });
             } else {
                 throw new Error(res?.message?.message || "Save failed");
             }
@@ -493,23 +528,66 @@ const P11Form: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
 
-            {/* Save Success Popup */}
-            {savePopup && (
+            {/* Post-save: ask to submit, then show Direct Purchase workflow actions */}
+            {submitPrompt && !isPrintModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-                    <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl px-8 py-8 max-w-sm w-full mx-4 flex flex-col items-center gap-4 animate-in zoom-in-95 duration-300">
+                    <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl px-8 py-8 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
+                        <button
+                            type="button"
+                            aria-label="Close"
+                            onClick={() => setSubmitPrompt(null)}
+                            disabled={isSubmitting}
+                            className="absolute top-3 right-3 p-1 rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                         <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30">
                             <CheckCircle2 className="w-9 h-9 text-green-600 dark:text-green-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 text-center">
-                            Draft Saved Successfully!
-                        </h3>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center">
-                            Redirecting you to the P-11 submission page…
-                        </p>
-                        <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full animate-[progress_2.5s_linear_forwards]" style={{ width: '0%', animation: 'none', transition: 'width 2.5s linear' }} ref={(el) => { if (el) { requestAnimationFrame(() => { el.style.width = '100%'; }); } }} />
-                        </div>
+                        {submitPrompt.step === 'ask' ? (
+                            <>
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 text-center">Draft Saved Successfully!</h3>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center">Do you want to submit this P-11 Form now?</p>
+                                <div className="flex gap-3 w-full justify-center">
+                                    <FrappeButton onClick={() => setSubmitPrompt({ ...submitPrompt, step: 'later' })} disabled={isSubmitting} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100">
+                                        Later
+                                    </FrappeButton>
+                                    <FrappeButton onClick={() => handlePromptSubmit(true)} disabled={isSubmitting} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                                        Submit &amp; Print
+                                    </FrappeButton>
+                                </div>
+                            </>
+                        ) : submitPrompt.step === 'later' ? (
+                            <>
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 text-center">Submit Later</h3>
+                                <ol className="list-decimal pl-5 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+                                    <li>Go to the Direct Purchase form and select the P-11 Form.</li>
+                                    <li>Print the P-11 Form.</li>
+                                    <li>After printing, open the Action dropdown and click Submit.</li>
+                                </ol>
+                                <FrappeButton onClick={closeSubmitPrompt} className="bg-[#D97757] text-white hover:bg-[#c66a4e]">
+                                    OK, Go to Direct Purchase
+                                </FrappeButton>
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 text-center">P-11 Form Submitted!</h3>
+                                <div className="w-full text-sm text-zinc-700 dark:text-zinc-300">
+                                    <p className="font-semibold mb-2">Direct Purchase workflow actions:</p>
+                                    {submitPrompt.dpActions.length ? (
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            {submitPrompt.dpActions.map((a) => <li key={a}>{a}</li>)}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-zinc-500">No actions available for you right now.</p>
+                                    )}
+                                </div>
+                                <FrappeButton onClick={closeSubmitPrompt} className="bg-[#D97757] text-white hover:bg-[#c66a4e]">
+                                    Continue to Direct Purchase
+                                </FrappeButton>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
@@ -633,8 +711,8 @@ const P11Form: React.FC = () => {
             <P11PrintModal
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
-                htmlContent={isPrintModalOpen ? generateP11Html(formData) : ''}
-                docName={editDocName || formData.name || ''}
+                htmlContent={isPrintModalOpen ? generateP11Html({ ...formData, is_foreign: dpDoc?.is_foreign, quoted_price_currency: dpDoc?.quoted_price_currency }, { editableRecommendation: canEditVendor }) : ''}
+                docName={editDocName || submitPrompt?.docname || formData.name || ''}
             />
             <CommentModal
                 isOpen={commentModalOpen}

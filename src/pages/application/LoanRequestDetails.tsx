@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CancellationLockBanner } from "@/components/CancellationLock";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
@@ -417,6 +418,7 @@ const LoanRequestDetails: React.FC = () => {
                         </>
                     )}
                 </PageHeader>
+                <CancellationLockBanner doctype="Loan Request" name={id} />
 
                 {/* Workflow Timeline */}
                 <div className="mt-6">

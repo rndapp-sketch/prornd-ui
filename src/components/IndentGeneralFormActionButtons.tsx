@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { withCancellationLock } from "./CancellationLock";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -317,4 +318,4 @@ const IndentGeneralFormActionButtons = ({
   );
 };
 
-export default IndentGeneralFormActionButtons;
+export default withCancellationLock(IndentGeneralFormActionButtons, "Indent General Form", (p) => p.docname);
