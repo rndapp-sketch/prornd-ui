@@ -35,6 +35,7 @@ import {
     Share2 as Share2Icon,
     GraduationCap,
     IdCard,
+    Receipt,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -365,6 +366,11 @@ export function AppSidebar() {
             icon: IdCard,
             path: "/id-card-request",
         },
+        {
+            label: "My Salary Slip",
+            icon: Receipt,
+            path: "/my-salary-slip",
+        },
         ...(isPermanentEmployee ? [{
             label: "Form Cancellation",
             icon: FileText,
@@ -486,6 +492,9 @@ export function AppSidebar() {
         if (item.label === "ID Card Request") {
             // Students never apply for a project-staff ID card, even if they also carry "project staff".
             return (roles?.includes("project staff") ?? false) && !roles?.includes("Student");
+        }
+        if (item.label === "My Salary Slip") {
+            return roles?.includes("project staff") ?? false;
         }
         if (item.label === "Resignation" || item.label === "Extension") {
             return roles?.includes("project staff") ?? false;

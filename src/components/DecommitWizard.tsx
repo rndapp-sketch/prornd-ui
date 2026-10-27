@@ -128,10 +128,14 @@ export const DecommitWizard: React.FC<DecommitWizardProps> = ({
     const amountError = summary ? validateDecommitAmount(amount, max) : null;
     const commentError = comment.trim() ? null : "A comment is required.";
 
+    // ref_details is the TID of the commitment being released; a decommitment cannot be submitted without it.
+    const refDetails = selected ? String(selected.transactionId ?? "").trim() : "";
+    const refDetailsError = refDetails ? null : "Reference details are required: the selected commitment has no transaction ID.";
+
     const stepError = (s: number): string | null => {
         if (s === 0) return head ? null : "Select a budget head.";
-        if (s === 1) return selected ? null : "Select a commitment to continue.";
-        if (s === 3) return amountError || commentError;
+        if (s === 1) return !selected ? "Select a commitment to continue." : refDetailsError;
+        if (s === 3) return refDetailsError || amountError || commentError;
         return null;
     };
     const canNext = !stepError(step) && !loadingLedger;
@@ -139,6 +143,10 @@ export const DecommitWizard: React.FC<DecommitWizardProps> = ({
     const handleSubmit = async () => {
         if (!selected || !summary) return;
         setSubmitError(null);
+        if (refDetailsError) {
+            setSubmitError(refDetailsError);
+            return;
+        }
         try {
             // Re-read the ledger so a payment raised since the wizard opened can't be over-released.
             const fresh = await loadLedger(head);
@@ -151,7 +159,7 @@ export const DecommitWizard: React.FC<DecommitWizardProps> = ({
                 budgetHead: head,
                 amount: Number(amount),
                 particular: comment,
-                refDetails: String(selected.transactionId),
+                refDetails,
                 asDecommit: true,
             });
             setOpen(false);
