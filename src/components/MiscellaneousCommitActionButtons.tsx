@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { withCancellationLock } from "./CancellationLock";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { usePutBack } from "@/components/PutBack";
@@ -265,4 +266,4 @@ const MiscellaneousCommitActionButtons = ({
     );
 };
 
-export default MiscellaneousCommitActionButtons;
+export default withCancellationLock(MiscellaneousCommitActionButtons, "Miscellaneous Commit", (p) => p.docname);

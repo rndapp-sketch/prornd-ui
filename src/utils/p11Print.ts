@@ -2,6 +2,7 @@
 
 import p11TemplateRaw from "@/pages/printformat/p_11_format.html?raw";
 import { withFrappeBase } from "@/utils/frappeUrl";
+import { getDpCurrency } from "@/utils/dpCurrency";
 const p11Template = withFrappeBase(p11TemplateRaw);
 
 
@@ -13,7 +14,10 @@ const fmtNum = (val: any) => {
   });
 };
 
-export function generateP11Html(formData: Record<string, any>): string {
+export function generateP11Html(
+  formData: Record<string, any>,
+  options: { editableRecommendation?: boolean } = {},
+): string {
   // ── DEBUG: log all array-valued keys so we can find the right child table name ──
   for (const key in formData) {
     if (Array.isArray(formData[key])) {
@@ -188,10 +192,16 @@ export function generateP11Html(formData: Record<string, any>): string {
     .replace("{{DOC_REF}}", formData.name || "")
     .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
     .replace("{{DIRECT_PURCHASE_REF}}", formData.app_id || "")
+    .replace("{{PROJECT_NO}}", formData.project_no || "")
+    .replace(/\{\{CURRENCY\}\}/g, getDpCurrency(formData).code)
     .replace("{{CURRENT_TIME}}", currentTime)
     .replace("{{DATE}}", creation)
     .replace("{{INDENTER_NAME}}", indenterName)
     .replace("{{ITEM_CATEGORY}}", itemCategory)
+    .replace(
+      "{{RECOMMENDATION_EDIT_ATTRS}}",
+      options.editableRecommendation ? ' contenteditable="true" spellcheck="false"' : "",
+    )
     .replace(
       "{{RECOMMENDATION_FROM}}",
       formData.the_purchase_committe_recommends_purchase_of_the_items_from_ms ||

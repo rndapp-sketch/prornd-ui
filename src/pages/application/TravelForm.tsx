@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -247,23 +247,23 @@ const TravelForm: React.FC = () => {
 
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
-    // Budget Heads actually sanctioned/received against the selected project, used to
-    // narrow the Account Head dropdown down from the global Budget Head list. Reuses the
-    // same endpoint TravelDetails already calls for its Other-PI account head picker.
-    const { call: fetchProjectAccountHeads } = useFrappePostCall<{ message: LinkOption[] }>(travelAPI.getProjectAccountHeads);
+    // Budget Heads sanctioned/received against the selected project, used to narrow the
+    // Account Head dropdown down from the global Budget Head list.
     const projectNoForHeads = formData.travel_project_number || '';
-    const [projectAccountHeads, setProjectAccountHeads] = useState<LinkOption[] | null>(null);
-    useEffect(() => {
-        if (!projectNoForHeads) {
-            setProjectAccountHeads(null);
-            return;
-        }
-        let isCancelled = false;
-        fetchProjectAccountHeads({ project_name: projectNoForHeads })
-            .then((res) => { if (!isCancelled) setProjectAccountHeads(res?.message || []); })
-            .catch(() => { if (!isCancelled) setProjectAccountHeads(null); });
-        return () => { isCancelled = true; };
-    }, [projectNoForHeads, fetchProjectAccountHeads]);
+    const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNoForHeads },
+        projectNoForHeads ? `project-budget-heads-${projectNoForHeads}` : null,
+    );
+    const projectAccountHeads = useMemo<LinkOption[] | null>(() => {
+        if (!projectNoForHeads || !projectBudgetHeadsResult) return null;
+        return (projectBudgetHeadsResult.message || []).map((h) => ({
+            value: h.name,
+            label: h.budget_head || h.name,
+        }));
+    }, [projectNoForHeads, projectBudgetHeadsResult]);
 
     // --- Computed: Total Estimate ---
     const totalEstimate = useMemo(() => {
@@ -546,7 +546,11 @@ const TravelForm: React.FC = () => {
         }
 
         if (!projectAccountHeads) return;
-        setLinkOptions(prev => ({ ...prev, account_head: projectAccountHeads }));
+        // A project with no heads must not leave the dropdown empty
+        setLinkOptions(prev => ({
+            ...prev,
+            account_head: projectAccountHeads.length ? projectAccountHeads : allAccountHeadOptions,
+        }));
     }, [dataLoaded, projectNoForHeads, projectAccountHeads, allAccountHeadOptions]);
 
     useEffect(() => {

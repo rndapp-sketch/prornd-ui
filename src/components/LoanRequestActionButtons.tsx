@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { withCancellationLock } from "./CancellationLock";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { usePutBack, putBackLabel } from "@/components/PutBack";
 import { cn } from "@/lib/utils";
@@ -218,4 +219,4 @@ const LoanRequestActionButtons = ({
     );
 };
 
-export default LoanRequestActionButtons;
+export default withCancellationLock(LoanRequestActionButtons, "Loan Request", (p) => p.docname);

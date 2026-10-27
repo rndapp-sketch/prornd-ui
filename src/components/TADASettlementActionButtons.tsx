@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { withCancellationLock } from "./CancellationLock";
 import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { usePutBack } from "@/components/PutBack";
@@ -224,4 +225,4 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
     );
 };
 
-export default TADASettlementActionButtons;
+export default withCancellationLock(TADASettlementActionButtons, "TA DA Settlement", (p) => p.docName);

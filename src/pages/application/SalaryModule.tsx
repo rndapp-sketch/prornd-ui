@@ -13,7 +13,7 @@ import {
     Printer, Eye, Calendar, Building2, UserCheck, X,
     ChevronRight, Briefcase, Edit3, RotateCcw,
     TrendingDown, CalendarClock, Lock, Unlock, ExternalLink,
-    FolderKanban, Tags, CheckCircle2, Clock, XCircle, Info
+    FolderKanban, Tags, CheckCircle2, Clock, XCircle, Info, LogOut
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -323,6 +323,14 @@ const mapRow = (row: any): StaffRecord => {
 
 type SortKey = keyof StaffRecord;
 
+interface ResignationInfo {
+    resignation?: string;
+    state?: string;
+    resignation_date?: string;
+    last_working_date?: string;
+    completed?: boolean;
+}
+
 // Bucket for projects with no scheme number set on their Project Registration
 const PHYSICAL_SCHEME_LABEL = "Physical";
 
@@ -405,7 +413,10 @@ const SalaryModule: React.FC = () => {
     const isPrepared = !!preparedCycles[cycleKey];
 
     // ─── Salary Processing Status ─────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<"pending" | "processed" | "termending">("pending");
+    const [activeTab, setActiveTab] = useState<"pending" | "processed" | "termending" | "resigned">("pending");
+    // Staff with a resignation in process / completed, keyed by employee_id — excluded from salary processing
+    const [resignedMap, setResignedMap] = useState<Record<string, ResignationInfo>>({});
+    const [resignedError, setResignedError] = useState<string | null>(null);
     const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(new Set());
     const [stagingRecords, setStagingRecords] = useState<any[]>([]);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
@@ -883,6 +894,32 @@ const SalaryModule: React.FC = () => {
             });
             rows = res?.message ?? [];
 
+            // Resigned / resignation-in-process staff are excluded from salary processing.
+            // A failure here must not block the page, but it is surfaced on the Resigned tab.
+            try {
+                const rRes = await fetch(
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.get_resigned_or_resigning_staff`,
+                    { credentials: "include" }
+                );
+                if (!rRes.ok) throw new Error(`HTTP ${rRes.status}`);
+                const rJson = await rRes.json();
+                const msg = rJson?.message;
+                const map: Record<string, ResignationInfo> = {};
+                if (Array.isArray(msg)) {
+                    (msg as Array<ResignationInfo & { employee_id?: string; ps_emp_id?: string }>).forEach(x => {
+                        const id = x?.employee_id || x?.ps_emp_id;
+                        if (id) map[id] = x;
+                    });
+                } else if (msg && typeof msg === "object") {
+                    Object.assign(map, msg);
+                }
+                setResignedMap(map);
+                setResignedError(null);
+            } catch (e) {
+                setResignedMap({});
+                setResignedError(e instanceof Error ? e.message : String(e));
+            }
+
             // Safety net: client-side Approved filter
             rows = rows.filter((r: any) =>
                 (r.workflow_state || "").toLowerCase() === "approved"
@@ -1233,7 +1270,10 @@ const SalaryModule: React.FC = () => {
         const q = search.toLowerCase();
 
         // Filter out employees who are not active in the selected period (working days is 0)
+        // Resigned / resignation-in-process staff are not payable (they live on the Resigned tab),
+        // unless already paid this period — those stay visible under "Salary Processed".
         let list = records.filter(r => {
+            if (resignedMap[r.employee_id] && !processedEmployees.has(r.employee_id)) return false;
             const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             return wd > 0;
         });
@@ -1292,7 +1332,7 @@ const SalaryModule: React.FC = () => {
             }
             return sortDir === "asc" ? cmp : -cmp;
         });
-    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, processedEmployees]);
 
     // Staff active in the selected period, before any type/search/dept/etc. filtering —
     // used to decide whether to show the toolbar/table at all (a "no search results" state
@@ -1318,6 +1358,7 @@ const SalaryModule: React.FC = () => {
     const termEndingRecords = useMemo(() => {
         const periodEnd = new Date(selectedYear, selectedMonth + 1, 0); // last day of selected month
         return records.filter(r => {
+            if (resignedMap[r.employee_id]) return false;
             if (!r.term_completion_date) return false;
             try {
                 const tcd = new Date(r.term_completion_date);
@@ -1327,7 +1368,7 @@ const SalaryModule: React.FC = () => {
         }).sort((a, b) =>
             new Date(a.term_completion_date).getTime() - new Date(b.term_completion_date).getTime()
         );
-    }, [records, selectedYear, selectedMonth]);
+    }, [records, selectedYear, selectedMonth, resignedMap]);
 
     // Set of term-ending employee IDs — excluded from pending tab
     const termEndingEmpIds = useMemo(() =>
@@ -1336,14 +1377,29 @@ const SalaryModule: React.FC = () => {
 
     // Split filtered into pending vs processed (term-ending staff excluded from pending)
     const pendingRecords = useMemo(() =>
-        filtered.filter(r => !processedEmployees.has(r.employee_id) && !termEndingEmpIds.has(r.employee_id)),
-        [filtered, processedEmployees, termEndingEmpIds]);
+        filtered.filter(r => !processedEmployees.has(r.employee_id) && !termEndingEmpIds.has(r.employee_id) && !resignedMap[r.employee_id]),
+        [filtered, processedEmployees, termEndingEmpIds, resignedMap]);
+
+    // Resigned / resignation-in-process staff for the active Research/Consultancy tab.
+    // Built from all records (not period-limited) so people who already left still show up.
+    const resignedRecords = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return records.filter(r => {
+            if (!resignedMap[r.employee_id]) return false;
+            const pNo = (r.project_no || "").trim();
+            const t = pNo && projectTypeMap?.[pNo] ? projectTypeMap[pNo].trim() : "";
+            if (projectTypeMap && t.toLowerCase() !== staffTypeTab.toLowerCase()) return false;
+            if (!q) return true;
+            return r.first_name.toLowerCase().includes(q) || r.employee_id.toLowerCase().includes(q) ||
+                (r.project_no || "").toLowerCase().includes(q);
+        }).sort((a, b) => a.employee_id.localeCompare(b.employee_id));
+    }, [records, resignedMap, projectTypeMap, staffTypeTab, search]);
 
     const processedRecords = useMemo(() =>
         filtered.filter(r => processedEmployees.has(r.employee_id)),
         [filtered, processedEmployees]);
 
-    const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : termEndingRecords;
+    const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : activeTab === "resigned" ? resignedRecords : termEndingRecords;
 
     // stagingRecords is fetched independently (raw payment history for the period) and
     // isn't run through the search/dept/designation/scheme/project-type filters that
@@ -1896,6 +1952,26 @@ const SalaryModule: React.FC = () => {
                                             {termEndingRecords.length}
                                         </span>
                                     </button>
+                                    <button
+                                        onClick={() => setActiveTab("resigned")}
+                                        className={cn(
+                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
+                                            activeTab === "resigned"
+                                                ? "text-rose-600 border-rose-500 bg-white dark:bg-[#27272A] dark:text-rose-400"
+                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                        )}
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Resigned / Resigning
+                                        <span className={cn(
+                                            "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                                            activeTab === "resigned"
+                                                ? "bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400"
+                                                : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                                        )}>
+                                            {resignedRecords.length}
+                                        </span>
+                                    </button>
                                 </div>
                                 <div className="flex items-center gap-3 px-4">
                                     {isCheckingStatus && (
@@ -2083,6 +2159,81 @@ const SalaryModule: React.FC = () => {
                                         <p className="text-xs text-red-400 max-w-md mx-auto break-all bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-200 dark:border-red-900/30">{error}</p>
                                         <button onClick={fetchData} className="mt-5 text-sm text-[#D97757] hover:underline font-bold">Try again</button>
                                     </div>
+                                ) : activeTab === "resigned" ? (
+                                    <>
+                                        {resignedError && (
+                                            <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400">
+                                                <AlertCircle className="h-4 w-4" />
+                                                Could not load resignation data ({resignedError}). Resigned staff are not being excluded from salary processing.
+                                            </div>
+                                        )}
+                                        {resignedRecords.length === 0 ? (
+                                            <div className="py-24 text-center">
+                                                <LogOut className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                                                <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No resigned staff</p>
+                                                <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+                                                    No {staffTypeTab.toLowerCase()} staff have a resignation in process or completed.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                                <table className="min-w-full table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                                    <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
+                                                        <tr>
+                                                            {["#", "Emp ID", "Full Name", "Department", "Role", "Project No", "Scheme", "Joining", "Term End", "Resignation No", "Resignation Date", "Status"].map(h => (
+                                                                <th key={h} className="whitespace-nowrap px-3 py-3 text-left">{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/80">
+                                                        {resignedRecords.map((r, i) => {
+                                                            const info = resignedMap[r.employee_id];
+                                                            const pNo = (r.project_no || "").trim();
+                                                            const done = !!info?.completed;
+                                                            return (
+                                                                <tr key={r.employee_id} className="hover:bg-blue-50/50 dark:hover:bg-[#27272A]">
+                                                                    <td className="px-3 py-2 text-xs font-semibold text-zinc-400">{i + 1}</td>
+                                                                    <td className="px-3 py-2 text-xs font-mono font-bold whitespace-nowrap">{r.employee_id}</td>
+                                                                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">{r.first_name}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap"><DepartmentName name={r.department} /></td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{r.designation || "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{r.project_no || "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{(pNo && schemeNumberMap[pNo]) || "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.joining_date)}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs font-mono whitespace-nowrap">
+                                                                        {info?.resignation ? (
+                                                                            <a
+                                                                                href={`/project-staff-resignation?edit=${encodeURIComponent(info.resignation)}&fromSalary=true`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                title="Open resignation details, commitment and payments in a new tab"
+                                                                                className="inline-flex items-center gap-1 font-bold text-[#2563EB] hover:underline dark:text-[#A5B4FC]"
+                                                                            >
+                                                                                {info.resignation}
+                                                                                <ExternalLink className="h-3 w-3" />
+                                                                            </a>
+                                                                        ) : "—"}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-xs font-mono whitespace-nowrap">{(info?.resignation_date || info?.last_working_date) ? fmtDate((info.resignation_date || info.last_working_date) as string) : "—"}</td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                        <span className={cn(
+                                                                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold",
+                                                                            done
+                                                                                ? "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400"
+                                                                                : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                                                        )}>
+                                                                            {done ? "Resigned" : "In process"}{info?.state ? ` · ${info.state}` : ""}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </>
                                 ) : activeTab === "processed" ? (
                                     filteredStagingRecords.length === 0 ? (
                                         <div className="py-24 text-center">

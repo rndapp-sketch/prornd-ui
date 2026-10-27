@@ -1,4 +1,5 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { CancellationLockBanner, withCancellationLock } from "@/components/CancellationLock";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
@@ -173,7 +174,7 @@ const CommentModal = ({
   );
 };
 
-const AdvanceSettlementWorkflowActions = ({
+const AdvanceSettlementWorkflowActionsBase = ({
   docname,
   onActionComplete,
   commitRequired = false,
@@ -286,6 +287,8 @@ const AdvanceSettlementWorkflowActions = ({
     </>
   );
 };
+
+const AdvanceSettlementWorkflowActions = withCancellationLock(AdvanceSettlementWorkflowActionsBase, "Advance Settlement", (p) => p.docname);
 
 const AdvanceSettlementDetails: React.FC = () => {
   const navigate = useNavigate();
@@ -630,6 +633,7 @@ const AdvanceSettlementDetails: React.FC = () => {
             </button>
           </div>
         </PageHeader>
+                <CancellationLockBanner doctype="Advance Settlement" name={id} />
 
         {/* Workflow Actions */}
         {data.workflow_state && (
