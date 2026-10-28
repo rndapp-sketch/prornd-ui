@@ -886,9 +886,12 @@ const DocumentViewer = ({
     data,
     doctype,
     checkLabels,
+    parentData,
 }: {
     data: Record<string, any>;
     doctype?: string;
+    // Parent Direct Purchase: child docs (P-11, Sanction Sheet, PO) follow its currency
+    parentData?: Record<string, unknown>;
     // fieldname -> label of Check fields; the label is the declaration text
     checkLabels?: Record<string, string>;
 }) => {
@@ -897,7 +900,12 @@ const DocumentViewer = ({
         ...(doctype ? DOCUMENT_FIELD_EXCLUSIONS[doctype] || [] : []),
     ]);
 
-    const currencyCode = getCurrencyCode(data.currency);
+    // A non-foreign purchase is always INR, whatever stale value sits in the currency field
+    const foreignFlag = String(data.is_foreign ?? parentData?.is_foreign ?? "").trim().toLowerCase();
+    const isDomestic = ["0", "no", "false"].includes(foreignFlag);
+    const currencyCode = isDomestic
+        ? "INR"
+        : getCurrencyCode(data.currency ?? data.quoted_price_currency ?? parentData?.quoted_price_currency);
     const formatINR = (val: any) => formatMoney(val, currencyCode);
 
     const allScalar = Object.entries(data).filter(([key, value]) => {
@@ -1995,7 +2003,7 @@ const LinkedDocTab = ({
                 )}
             </div>
 
-            <DocumentViewer data={docData} doctype={doctype} checkLabels={checkLabels} />
+            <DocumentViewer data={docData} doctype={doctype} checkLabels={checkLabels} parentData={parentData} />
 
             {/* Render workflow actions based on doctype */}
             {doctype === "P_11 Form" && (

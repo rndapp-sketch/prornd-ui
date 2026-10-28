@@ -2514,7 +2514,12 @@ const DirectPurchase: React.FC = () => {
                     apiFields.forEach(field => {
                         if (prefill_data?.[field.fieldname] !== undefined && !Array.isArray(prefill_data[field.fieldname])) {
                             initialData[field.fieldname] = prefill_data[field.fieldname];
-                        } else if (field.default !== undefined && initialData[field.fieldname] === undefined) {
+                        } else if (
+                            field.default !== undefined &&
+                            initialData[field.fieldname] === undefined &&
+                            // The DocType's currency default (USD) must not pre-pick a foreign currency
+                            !(field.fieldname === 'quoted_price_currency' || (field.fieldtype === 'Link' && field.options === 'Currency'))
+                        ) {
                             initialData[field.fieldname] = field.default;
                         }
                     });
@@ -2690,11 +2695,18 @@ const DirectPurchase: React.FC = () => {
     };
 
     const buildPayload = () => {
-        return {
+        const payload: Record<string, unknown> = {
             ...formData,
             ...computedAggregations,
             ...childTableData,
         };
+        // A non-foreign purchase is INR; don't persist a currency left over from an earlier "Yes"
+        if (dpCurrency.code === 'INR') {
+            for (const key of ['currency', 'quoted_price_currency']) {
+                if (payload[key]) payload[key] = 'INR — Indian Rupee';
+            }
+        }
+        return payload;
     };
 
     const handleSaveDraft = async () => {
@@ -2800,7 +2812,8 @@ const DirectPurchase: React.FC = () => {
             }
 
             alert('Direct Purchase submitted successfully!');
-            goAfterLeavingForm(savedDocName);
+            // Open the submitted document itself rather than the project overview
+            navigate(`/direct-purchase/${encodeURIComponent(savedDocName)}`);
         } catch (err: any) {
             console.error('Submit error:', err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitDocError, err) });

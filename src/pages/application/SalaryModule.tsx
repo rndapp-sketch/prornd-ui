@@ -2276,7 +2276,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                 <table className="min-w-full table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                                     <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
                                                         <tr>
-                                                            {["#", "Emp ID", "Full Name", "Department", "Role", "Project No", "Scheme", "Joining", "Term End", "Gap Period", "Months Worked", "Status"].map(h => (
+                                                            {["#", "Emp ID", "Full Name", "Department", "Role", "Project No", "Scheme", "Working Months", "Gap Period", "Status"].map(h => (
                                                                 <th key={h} className="whitespace-nowrap px-3 py-3 text-left">{h}</th>
                                                             ))}
                                                         </tr>
@@ -2299,8 +2299,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">{r.designation || "—"}</td>
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">{r.project_no || "—"}</td>
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">{(pNo && schemeNumberMap[pNo]) || "—"}</td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.joining_date)}</td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs font-bold tabular-nums whitespace-nowrap">{months}m</td>
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">
                                                                         {summary && summary.total_gap_days > 0 ? (
                                                                             <span
@@ -2311,7 +2310,6 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                             </span>
                                                                         ) : <span className="text-zinc-400">No gap</span>}
                                                                     </td>
-                                                                    <td className="px-3 py-2 text-xs font-bold tabular-nums whitespace-nowrap">{months}m</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap">
                                                                         <span className="inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
                                                                             Reappointment required

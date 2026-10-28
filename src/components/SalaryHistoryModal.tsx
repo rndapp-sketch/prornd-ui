@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
 import { AlertCircle, AlertTriangle, BadgeCheck, CalendarDays, ChevronDown, FileClock, IndianRupee, Loader2, Receipt, TrendingDown, User, Wallet, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -329,6 +329,18 @@ export const SalaryHistoryModal: React.FC<SalaryHistoryModalProps> = ({ employee
     const res = data?.message;
     const failed = !!error || (!!res && res.status !== "success");
     const staff = res?.project_staff_details?.find(s => s.ps_emp_id === employeeId) ?? res?.project_staff_details?.[0];
+    // PI of the project the staff is engaged on, read from Project Registration
+    const piProjectNo = staff?.project_no ? String(staff.project_no) : "";
+    const { data: piRows } = useFrappeGetDocList<Row>(
+        "Project Registration",
+        {
+            fields: ["name", "project_no", "principal_investigator_name", "pi_webmail", "pi_employee_id", "designation", "applicant_department", "project_title"],
+            filters: [["project_no", "=", piProjectNo]],
+            limit: 1,
+        },
+        piProjectNo ? `salary-history-pi-${piProjectNo}` : null,
+    );
+    const pi = piRows?.[0];
     // Latest month first (the backend returns oldest first)
     const months = useMemo(() => [...(res?.salary_history ?? [])].reverse(), [res]);
     const extensions = res?.extension_history ?? [];
@@ -524,6 +536,17 @@ export const SalaryHistoryModal: React.FC<SalaryHistoryModalProps> = ({ employee
                                             </div>
                                         </Card>
                                     </div>
+                                    <Card title="Principal Investigator" icon={<User className="h-3.5 w-3.5" />}>
+                                        <Fields cols="sm:grid-cols-2 lg:grid-cols-3" items={[
+                                            ["Name", txt(pi?.principal_investigator_name)],
+                                            ["Email", txt(pi?.pi_webmail || staff.pi_id)],
+                                            ["Employee ID", <span className="font-mono">{txt(pi?.pi_employee_id)}</span>],
+                                            ["Designation", txt(pi?.designation)],
+                                            ["Department", isEmpty(pi?.applicant_department) ? "—" : <DepartmentName name={String(pi?.applicant_department)} />],
+                                            ["Project No", <span className="font-mono">{txt(staff.project_no)}</span>],
+                                            ["Project Title", txt(pi?.project_title)],
+                                        ]} />
+                                    </Card>
                                     <div className="grid gap-4 lg:grid-cols-2">
                                         <Card title="Employment" right={<Badge value={staff.workflow_state} />}>
                                             <Fields cols="sm:grid-cols-2" items={[
@@ -531,7 +554,6 @@ export const SalaryHistoryModal: React.FC<SalaryHistoryModalProps> = ({ employee
                                                 ["Designation", txt(staff.ps_designation)],
                                                 ["Department", isEmpty(staff.ps_department) ? "—" : <DepartmentName name={String(staff.ps_department)} />],
                                                 ["Project No", <span className="font-mono">{txt(staff.project_no)}</span>],
-                                                ["PI", txt(staff.pi_id)],
                                                 ["SCR ID", <span className="font-mono">{txt(staff.scr_id)}</span>],
                                                 ["Application ID", txt(staff.application_id)],
                                                 ["Joining Date", dt(staff.ps_joining_date)],
