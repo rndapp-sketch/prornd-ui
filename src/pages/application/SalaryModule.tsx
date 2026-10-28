@@ -175,7 +175,10 @@ const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: strin
 const calcMonthsWorked = (joiningDate: string, termCompletionDate: string): { months: number; days: number } | null => {
     if (!joiningDate) return null;
     const start = new Date(joiningDate);
-    const end = termCompletionDate ? new Date(termCompletionDate) : new Date();
+    // Work done so far: never count past today, even when the term runs further
+    const today = new Date();
+    const term = termCompletionDate ? new Date(termCompletionDate) : today;
+    const end = term < today ? term : today;
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
     let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
     let days = end.getDate() - start.getDate();
@@ -326,6 +329,9 @@ type SortKey = keyof StaffRecord;
 
 // Staff who have worked more than this many months need a fresh appointment before salary can continue
 const MAX_SERVICE_MONTHS = 33;
+
+// Students (project fellows) are paid through the same register but have no service-limit expiry
+const isStudentStaff = (r: { designation?: string }) => /fellow/i.test(r.designation || "");
 
 interface ResignationInfo {
     resignation?: string;
@@ -1279,8 +1285,10 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     // Months worked as shown in the Gap Period column: the tenure summary when available, else joining → term end.
     const getMonthsWorked = useCallback((r: StaffRecord): number => {
         const summary = tenureSummaryMap[r.employee_id];
-        if (summary) return Number(summary.total_months_worked) || 0;
-        return calcMonthsWorked(r.joining_date, r.term_completion_date)?.months ?? 0;
+        const toDate = calcMonthsWorked(r.joining_date, r.term_completion_date)?.months ?? 0;
+        // The tenure summary can count the whole planned term, so it is capped at the time elapsed to date
+        if (summary) return Math.min(Number(summary.total_months_worked) || 0, toDate);
+        return toDate;
     }, [tenureSummaryMap]);
 
     // Staff past the service limit — reappointment is required, so they leave the salary register.
@@ -1288,6 +1296,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const periodExpiredIds = useMemo(() => {
         const ids = new Set<string>();
         records.forEach(r => {
+            if (isStudentStaff(r)) return;
             if (!resignedMap[r.employee_id] && getMonthsWorked(r) > MAX_SERVICE_MONTHS) ids.add(r.employee_id);
         });
         return ids;
@@ -2748,7 +2757,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                                 <span className="text-zinc-400">No gap</span>
                                                                             )}
                                                                             {summary ? (
-                                                                                <span className="text-zinc-500 dark:text-zinc-400">{summary.total_months_worked}m worked</span>
+                                                                                <span className="text-zinc-500 dark:text-zinc-400">{Math.min(Number(summary.total_months_worked) || 0, calcMonthsWorked(r.joining_date, r.term_completion_date)?.months ?? 0)}m worked</span>
                                                                             ) : worked && (
                                                                                 <span className="text-zinc-500 dark:text-zinc-400">{worked.months}m {worked.days}d worked</span>
                                                                             )}
