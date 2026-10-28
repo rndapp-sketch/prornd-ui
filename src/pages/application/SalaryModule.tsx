@@ -83,6 +83,8 @@ interface EditableInputs {
     hraDeduction: number;
     idCardCharge: number;
     electricityBill: number;
+    // Manual P-Tax; undefined means the Assam slab amount is used
+    pTax?: number;
     comment: string;
     remarks: string;
 }
@@ -215,6 +217,9 @@ const calcPTax = (grossPay: number): number => {
     if (grossPay <= 25000) return 180;
     return 208;
 };
+
+/** P-Tax for a row: the manually entered amount when set, otherwise the slab amount. */
+const ptaxOf = (inputs: { pTax?: number }, grossPay: number): number => inputs.pTax ?? calcPTax(grossPay);
 
 /** Convert number to words in Indian Numbering System (INR) */
 const numToWords = (num: number): string => {
@@ -509,6 +514,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
+            pTax: rowOverrides.pTax,
             comment: rowOverrides.comment ?? "",
             remarks: rowOverrides.remarks ?? "",
         };
@@ -518,7 +524,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         const proRataHRA = Math.round((currentHRA / daysInMonthVal) * workingDays);
         const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
         const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-        const pTax = calcPTax(grossPay);
+        const pTax = ptaxOf(inputs, grossPay);
         const hraDed = inputs.hraDeduction;
         const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
 
@@ -745,6 +751,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                     hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
                     idCardCharge: rowOverrides.idCardCharge ?? 0,
                     electricityBill: rowOverrides.electricityBill ?? 0,
+            pTax: rowOverrides.pTax,
                     comment: rowOverrides.comment ?? "",
                     remarks: rowOverrides.remarks ?? "",
                 };
@@ -753,7 +760,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                 const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                 const hraDed = inputs.hraDeduction;
-                const totalDed = hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                const totalDed = hraDed + inputs.medicalDeduction + ptaxOf(inputs, grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
                 const result = await buildCommitData(r, netPay);
                 if (result.ok) {
@@ -803,6 +810,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
+            pTax: rowOverrides.pTax,
             comment: rowOverrides.comment ?? "",
             remarks: rowOverrides.remarks ?? "",
         };
@@ -816,6 +824,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             hraDeduction: rowOverrides.hraDeduction !== undefined,
             idCardCharge: rowOverrides.idCardCharge !== undefined,
             electricityBill: rowOverrides.electricityBill !== undefined,
+            pTax: rowOverrides.pTax !== undefined,
             comment: rowOverrides.comment !== undefined,
             remarks: rowOverrides.remarks !== undefined,
         };
@@ -831,6 +840,11 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             let shouldStoreOverride = true;
             if (field === "ta" || field === "otherDeduction" || field === "arrear" || field === "idCardCharge" || field === "electricityBill") {
                 if (!value || parseInt(value as string, 10) === 0 || isNaN(parseInt(value as string, 10))) {
+                    shouldStoreOverride = false;
+                }
+            } else if (field === "pTax") {
+                // 0 is a valid P-Tax; only an empty box goes back to the slab amount
+                if (value === "" || isNaN(Number(value))) {
                     shouldStoreOverride = false;
                 }
             } else if (field === "comment" || field === "remarks") {
@@ -1502,7 +1516,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
         const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
         // P‑Tax is calculated on the pro‑rated Gross pay for the month
-        return s + calcPTax(grossPay);
+        return s + ptaxOf(inputs, grossPay);
     }, 0);
     const totalTA = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.ta, 0);
     const totalIdCard = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.idCardCharge, 0);
@@ -1536,7 +1550,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = inputs.hraDeduction;
-            return s + (hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
+            return s + (hraDed + inputs.medicalDeduction + ptaxOf(inputs, grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
 
@@ -1549,7 +1563,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = inputs.hraDeduction;
-            const deductions = hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+            const deductions = hraDed + inputs.medicalDeduction + ptaxOf(inputs, grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             return s + (grossPay - deductions);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
@@ -1583,7 +1597,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
             const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-            const pTax = calcPTax(grossPay);
+            const pTax = ptaxOf(inputs, grossPay);
             const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
@@ -2653,7 +2667,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                     const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                                     const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
                                                     const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                                    const pTax = calcPTax(grossPay);
+                                                    const pTax = ptaxOf(inputs, grossPay);
                                                     const hraDed = inputs.hraDeduction;
                                                     const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                                     const netPay = grossPay - totalDed;
@@ -2883,7 +2897,23 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     step="1"
                                                                 />
                                                             </td>
-                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-red-50/5 dark:bg-red-950/5">{fmt(pTax)}</td>
+                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                                <input
+                                                                    type="number"
+                                                                    value={pTax}
+                                                                    onChange={e => handleInputChange(r.docName, "pTax", e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                                                    onWheel={e => e.currentTarget.blur()}
+                                                                    title="Calculated from the Assam P-Tax slab; edit to override"
+                                                                    className={cn(
+                                                                        "w-20 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        isEdited.pTax
+                                                                            ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
+                                                                            : "border-zinc-200 dark:border-zinc-700"
+                                                                    )}
+                                                                    min="0"
+                                                                    step="1"
+                                                                />
+                                                            </td>
 
                                                             {/* TA Input */}
                                                             <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
@@ -3285,7 +3315,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                 const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                const pTax = calcPTax(grossPay);
+                                const pTax = ptaxOf(inputs, grossPay);
                                 const hraDed = inputs.hraDeduction;
                                 const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;
