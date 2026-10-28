@@ -423,7 +423,7 @@ const IndentGeneralForm: React.FC = () => {
             return;
         }
 
-        const filtered: LinkOption[] = heads.map(h => ({ value: h.budget_head, label: h.budget_head }));
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head || h.name }));
         setLinkOptions(prev => ({ ...prev, igf_account_head: filtered, budget_head: filtered, "Budget Head": filtered }));
     }, [loading, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
@@ -631,7 +631,7 @@ const IndentGeneralForm: React.FC = () => {
     const scopedLinkOptions = useMemo(() => {
         const heads = projectBudgetHeadsResult?.message;
         if (!projectNoForHeads || !heads || heads.length === 0) return linkOptions;
-        const scoped: LinkOption[] = heads.map(h => ({ value: h.budget_head, label: h.budget_head }));
+        const scoped: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head || h.name }));
         return { ...linkOptions, igf_account_head: scoped, budget_head: scoped, "Budget Head": scoped };
     }, [linkOptions, projectNoForHeads, projectBudgetHeadsResult]);
 
