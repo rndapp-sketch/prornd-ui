@@ -250,8 +250,21 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             });
         }
 
+        // DPF 50% — child table (E Consultancy: DPF Credit Distribution). Row field names are read
+        // defensively since they mirror the Research DPF child table.
+        const dpf50Rows: any[] = Array.isArray(depositSlip.dpf_credit_distribution_50) ? depositSlip.dpf_credit_distribution_50 : [];
+        dpf50Rows.forEach((item: any) => {
+            const dept = item.select_dept || item.department || item.dept_name || item.recipient_name || '';
+            const pct = item.dpf_percentage || item.percentage || 0;
+            const amount = parseFloat(item.dpf_amount) || parseFloat(item.amount) || 0;
+            items.push({
+                label: `DPF${pct ? ` (${pct}% of Overhead Amount)` : ' (50% of Overhead Amount)'}${dept ? ` - ${dept}` : ''}`,
+                amount,
+            });
+        });
+
         // DPF — scalar fallback (other deposit slip types)
-        if (!Array.isArray(depositSlip.dpf_credit_distributions) || depositSlip.dpf_credit_distributions.length === 0) {
+        if (dpf50Rows.length === 0 && (!Array.isArray(depositSlip.dpf_credit_distributions) || depositSlip.dpf_credit_distributions.length === 0)) {
             // Research Consultancy stores this under dpf_cle_amount, not dpf_amount — manual
             // entry, so just show whichever field the doc actually has.
             const dpfAmountValue = depositSlip.dpf_amount ?? depositSlip.dpf_cle_amount;
@@ -994,7 +1007,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                                     (depositSlip.credit_distribution || []).reduce(
                                                         (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
                                                         0,
-                                                    ) + enr.gstComponent + enr.balanceInProject
+                                                    ) + (depositSlip.dpf_credit_distribution_50 || []).reduce((s: number, r: any) => s + (parseFloat(r.dpf_amount) || parseFloat(r.amount) || 0), 0) + enr.gstComponent + enr.balanceInProject
                                                 )}
                                                 field="total_budget"
                                                 editable
@@ -1008,7 +1021,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                                     (depositSlip.credit_distribution || []).reduce(
                                                         (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
                                                         0,
-                                                    ) + enr.gstComponent + enr.balanceInProject,
+                                                    ) + (depositSlip.dpf_credit_distribution_50 || []).reduce((s: number, r: any) => s + (parseFloat(r.dpf_amount) || parseFloat(r.amount) || 0), 0) + enr.gstComponent + enr.balanceInProject,
                                             ))
                                         : formatCurrency(
                                             depositSlip.total_budget ||
