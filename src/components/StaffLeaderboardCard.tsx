@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
-import { Trophy, Zap, Clock, ChevronDown, BarChart3, CheckCircle, X, TrendingUp } from "lucide-react";
+import { Trophy, Zap, Clock, ChevronDown, BarChart3, CheckCircle, X, TrendingUp, Undo2 } from "lucide-react";
 import { SectionDivider } from "./DashboardCards";
 
 // Shared across every role dashboard (Director, Dean RnD, Hos RnD, Ado_RnD) —
@@ -8,8 +8,8 @@ import { SectionDivider } from "./DashboardCards";
 // period/role/category. Self-contained: fetches its own data, owns its own
 // filter state, and has no dependency on the page it's dropped into.
 export function StaffLeaderboardCard() {
-    const [leaderboardPeriod, setLeaderboardPeriod] = React.useState<"today" | "week" | "month" | "quarter" | "all">("month");
-    const [leaderboardRole, setLeaderboardRole] = React.useState<string>("");
+    const [leaderboardPeriod, setLeaderboardPeriod] = React.useState<"today" | "week" | "month" | "quarter" | "all">("week");
+    const [leaderboardRole, setLeaderboardRole] = React.useState<string>("staff, RnD");
     const [leaderboardCategory, setLeaderboardCategory] = React.useState<string>("");
 
     const { data: leaderboardResp, isLoading: isLeaderboardLoading } = useFrappeGetCall<{
@@ -22,6 +22,7 @@ export function StaffLeaderboardCard() {
                 total_processed: number;
                 approved: number;
                 rejected: number;
+                sent_back?: number;
                 avg_time: number;
                 approval_rate: number;
                 rank: number;
@@ -29,6 +30,8 @@ export function StaffLeaderboardCard() {
             total_processed: number;
             total_approved: number;
             total_rejected: number;
+            total_sent_back?: number;
+            role_options?: Array<string | { value: string; label?: string }>;
             overall_rate: number;
             top_staff: { user?: string; full_name?: string; total_processed?: number } | null;
             fastest: { user?: string; full_name?: string; avg_time?: number } | null;
@@ -52,9 +55,26 @@ export function StaffLeaderboardCard() {
         return rows.reduce((slowest, row) => (row.avg_time > (slowest?.avg_time ?? -Infinity) ? row : slowest), rows[0]);
     }, [leaderboardData]);
 
-    const LEADERBOARD_ROLE_OPTIONS = [
+    // Display text for internal role ids; the raw id is still what gets sent as ?role=.
+    const LEADERBOARD_ROLE_LABELS: Record<string, string> = {
+        head_approver_1: "Head of Department",
+        Ado_RnD: "Associate Dean, RnD",
+    };
+    const FALLBACK_ROLE_OPTIONS = [
         "Director", "Dean, RnD", "Hos, RnD (Head of Section, RnD)", "head_approver_1", "Ado_RnD", "staff, RnD",
     ];
+    // Prefer the backend's canonical list; keep the hand-typed one as a fallback and make
+    // sure the currently selected role is always present as an option.
+    const roleOptions = (() => {
+        const fromApi = (leaderboardData?.role_options ?? []).map((o) =>
+            typeof o === "string" ? { value: o, label: o } : { value: o.value, label: o.label || o.value }
+        );
+        const base = fromApi.length ? fromApi : FALLBACK_ROLE_OPTIONS.map((v) => ({ value: v, label: v }));
+        if (leaderboardRole && !base.some((o) => o.value === leaderboardRole)) {
+            base.push({ value: leaderboardRole, label: leaderboardRole });
+        }
+        return base.map((o) => ({ value: o.value, label: LEADERBOARD_ROLE_LABELS[o.value] || o.label }));
+    })();
     const LEADERBOARD_CATEGORY_OPTIONS = [
         "Purchase", "Financial", "Project", "HR / Staff", "Deposits", "Travel", "IPR", "Other",
     ];
@@ -145,8 +165,8 @@ export function StaffLeaderboardCard() {
                             className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
                         >
                             <option value="">All Roles</option>
-                            {LEADERBOARD_ROLE_OPTIONS.map((r) => (
-                                <option key={r} value={r}>{r}</option>
+                            {roleOptions.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
                         <div className="relative">
@@ -178,7 +198,7 @@ export function StaffLeaderboardCard() {
                     ) : (
                         <>
                             {/* Summary strip */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-4">
                                 <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
                                     <BarChart3 size={14} strokeWidth={2.5} className="text-[#2563eb] shrink-0" />
                                     <div className="min-w-0">
@@ -198,6 +218,13 @@ export function StaffLeaderboardCard() {
                                     <div className="min-w-0">
                                         <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Rejected</div>
                                         <div className="text-[16px] font-extrabold text-red-600 dark:text-red-400 tabular-nums leading-tight">{leaderboardData.total_rejected}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                    <Undo2 size={14} strokeWidth={2.5} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <div className="min-w-0">
+                                        <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Sent Back</div>
+                                        <div className="text-[16px] font-extrabold text-amber-600 dark:text-amber-400 tabular-nums leading-tight">{leaderboardData.total_sent_back ?? 0}</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
@@ -259,7 +286,7 @@ export function StaffLeaderboardCard() {
                                 <table className="w-full border-collapse">
                                     <thead>
                                         <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
-                                            {["Rank", "Staff", "Processed", "Approved", "Rejected", "Avg. Time", "Approval Rate"].map((h) => (
+                                            {["Rank", "Staff", "Processed", "Approved", "Rejected", "Sent Back", "Avg. Time", "Approval Rate"].map((h) => (
                                                 <th key={h} className="p-2.5 px-3.5 text-[11px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-widest text-left whitespace-nowrap">
                                                     {h}
                                                 </th>
@@ -303,6 +330,9 @@ export function StaffLeaderboardCard() {
                                                         </td>
                                                         <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-red-600 dark:text-red-400 tabular-nums">
                                                             {row.rejected}
+                                                        </td>
+                                                        <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                                                            {row.sent_back ?? 0}
                                                         </td>
                                                         <td className="p-3 px-3.5 align-middle text-[12.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums whitespace-nowrap">
                                                             {row.avg_time}h

@@ -557,7 +557,7 @@ export function HeadOverview() {
     // ── Fetch current user info & department ─────────────────────────────────
     const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
     const fullName = userData?.full_name || currentUser || "Guest";
-    const userDept = userData?.department || "";
+    const userDept = userData?.department || userData?.department_name || "";
 
     // ── Fetch Head-level Dashboard Data ──────────────────────────────────────
     const { data: headDataRes, isLoading: isHeadDataLoading } = useFrappeGetCall<{ message: any }>(
