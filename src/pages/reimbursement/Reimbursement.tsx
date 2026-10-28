@@ -409,6 +409,12 @@ const Reimbursement: React.FC = () => {
         const heads = projectBudgetHeadsResult?.message;
         if (!heads) return;
 
+        // No project-scoped heads (e.g. an overhead fund): keep the full list rather than an empty dropdown
+        if (heads.length === 0) {
+            setLinkOptions(prev => ({ ...prev, account_head: allAccountHeadOptions }));
+            return;
+        }
+
         const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head }));
         setLinkOptions(prev => ({ ...prev, account_head: filtered }));
     }, [dataLoaded, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
