@@ -145,6 +145,12 @@ export const overheadHeadUpdates = (
 ): Record<string, string> => {
     const updates: Record<string, string> = {};
     for (const fieldname of budgetHeadFieldnamesOf(fields, linkOptions)) {
+        const options = (linkOptions ?? {})[fieldname] ?? [];
+        const meta = (fields ?? []).find((f) => f.fieldname === fieldname);
+        // A Link needs the Budget Head docname. Until the options carry an "Overhead" entry
+        // (still loading, or narrowed to a project list that lacks it) there is no docname
+        // to store, and writing the bare title fails Frappe's link validation on save.
+        if (meta?.fieldtype === "Link" && !pickOverheadHeadOption(options)) continue;
         const value = overheadHeadValue(fieldname, linkOptions);
         if ((formData ?? {})[fieldname] !== value) updates[fieldname] = value;
     }
