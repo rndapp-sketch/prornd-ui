@@ -566,7 +566,6 @@ export function HeadOverview() {
         currentUser && userDept ? undefined : null
     );
     const headData = headDataRes?.message || {};
-    const projectOverview = headData.project_overview || {};
     const fundAnalytics = headData.fund_analytics || {};
     const piWiseProjects = headData.pi_wise_projects || [];
 
@@ -716,7 +715,8 @@ export function HeadOverview() {
         const allKnownIds = new Set([...deptOngoingIds, ...deptSubmittedIds]);
         if (allKnownIds.size > 0) {
             // Use Head API project IDs — avoids dept ID/name mismatch
-            return (allProjectsList as any[]).filter((p) => allKnownIds.has(p.name));
+            const matched = (allProjectsList as any[]).filter((p) => allKnownIds.has(p.name));
+            return matched;
         }
         // Fallback: filter by department field
         if (!userDept) return [];
@@ -806,6 +806,8 @@ export function HeadOverview() {
             researchSubmitted = 0,
             consultancyOngoing = 0,
             consultancySubmitted = 0,
+            othersOngoing = 0,
+            othersSubmitted = 0,
             totalAlloc = 0,
             intlCount = 0;
 
@@ -828,11 +830,13 @@ export function HeadOverview() {
                 totalAlloc += amt;
                 if (type.includes("research")) researchOngoing++;
                 else if (type.includes("consult")) consultancyOngoing++;
+                else othersOngoing++;
             }
             if (isSubmitted) {
                 submittedCount++;
                 if (type.includes("research")) researchSubmitted++;
                 else if (type.includes("consult")) consultancySubmitted++;
+                else othersSubmitted++;
             }
 
             if ((p.origin_of_funding_agency || "").toLowerCase() === "international") intlCount++;
@@ -864,6 +868,7 @@ export function HeadOverview() {
             consultancyOngoing,
             consultancySubmitted,
             consultancyProjects: consultancyOngoing + consultancySubmitted,
+            othersProjects: othersOngoing + othersSubmitted,
             totalAlloc,
             intlCount,
             yearData: Object.values(yearMap).sort((a, b) => a.year.localeCompare(b.year)),
@@ -1062,14 +1067,24 @@ export function HeadOverview() {
 
     // ── PI workload (dept-scoped) directly from Head API ──────────────────────
     const piData = React.useMemo(() => {
-        return piWiseProjects.map((pi: any) => ({
-            user_email: pi.pi_email,
-            user_name: pi.pi_name,
-            project_count: pi.project_count,
-            departments: [userDept],
-            projects: pi.projects
-        })).sort((a: any, b: any) => b.project_count - a.project_count);
-    }, [piWiseProjects, userDept]);
+        // Keep only projects that also exist in deptProjects, so the PI list agrees with the
+        // rest of the page (the Head API also returns entries such as Personal Development Fund).
+        const known = new Set(deptProjects.map((p: any) => p.name));
+        const scoped = deptProjects.length > 0;
+        return piWiseProjects
+            .map((pi: any) => {
+                const projects = scoped ? (pi.projects || []).filter((p: any) => known.has(p.project_id)) : pi.projects;
+                return {
+                    user_email: pi.pi_email,
+                    user_name: pi.pi_name,
+                    project_count: scoped ? projects.length : pi.project_count,
+                    departments: [userDept],
+                    projects,
+                };
+            })
+            .filter((pi: any) => pi.project_count > 0)
+            .sort((a: any, b: any) => b.project_count - a.project_count);
+    }, [piWiseProjects, userDept, deptProjects]);
 
     // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
     // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
@@ -1729,7 +1744,7 @@ export function HeadOverview() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-6">
                             <KpiCard
                                 label="Total Projects"
-                                value={String((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted))}
+                                value={String(stats.ongoing + stats.submitted)}
                                 isLoading={isPageLoading}
                                 subtext=""
                                 icon={
@@ -1750,7 +1765,7 @@ export function HeadOverview() {
                                                 onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Department Projects", "ongoing"); }}
                                             >
                                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                {projectOverview.ongoing_projects || stats.ongoing} Ongoing
+                                                {stats.ongoing} Ongoing
                                             </span>
                                             <span
                                                 className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
@@ -1758,7 +1773,7 @@ export function HeadOverview() {
                                                 onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Department Projects", "submitted"); }}
                                             >
                                                 <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                {projectOverview.submitted_projects || stats.submitted} Submitted
+                                                {stats.submitted} Submitted
                                             </span>
                                         </div>
                                     )
@@ -1766,7 +1781,7 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                value={String(projectOverview.ongoing_projects || stats.ongoing)}
+                                value={String(stats.ongoing)}
                                 isLoading={isPageLoading}
                                 subtext=""
                                 icon={
@@ -2075,7 +2090,7 @@ export function HeadOverview() {
                                 <div className="p-[18px] px-[22px] pb-5">
                                     {isPageLoading ? (
                                         <div className="h-[200px] flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
-                                    ) : ((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted)) === 0 ? (
+                                    ) : (stats.ongoing + stats.submitted) === 0 ? (
                                         <div className="h-[200px] flex items-center justify-center text-[#71717A] text-sm">No data available</div>
                                     ) : (
                                         <div className="flex items-center justify-center">
@@ -2124,7 +2139,7 @@ export function HeadOverview() {
                                             className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
                                             onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Consultancy", projectType: "consultancy" }); setKpiPage(1); }}
                                         >
-                                            <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{projectOverview.consultancy_projects || stats.consultancyProjects}</div>
+                                            <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{stats.consultancyProjects}</div>
                                             <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                                             <div className="flex flex-col gap-1 w-full px-1">
                                                 {renderStatusBadge("ongoing", stats.consultancyOngoing, stats.consultancyProjects)}
@@ -2468,7 +2483,7 @@ export function HeadOverview() {
                                             <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Total Sanctioned</div>
                                         </div>
                                         <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
-                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#059669]">{isPageLoading ? "—" : String(projectOverview.ongoing_projects || stats.ongoing)}</div>
+                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#059669]">{isPageLoading ? "—" : String(stats.ongoing)}</div>
                                             <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Ongoing</div>
                                         </div>
                                     </div>
@@ -2476,6 +2491,7 @@ export function HeadOverview() {
                                         {[
                                             { label: "Research Projects", value: `${stats.researchProjects} projects`, color: "text-[#2563eb]" },
                                             { label: "Consultancy Projects", value: `${stats.consultancyProjects} projects`, color: "text-[#7c3aed]" },
+                                            { label: "Other Projects", value: `${stats.othersProjects} projects`, color: "text-[#059669]" },
                                             { label: "Intl. Collaborations", value: `${stats.intlCount} projects`, color: "text-[#0284c7]" },
                                             { label: "Total PIs", value: `${piData.length} investigators`, color: "text-[#3F3F46] dark:text-[#E4E4E7]" },
                                         ].map((row, i) => (
@@ -2891,8 +2907,8 @@ export function HeadOverview() {
                         {(kpiModal.type === "total" || kpiModal.type === "allocation") && (
                             <div className="flex items-center gap-1 px-6 pt-3 pb-0 shrink-0 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                 {[
-                                    { key: "ongoing", label: "Ongoing", count: projectOverview.ongoing_projects || stats.ongoing, activeClass: "border-emerald-500 text-emerald-700 dark:text-emerald-400" },
-                                    { key: "submitted", label: "Submitted", count: projectOverview.submitted_projects || stats.submitted, activeClass: "border-amber-500 text-amber-700 dark:text-amber-400" },
+                                    { key: "ongoing", label: "Ongoing", count: stats.ongoing, activeClass: "border-emerald-500 text-emerald-700 dark:text-emerald-400" },
+                                    { key: "submitted", label: "Submitted", count: stats.submitted, activeClass: "border-amber-500 text-amber-700 dark:text-amber-400" },
                                 ].map((tab) => {
                                     const isActive = kpiModal.type === "total" ? kpiTab === tab.key : kpiAllocTab === tab.key;
                                     return (
