@@ -804,6 +804,22 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    // Read-only project view from the Task Registry (no sanction / fund / application actions)
+                    path: "task-registry/project-details-overview/:projectName",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'staff, RnD',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                            'Director',
+                            'head_approver_1'
+                        ]}>
+                            <ProjectDetailsOverview hideActions />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "task-registry/:doctype/:name",
                     element: (
                         <AuthRouteWrapper allowedRole={[

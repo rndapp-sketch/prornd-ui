@@ -3095,7 +3095,7 @@ const normalizeResponse = (raw: any): any[] => {
 const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     projectName: propProjectName,
     embedded = false,
-    hideActions = false,
+    hideActions: hideActionsProp = false,
 }) => {
     const { projectName: paramProjectName } = useParams<{
         projectName: string;
@@ -3103,6 +3103,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const projectName = propProjectName || paramProjectName;
     const navigate = useNavigate();
     const location = useLocation();
+    // Opened from the Task Registry: a read-only look at the project, so no Add Sanction /
+    // Add Fund buttons, no "Funds Received" banner and no Applications tab.
+    const hideActions = hideActionsProp || !!(location.state as { fromTaskRegistry?: boolean } | null)?.fromTaskRegistry;
     const [activeTab, setActiveTab] = useState("overview");
     const [activityViewType, setActivityViewType] = useState<"fund" | "sanction">("sanction");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
@@ -4181,16 +4184,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     useEffect(() => {
         if (embedded) return;
         const tabParam = searchParams.get("tab");
-        if (isCoProjectView && tabParam === "quick-actions") {
+        if ((isCoProjectView || hideActions) && tabParam === "quick-actions") {
             setActiveTab("overview");
             return;
         }
         if (tabParam) {
             setActiveTab(tabParam);
-        } else if (isCoProjectView && activeTab === "quick-actions") {
+        } else if ((isCoProjectView || hideActions) && activeTab === "quick-actions") {
             setActiveTab("overview");
         }
-    }, [activeTab, embedded, isCoProjectView, searchParams]);
+    }, [activeTab, embedded, hideActions, isCoProjectView, searchParams]);
 
     const handleAddFunds = () =>
         navigate(
@@ -4253,7 +4256,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             inactiveClass: "border-[#FED7AA] bg-[#FFF7ED]/65 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#F97316]/30 dark:bg-[#F97316]/10 dark:text-[#FED7AA]",
             iconClass: "text-[#EA580C] dark:text-[#FDBA74]",
         },
-        ...(!embedded && !isCoProjectView
+        ...(!embedded && !isCoProjectView && !hideActions
             ? [{
                 id: "quick-actions",
                 label: "Applications",
@@ -7304,7 +7307,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         icon: UnlockIcon, color: "purple",
                                         done: hasFundReceived, active: hasFundReceived,
                                         description: "With an approved fund balance, all application modules are now unlocked: Travel, TA/DA Settlement, Reimbursement, Direct Purchase, Temporary Advance, Honorarium, and more.",
-                                        action: (hasFundReceived ? () => { setActiveTab("quick-actions"); setProjectTabParam("quick-actions"); } : null) as (() => void) | null,
+                                        action: (!hideActions && hasFundReceived ? () => { setActiveTab("quick-actions"); setProjectTabParam("quick-actions"); } : null) as (() => void) | null,
                                         actionLabel: "Go to Applications",
                                     },
                                 ];
