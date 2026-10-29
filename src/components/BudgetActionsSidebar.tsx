@@ -60,7 +60,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     const [commitSuccess, setCommitSuccess] = useState<{ amount: number; head: string } | null>(null);
 
     // Head-wise balances from ledger API
-    const { headBalances, actualBalance, commitableBalance } = useProjectBudget(projectName || "");
+    const { heads: projectHeads, headBalances, actualBalance, commitableBalance, isLoading: isBudgetLoading } = useProjectBudget(projectName || "");
 
     // Fetch Budget Heads list (needed by ProjectLedgerModal and PaymentModal)
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string }[]>([]);
@@ -88,8 +88,14 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     // lockBudgetHead then disabled the dropdown on that wrong value.
     const isOverheadProject = isOverheadProjectNo(projectName);
     const budgetHeadNames = useMemo(
-        () => (isOverheadProject ? [OVERHEAD_BUDGET_HEAD] : budgetHeadList.map(h => h.name)),
-        [isOverheadProject, budgetHeadList],
+        () => {
+            if (isOverheadProject) return [OVERHEAD_BUDGET_HEAD];
+            // Only heads sanctioned for this project (get_budget_heads_by_project); fall back to
+            // the full master list only if the project has none.
+            if (projectHeads.length > 0 || isBudgetLoading) return projectHeads;
+            return budgetHeadList.map(h => h.name);
+        },
+        [isOverheadProject, projectHeads, isBudgetLoading, budgetHeadList],
     );
     const budgetHeadIds = useMemo(
         () => Object.fromEntries(budgetHeadList.map(h => [h.name, h.id])),

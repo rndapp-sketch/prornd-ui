@@ -26,6 +26,16 @@ const GROUP_B_FIELDS = new Set([
     'commit_amount', 'commit_particular', 'linked_application',
 ]);
 
+// The backend builds the Module options from the Module Registry minus "Miscellaneous Commit" itself,
+// but a commit can be raised against a Miscellaneous Commit too, so it is added back here.
+const MISC_COMMIT_MODULE = 'Miscellaneous Commit';
+const withMiscCommitModule = (field: FormField): FormField => {
+    if (typeof field.options !== 'string') return field;
+    const opts = field.options.split('\n');
+    if (opts.some(o => o.trim() === MISC_COMMIT_MODULE)) return field;
+    return { ...field, options: [...opts.filter(o => o.trim() !== ''), MISC_COMMIT_MODULE].join('\n') };
+};
+
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
     message: {
@@ -421,7 +431,8 @@ const MiscellaneousCommitForm: React.FC = () => {
         [fields, READ_ONLY_A]);
     const groupB = useMemo(() =>
         fields.filter(f => GROUP_B_FIELDS.has(f.fieldname))
-            .map(f => isDecommit && f.fieldname === 'commit_details_section' ? { ...f, label: 'De-Commit Details' } : f),
+            .map(f => isDecommit && f.fieldname === 'commit_details_section' ? { ...f, label: 'De-Commit Details' } : f)
+            .map(f => f.fieldname === 'module' ? withMiscCommitModule(f) : f),
         [fields, isDecommit]);
 
 

@@ -13,10 +13,11 @@ import {
     Printer, Eye, Calendar, Building2, UserCheck, X,
     ChevronRight, Briefcase, Edit3, RotateCcw,
     TrendingDown, CalendarClock, Lock, Unlock, ExternalLink,
-    FolderKanban, Tags, CheckCircle2, Clock, XCircle, Info, LogOut
+    FolderKanban, Tags, CheckCircle2, Clock, XCircle, Info, LogOut, TimerOff
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
+import { SalaryHistoryModal } from "@/components/SalaryHistoryModal";
 import { useUserRoles } from "@/components/UserRole";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ interface EditableInputs {
     hraDeduction: number;
     idCardCharge: number;
     electricityBill: number;
+    // Manual P-Tax; undefined means the Assam slab amount is used
+    pTax?: number;
     comment: string;
     remarks: string;
 }
@@ -174,7 +177,10 @@ const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: strin
 const calcMonthsWorked = (joiningDate: string, termCompletionDate: string): { months: number; days: number } | null => {
     if (!joiningDate) return null;
     const start = new Date(joiningDate);
-    const end = termCompletionDate ? new Date(termCompletionDate) : new Date();
+    // Work done so far: never count past today, even when the term runs further
+    const today = new Date();
+    const term = termCompletionDate ? new Date(termCompletionDate) : today;
+    const end = term < today ? term : today;
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
     let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
     let days = end.getDate() - start.getDate();
@@ -211,6 +217,9 @@ const calcPTax = (grossPay: number): number => {
     if (grossPay <= 25000) return 180;
     return 208;
 };
+
+/** P-Tax for a row: the manually entered amount when set, otherwise the slab amount. */
+const ptaxOf = (inputs: { pTax?: number }, grossPay: number): number => inputs.pTax ?? calcPTax(grossPay);
 
 /** Convert number to words in Indian Numbering System (INR) */
 const numToWords = (num: number): string => {
@@ -323,6 +332,12 @@ const mapRow = (row: any): StaffRecord => {
 
 type SortKey = keyof StaffRecord;
 
+// Staff who have worked more than this many months need a fresh appointment before salary can continue
+const MAX_SERVICE_MONTHS = 33;
+
+// Students (project fellows) are paid through the same register but have no service-limit expiry
+const isStudentStaff = (r: { designation?: string }) => /fellow/i.test(r.designation || "");
+
 interface ResignationInfo {
     resignation?: string;
     state?: string;
@@ -336,7 +351,12 @@ const PHYSICAL_SCHEME_LABEL = "Physical";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const SalaryModule: React.FC = () => {
+interface SalaryModuleProps {
+    /** Rendered at /salary-module/register without the app sidebar/navbar. */
+    fullPage?: boolean;
+}
+
+const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser || null);
@@ -370,6 +390,8 @@ const SalaryModule: React.FC = () => {
 
     // Pay slip modal state
     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
+    // Employee whose full salary history (get_salary_history) is open in the modal
+    const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
     const [loadingEmpId, setLoadingEmpId] = useState<string | null>(null);
 
@@ -413,7 +435,7 @@ const SalaryModule: React.FC = () => {
     const isPrepared = !!preparedCycles[cycleKey];
 
     // ─── Salary Processing Status ─────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<"pending" | "processed" | "termending" | "resigned">("pending");
+    const [activeTab, setActiveTab] = useState<"pending" | "processed" | "termending" | "resigned" | "expired">("pending");
     // Staff with a resignation in process / completed, keyed by employee_id — excluded from salary processing
     const [resignedMap, setResignedMap] = useState<Record<string, ResignationInfo>>({});
     const [resignedError, setResignedError] = useState<string | null>(null);
@@ -492,6 +514,7 @@ const SalaryModule: React.FC = () => {
             hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
+            pTax: rowOverrides.pTax,
             comment: rowOverrides.comment ?? "",
             remarks: rowOverrides.remarks ?? "",
         };
@@ -501,7 +524,7 @@ const SalaryModule: React.FC = () => {
         const proRataHRA = Math.round((currentHRA / daysInMonthVal) * workingDays);
         const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
         const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-        const pTax = calcPTax(grossPay);
+        const pTax = ptaxOf(inputs, grossPay);
         const hraDed = inputs.hraDeduction;
         const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
 
@@ -728,6 +751,7 @@ const SalaryModule: React.FC = () => {
                     hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
                     idCardCharge: rowOverrides.idCardCharge ?? 0,
                     electricityBill: rowOverrides.electricityBill ?? 0,
+            pTax: rowOverrides.pTax,
                     comment: rowOverrides.comment ?? "",
                     remarks: rowOverrides.remarks ?? "",
                 };
@@ -736,7 +760,7 @@ const SalaryModule: React.FC = () => {
                 const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                 const hraDed = inputs.hraDeduction;
-                const totalDed = hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                const totalDed = hraDed + inputs.medicalDeduction + ptaxOf(inputs, grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
                 const result = await buildCommitData(r, netPay);
                 if (result.ok) {
@@ -786,6 +810,7 @@ const SalaryModule: React.FC = () => {
             hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
+            pTax: rowOverrides.pTax,
             comment: rowOverrides.comment ?? "",
             remarks: rowOverrides.remarks ?? "",
         };
@@ -799,6 +824,7 @@ const SalaryModule: React.FC = () => {
             hraDeduction: rowOverrides.hraDeduction !== undefined,
             idCardCharge: rowOverrides.idCardCharge !== undefined,
             electricityBill: rowOverrides.electricityBill !== undefined,
+            pTax: rowOverrides.pTax !== undefined,
             comment: rowOverrides.comment !== undefined,
             remarks: rowOverrides.remarks !== undefined,
         };
@@ -814,6 +840,11 @@ const SalaryModule: React.FC = () => {
             let shouldStoreOverride = true;
             if (field === "ta" || field === "otherDeduction" || field === "arrear" || field === "idCardCharge" || field === "electricityBill") {
                 if (!value || parseInt(value as string, 10) === 0 || isNaN(parseInt(value as string, 10))) {
+                    shouldStoreOverride = false;
+                }
+            } else if (field === "pTax") {
+                // 0 is a valid P-Tax; only an empty box goes back to the slab amount
+                if (value === "" || isNaN(Number(value))) {
                     shouldStoreOverride = false;
                 }
             } else if (field === "comment" || field === "remarks") {
@@ -1265,6 +1296,26 @@ const SalaryModule: React.FC = () => {
         }
     }, [schemesList, schemeFilter]);
 
+    // Months worked as shown in the Gap Period column: the tenure summary when available, else joining → term end.
+    const getMonthsWorked = useCallback((r: StaffRecord): number => {
+        const summary = tenureSummaryMap[r.employee_id];
+        const toDate = calcMonthsWorked(r.joining_date, r.term_completion_date)?.months ?? 0;
+        // The tenure summary can count the whole planned term, so it is capped at the time elapsed to date
+        if (summary) return Math.min(Number(summary.total_months_worked) || 0, toDate);
+        return toDate;
+    }, [tenureSummaryMap]);
+
+    // Staff past the service limit — reappointment is required, so they leave the salary register.
+    // Resigned staff stay on the Resigned tab only.
+    const periodExpiredIds = useMemo(() => {
+        const ids = new Set<string>();
+        records.forEach(r => {
+            if (isStudentStaff(r)) return;
+            if (!resignedMap[r.employee_id] && getMonthsWorked(r) > MAX_SERVICE_MONTHS) ids.add(r.employee_id);
+        });
+        return ids;
+    }, [records, resignedMap, getMonthsWorked]);
+
     // Sort & filter
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
@@ -1273,7 +1324,7 @@ const SalaryModule: React.FC = () => {
         // Resigned / resignation-in-process staff are not payable (they live on the Resigned tab),
         // unless already paid this period — those stay visible under "Salary Processed".
         let list = records.filter(r => {
-            if (resignedMap[r.employee_id] && !processedEmployees.has(r.employee_id)) return false;
+            if ((resignedMap[r.employee_id] || periodExpiredIds.has(r.employee_id)) && !processedEmployees.has(r.employee_id)) return false;
             const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             return wd > 0;
         });
@@ -1332,7 +1383,7 @@ const SalaryModule: React.FC = () => {
             }
             return sortDir === "asc" ? cmp : -cmp;
         });
-    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, processedEmployees]);
+    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, periodExpiredIds, processedEmployees]);
 
     // Staff active in the selected period, before any type/search/dept/etc. filtering —
     // used to decide whether to show the toolbar/table at all (a "no search results" state
@@ -1358,7 +1409,7 @@ const SalaryModule: React.FC = () => {
     const termEndingRecords = useMemo(() => {
         const periodEnd = new Date(selectedYear, selectedMonth + 1, 0); // last day of selected month
         return records.filter(r => {
-            if (resignedMap[r.employee_id]) return false;
+            if (resignedMap[r.employee_id] || periodExpiredIds.has(r.employee_id)) return false;
             if (!r.term_completion_date) return false;
             try {
                 const tcd = new Date(r.term_completion_date);
@@ -1368,7 +1419,7 @@ const SalaryModule: React.FC = () => {
         }).sort((a, b) =>
             new Date(a.term_completion_date).getTime() - new Date(b.term_completion_date).getTime()
         );
-    }, [records, selectedYear, selectedMonth, resignedMap]);
+    }, [records, selectedYear, selectedMonth, resignedMap, periodExpiredIds]);
 
     // Set of term-ending employee IDs — excluded from pending tab
     const termEndingEmpIds = useMemo(() =>
@@ -1399,7 +1450,21 @@ const SalaryModule: React.FC = () => {
         filtered.filter(r => processedEmployees.has(r.employee_id)),
         [filtered, processedEmployees]);
 
-    const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : activeTab === "resigned" ? resignedRecords : termEndingRecords;
+    // Period-expired staff for the active Research/Consultancy tab, longest service first
+    const expiredRecords = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return records.filter(r => {
+            if (!periodExpiredIds.has(r.employee_id)) return false;
+            const pNo = (r.project_no || "").trim();
+            const t = pNo && projectTypeMap?.[pNo] ? projectTypeMap[pNo].trim() : "";
+            if (projectTypeMap && t.toLowerCase() !== staffTypeTab.toLowerCase()) return false;
+            if (!q) return true;
+            return r.first_name.toLowerCase().includes(q) || r.employee_id.toLowerCase().includes(q) ||
+                (r.project_no || "").toLowerCase().includes(q);
+        }).sort((a, b) => getMonthsWorked(b) - getMonthsWorked(a));
+    }, [records, periodExpiredIds, projectTypeMap, staffTypeTab, search, getMonthsWorked]);
+
+    const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : activeTab === "resigned" ? resignedRecords : activeTab === "expired" ? expiredRecords : termEndingRecords;
 
     // stagingRecords is fetched independently (raw payment history for the period) and
     // isn't run through the search/dept/designation/scheme/project-type filters that
@@ -1451,7 +1516,7 @@ const SalaryModule: React.FC = () => {
         const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
         const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
         // P‑Tax is calculated on the pro‑rated Gross pay for the month
-        return s + calcPTax(grossPay);
+        return s + ptaxOf(inputs, grossPay);
     }, 0);
     const totalTA = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.ta, 0);
     const totalIdCard = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.idCardCharge, 0);
@@ -1485,7 +1550,7 @@ const SalaryModule: React.FC = () => {
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = inputs.hraDeduction;
-            return s + (hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
+            return s + (hraDed + inputs.medicalDeduction + ptaxOf(inputs, grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
 
@@ -1498,7 +1563,7 @@ const SalaryModule: React.FC = () => {
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = inputs.hraDeduction;
-            const deductions = hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+            const deductions = hraDed + inputs.medicalDeduction + ptaxOf(inputs, grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             return s + (grossPay - deductions);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
@@ -1532,7 +1597,7 @@ const SalaryModule: React.FC = () => {
             const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
             const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-            const pTax = calcPTax(grossPay);
+            const pTax = ptaxOf(inputs, grossPay);
             const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
@@ -1610,7 +1675,7 @@ const SalaryModule: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
-            <main className="w-full px-0 py-0 space-y-3">
+            <main className={cn("w-full space-y-1.5", fullPage ? "mx-auto max-w-[2200px] px-3 py-3" : "px-0 py-0")}>
 
                 {/* Header */}
                 <header className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
@@ -1618,7 +1683,8 @@ const SalaryModule: React.FC = () => {
                     <div className="flex flex-col gap-3 px-4 py-2.5 xl:flex-row xl:items-start xl:justify-between">
                         <div className="flex min-w-0 items-start gap-3">
                             <button
-                                onClick={() => navigate(-1)}
+                                onClick={() => (fullPage ? navigate("/salary-module") : navigate(-1))}
+                                title={fullPage ? "Back to salary module" : undefined}
                                 className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] text-[#71717A] transition-colors hover:border-[#D97757]/30 hover:bg-[#D97757]/10 hover:text-[#D97757] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#A1A1AA]"
                             >
                                 <ArrowLeft className="h-4 w-4" />
@@ -1767,138 +1833,91 @@ const SalaryModule: React.FC = () => {
                     </div>
                 </header>
 
-                {/* Main Tabs — Research vs Consultancy are fully separate payrolls (month/year, register, exports all scope to whichever is active) */}
-                <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                    <div className="flex">
-                        <button
-                            onClick={() => setStaffTypeTab("Research")}
-                            className={cn(
-                                "flex flex-1 items-center justify-center gap-2.5 px-4 py-2.5 text-[14px] font-extrabold transition-all border-b-[3px]",
-                                staffTypeTab === "Research"
-                                    ? "text-[#4A6CF7] border-[#4A6CF7] bg-[#EEF2FF]/50 dark:bg-[#4A6CF7]/10"
-                                    : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
-                            )}
+                {/* Overview — Research vs Consultancy are fully separate payrolls (month/year, register, exports all scope to whichever is active) */}
+                <div className="flex flex-col overflow-hidden rounded-xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] lg:flex-row">
+                    <div className="flex shrink-0 flex-col justify-center gap-0.5 border-b border-[#E4E4E7] bg-[#FAFAF9] px-3 py-1.5 dark:border-[#3F3F46] dark:bg-[#18181B]/50 lg:w-[340px] lg:border-b-0 lg:border-r">
+                        <div
+                            className="flex flex-row gap-0.5 rounded-lg border-2 bg-zinc-200/70 p-0.5 transition-[border-color] duration-300 ease-in-out dark:bg-zinc-800"
+                            style={{ borderColor: staffTypeTab === "Research" ? "#4A6CF7" : "#D97757" }}
+                            role="tablist"
+                            aria-label="Staff type"
                         >
-                            <Briefcase className="h-5 w-5" />
-                            Research
-                            <span className={cn(
-                                "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
-                                staffTypeTab === "Research"
-                                    ? "bg-[#4A6CF7] text-white"
-                                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                            )}>
-                                {staffCountByType.Research}
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => setStaffTypeTab("Consultancy")}
-                            className={cn(
-                                "flex flex-1 items-center justify-center gap-2.5 px-4 py-2.5 text-[14px] font-extrabold transition-all border-b-[3px]",
-                                staffTypeTab === "Consultancy"
-                                    ? "text-[#D97757] border-[#D97757] bg-[#D97757]/5"
-                                    : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
-                            )}
-                        >
-                            <Briefcase className="h-5 w-5" />
-                            Consultancy
-                            <span className={cn(
-                                "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
-                                staffTypeTab === "Consultancy"
-                                    ? "bg-[#D97757] text-white"
-                                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                            )}>
-                                {staffCountByType.Consultancy}
-                            </span>
-                        </button>
+                            {([
+                                { key: "Research", color: "#4A6CF7" },
+                                { key: "Consultancy", color: "#D97757" },
+                            ] as const).map(t => {
+                                const active = staffTypeTab === t.key;
+                                return (
+                                    <button
+                                        key={t.key}
+                                        role="tab"
+                                        aria-selected={active}
+                                        onClick={() => setStaffTypeTab(t.key)}
+                                        className={cn(
+                                            "flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-1 text-[12px] font-bold transition-all duration-300 ease-in-out",
+                                            active
+                                                ? "bg-white shadow-sm dark:bg-[#27272A]"
+                                                : "text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]"
+                                        )}
+                                        style={active ? { color: t.color } : undefined}
+                                    >
+                                        <Briefcase className="h-4 w-4" />
+                                        {t.key}
+                                        <span
+                                            className={cn(
+                                                "inline-flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold transition-all duration-300 ease-in-out",
+                                                !active && "bg-zinc-300/60 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                                            )}
+                                            style={active ? { backgroundColor: t.color, color: "#fff" } : undefined}
+                                        >
+                                            {staffCountByType[t.key]}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                            {MONTHS[selectedMonth].label} {selectedYear} · {staffTypeTab}
+                        </span>
                     </div>
-                </div>
 
-                {/* KPI Cards */}
-                {!isLoading && !error && activeStaffRecords.length > 0 && isPrepared && (
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-                        {[
-                            {
-                                label: "Staff Count",
-                                value: filtered.length,
-                                isCurrency: false,
-                                desc: "Approved project employees",
-                                accent: "#2563EB",
-                                icon: <UserCheck className="h-3.5 w-3.5" />
-                            },
-                            {
-                                label: "Gross Salary Payout",
-                                value: totalEarnings,
-                                isCurrency: true,
-                                desc: "Basic + allowance + arrears",
-                                accent: "#059669",
-                                icon: <IndianRupee className="h-3.5 w-3.5" />
-                            },
-                            {
-                                label: "Total Deductions",
-                                value: totalDeductions,
-                                isCurrency: true,
-                                desc: "HRA, medical, taxes & other charges",
-                                accent: "#DC2626",
-                                icon: <TrendingDown className="h-3.5 w-3.5" />
-                            },
-                            {
-                                label: "Net Payout",
-                                value: totalNetPay,
-                                isCurrency: true,
-                                desc: "Final credit statement",
-                                accent: "#D97757",
-                                icon: <IndianRupee className="h-3.5 w-3.5" />
-                            },
-                        ].map((card) => (
-                            <div
-                                key={card.label}
-                                className="relative flex min-h-[88px] flex-col overflow-hidden rounded-lg border border-[#E4E4E7] bg-white px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-[#3F3F46] dark:bg-[#27272A]"
-                            >
-                                <div
-                                    className="pointer-events-none absolute bottom-0 right-0 h-12 w-12 translate-x-3 translate-y-3 rounded-full opacity-[0.07]"
-                                    style={{ backgroundColor: card.accent }}
-                                />
-                                <div className="mb-1.5 flex h-6 w-6 items-center justify-center rounded-md"
-                                    style={{
-                                        color: card.accent,
-                                        backgroundColor: `color-mix(in srgb, ${card.accent} 10%, transparent)`,
-                                    }}
-                                >
-                                    {card.icon}
-                                </div>
-                                <div className="text-[9px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
-                                    {card.label}
-                                </div>
-                                <div
-                                    className="mt-0.5 text-[18px] font-extrabold leading-none tracking-tight tabular-nums"
-                                    style={{ color: card.accent }}
-                                >
-                                    {card.isCurrency ? fmt(card.value as number) : card.value}
-                                </div>
-                                <div className="mt-auto pt-1.5">
-                                    <p className="text-[10px] font-semibold leading-tight text-[#71717A] dark:text-[#A1A1AA]">
-                                        {card.desc}
+                    {!isLoading && !error && activeStaffRecords.length > 0 && isPrepared && (
+                        <div key={staffTypeTab} className="grid flex-1 animate-in fade-in duration-300 grid-cols-2 divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+                            {[
+                                { label: "Staff Count", value: String(filtered.length), desc: "Approved project employees", accent: "#2563EB", icon: <UserCheck className="h-3 w-3" /> },
+                                { label: "Gross Salary Payout", value: fmt(totalEarnings), desc: "Basic + allowance + arrears", accent: "#059669", icon: <IndianRupee className="h-3 w-3" /> },
+                                { label: "Total Deductions", value: fmt(totalDeductions), desc: "HRA, medical, taxes & other charges", accent: "#DC2626", icon: <TrendingDown className="h-3 w-3" /> },
+                                { label: "Net Payout", value: fmt(totalNetPay), desc: "Final credit statement", accent: "#D97757", icon: <IndianRupee className="h-3 w-3" /> },
+                            ].map(card => (
+                                <div key={card.label} className="flex flex-col justify-center gap-0.5 px-3 py-1.5">
+                                    <p className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                        <span style={{ color: card.accent }}>{card.icon}</span>
+                                        <span className="truncate">{card.label}</span>
                                     </p>
+                                    <p className="text-[16px] font-extrabold leading-tight tabular-nums tracking-tight" style={{ color: card.accent }}>{card.value}</p>
+                                    <p className="truncate text-[9px] font-medium leading-tight text-[#A1A1AA] dark:text-[#71717A]" title={card.desc}>{card.desc}</p>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* Filter Toolbar & Main Table (Conditional on isPrepared) */}
                 {!isLoading && !error && activeStaffRecords.length > 0 && isPrepared && (
                     <>
+                        {/* Workflow tabs, progress and filters share one card */}
+                        <div className="overflow-hidden rounded-xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                         {/* Tab Switcher & Progress Bar */}
-                        <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <div className="border-b border-[#CBD5B0] bg-[#E6EBD8] dark:border-[#A3B18A]/30 dark:bg-[#A3B18A]/15">
                             <div className="flex items-center justify-between">
                                 <div className="flex">
                                     <button
                                         onClick={() => setActiveTab("pending")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-1.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "pending"
-                                                ? "text-[#D97757] border-[#D97757] bg-white dark:bg-[#27272A]"
-                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                                ? "text-[#C2410C] border-[#D97757] bg-[#D97757]/15 shadow-[inset_0_-2px_0_#D97757] dark:text-[#FDBA74] dark:bg-[#D97757]/20"
+                                                : "text-[#5A6B34] border-transparent hover:text-[#2F3B16] hover:bg-[#A3B18A]/25 dark:text-[#C5D2A3] dark:hover:text-[#E3EAD0] dark:hover:bg-[#A3B18A]/20"
                                         )}
                                     >
                                         <Clock className="h-4 w-4" />
@@ -1906,7 +1925,7 @@ const SalaryModule: React.FC = () => {
                                         <span className={cn(
                                             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
                                             activeTab === "pending"
-                                                ? "bg-[#D97757]/10 text-[#D97757]"
+                                                ? "bg-[#D97757] text-white"
                                                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                                         )}>
                                             {pendingRecords.length}
@@ -1915,10 +1934,10 @@ const SalaryModule: React.FC = () => {
                                     <button
                                         onClick={() => setActiveTab("processed")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-1.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "processed"
-                                                ? "text-emerald-600 border-emerald-500 bg-white dark:bg-[#27272A] dark:text-emerald-400"
-                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                                ? "text-emerald-700 border-emerald-500 bg-emerald-100 shadow-[inset_0_-2px_0_#10b981] dark:bg-emerald-900/30 dark:text-emerald-300"
+                                                : "text-[#5A6B34] border-transparent hover:text-[#2F3B16] hover:bg-[#A3B18A]/25 dark:text-[#C5D2A3] dark:hover:text-[#E3EAD0] dark:hover:bg-[#A3B18A]/20"
                                         )}
                                     >
                                         <CheckCircle2 className="h-4 w-4" />
@@ -1926,7 +1945,7 @@ const SalaryModule: React.FC = () => {
                                         <span className={cn(
                                             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
                                             activeTab === "processed"
-                                                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                                ? "bg-emerald-500 text-white"
                                                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                                         )}>
                                             {processedRecords.length}
@@ -1935,10 +1954,10 @@ const SalaryModule: React.FC = () => {
                                     <button
                                         onClick={() => setActiveTab("termending")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-1.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "termending"
-                                                ? "text-amber-600 border-amber-500 bg-white dark:bg-[#27272A] dark:text-amber-400"
-                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                                ? "text-amber-700 border-amber-500 bg-amber-100 shadow-[inset_0_-2px_0_#f59e0b] dark:bg-amber-900/30 dark:text-amber-300"
+                                                : "text-[#5A6B34] border-transparent hover:text-[#2F3B16] hover:bg-[#A3B18A]/25 dark:text-[#C5D2A3] dark:hover:text-[#E3EAD0] dark:hover:bg-[#A3B18A]/20"
                                         )}
                                     >
                                         <CalendarClock className="h-4 w-4" />
@@ -1946,7 +1965,7 @@ const SalaryModule: React.FC = () => {
                                         <span className={cn(
                                             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
                                             activeTab === "termending"
-                                                ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
+                                                ? "bg-amber-500 text-white"
                                                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                                         )}>
                                             {termEndingRecords.length}
@@ -1955,10 +1974,10 @@ const SalaryModule: React.FC = () => {
                                     <button
                                         onClick={() => setActiveTab("resigned")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-1.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "resigned"
-                                                ? "text-rose-600 border-rose-500 bg-white dark:bg-[#27272A] dark:text-rose-400"
-                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                                ? "text-rose-700 border-rose-500 bg-rose-100 shadow-[inset_0_-2px_0_#f43f5e] dark:bg-rose-900/30 dark:text-rose-300"
+                                                : "text-[#5A6B34] border-transparent hover:text-[#2F3B16] hover:bg-[#A3B18A]/25 dark:text-[#C5D2A3] dark:hover:text-[#E3EAD0] dark:hover:bg-[#A3B18A]/20"
                                         )}
                                     >
                                         <LogOut className="h-4 w-4" />
@@ -1966,10 +1985,30 @@ const SalaryModule: React.FC = () => {
                                         <span className={cn(
                                             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
                                             activeTab === "resigned"
-                                                ? "bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400"
+                                                ? "bg-rose-500 text-white"
                                                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                                         )}>
                                             {resignedRecords.length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab("expired")}
+                                        className={cn(
+                                            "relative flex items-center gap-2 px-4 py-1.5 text-[13px] font-bold transition-all border-b-2",
+                                            activeTab === "expired"
+                                                ? "text-violet-700 border-violet-500 bg-violet-100 shadow-[inset_0_-2px_0_#8b5cf6] dark:bg-violet-900/30 dark:text-violet-300"
+                                                : "text-[#5A6B34] border-transparent hover:text-[#2F3B16] hover:bg-[#A3B18A]/25 dark:text-[#C5D2A3] dark:hover:text-[#E3EAD0] dark:hover:bg-[#A3B18A]/20"
+                                        )}
+                                    >
+                                        <TimerOff className="h-4 w-4" />
+                                        Period Expire
+                                        <span className={cn(
+                                            "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                                            activeTab === "expired"
+                                                ? "bg-violet-500 text-white"
+                                                : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                                        )}>
+                                            {expiredRecords.length}
                                         </span>
                                     </button>
                                 </div>
@@ -1996,7 +2035,7 @@ const SalaryModule: React.FC = () => {
                         </div>
 
                         {/* Filter Toolbar */}
-                        <div className="flex flex-col items-stretch gap-3 rounded-lg border border-[#E4E4E7] bg-white p-2.5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] lg:flex-row lg:items-center">
+                        <div className="flex flex-col items-stretch gap-2 bg-[#FAFAF9] p-2 dark:bg-[#18181B]/50 lg:flex-row lg:items-center">
                             {/* Search */}
                             <div className="relative flex-1">
                                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A1A1AA] dark:text-[#71717A]" />
@@ -2005,12 +2044,12 @@ const SalaryModule: React.FC = () => {
                                     placeholder="Search by employee details (ID, name, email)..."
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    className="h-10 w-full rounded-[0.4375rem] border-[1.5px] border-[#E4E4E7] bg-white py-2 pl-10 pr-4 text-[13px] text-[#3F3F46] transition-colors placeholder:text-[#A1A1AA] focus:border-[#4A6CF7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7] dark:placeholder:text-[#71717A]"
+                                    className="h-8 w-full rounded-[0.4375rem] border-[1.5px] border-[#E4E4E7] bg-white py-2 pl-10 pr-4 text-[13px] text-[#3F3F46] transition-colors placeholder:text-[#A1A1AA] focus:border-[#4A6CF7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7] dark:placeholder:text-[#71717A]"
                                 />
                             </div>
 
                             {/* Department Dropdown */}
-                            <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", deptFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+                            <div className={cn("flex h-8 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", deptFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
                                 <Building2 className={cn("h-4 w-4", deptFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", deptFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Dept</span>
                                 <select
@@ -2031,7 +2070,7 @@ const SalaryModule: React.FC = () => {
                             </div>
 
                             {/* Designation Dropdown */}
-                            <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", desigFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+                            <div className={cn("flex h-8 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", desigFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
                                 <Briefcase className={cn("h-4 w-4", desigFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", desigFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Role</span>
                                 <select
@@ -2044,7 +2083,7 @@ const SalaryModule: React.FC = () => {
                             </div>
 
                             {/* Project Dropdown */}
-                            <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", projectFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+                            <div className={cn("flex h-8 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", projectFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
                                 <FolderKanban className={cn("h-4 w-4", projectFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", projectFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Project</span>
                                 <select
@@ -2057,7 +2096,7 @@ const SalaryModule: React.FC = () => {
                             </div>
 
                             {/* Scheme Dropdown */}
-                            <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", schemeFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+                            <div className={cn("flex h-8 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", schemeFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
                                 <Tags className={cn("h-4 w-4", schemeFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", schemeFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Scheme</span>
                                 <select
@@ -2076,7 +2115,7 @@ const SalaryModule: React.FC = () => {
                                 return (
                                     <button
                                         onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); }}
-                                        className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
+                                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
                                     >
                                         <X className="h-3.5 w-3.5" />
                                         Clear
@@ -2084,6 +2123,7 @@ const SalaryModule: React.FC = () => {
                                     </button>
                                 );
                             })()}
+                        </div>
                         </div>
 
                         {/* Processed summary strip */}
@@ -2120,7 +2160,7 @@ const SalaryModule: React.FC = () => {
                         })()}
 
                         {/* Table Container */}
-                        <Card className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <Card key={staffTypeTab} className="animate-in fade-in duration-300 overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                             <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-[22px] py-[14px] dark:border-[#3F3F46] dark:bg-[#27272A]">
                                 <div className="flex items-center gap-3 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/20">
@@ -2136,14 +2176,16 @@ const SalaryModule: React.FC = () => {
                                         {MONTHS[selectedMonth].label} {selectedYear}
                                     </span>
                                     {/* Open full-page in new tab */}
-                                    <button
-                                        onClick={() => window.open("/salary-module/register", "_blank", "noopener,noreferrer")}
-                                        title="Open Salary Register in full page (new tab)"
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#3F3F46] transition-all hover:border-[#4A6CF7]/40 hover:bg-[#EEF2FF] hover:text-[#2563EB] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:border-[#4A6CF7]/40 dark:hover:bg-[#4A6CF7]/10 dark:hover:text-[#A5B4FC] shadow-sm"
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        Full Page
-                                    </button>
+                                    {!fullPage && (
+                                        <button
+                                            onClick={() => window.open("/salary-module/register", "_blank", "noopener,noreferrer")}
+                                            title="Open Salary Register in full page (new tab)"
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#3F3F46] transition-all hover:border-[#4A6CF7]/40 hover:bg-[#EEF2FF] hover:text-[#2563EB] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:border-[#4A6CF7]/40 dark:hover:bg-[#4A6CF7]/10 dark:hover:text-[#A5B4FC] shadow-sm"
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            Full Page
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <CardContent className="p-0">
@@ -2193,8 +2235,12 @@ const SalaryModule: React.FC = () => {
                                                             return (
                                                                 <tr key={r.employee_id} className="hover:bg-blue-50/50 dark:hover:bg-[#27272A]">
                                                                     <td className="px-3 py-2 text-xs font-semibold text-zinc-400">{i + 1}</td>
-                                                                    <td className="px-3 py-2 text-xs font-mono font-bold whitespace-nowrap">{r.employee_id}</td>
-                                                                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">{r.first_name}</td>
+                                                                    <td className="px-3 py-2 text-xs font-mono font-bold whitespace-nowrap">
+                                                                        <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="text-[#2563EB] hover:underline dark:text-[#A5B4FC]">{r.employee_id}</button>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">
+                                                                        <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="hover:text-[#2563EB] hover:underline">{r.first_name}</button>
+                                                                    </td>
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap"><DepartmentName name={r.department} /></td>
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">{r.designation || "—"}</td>
                                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">{r.project_no || "—"}</td>
@@ -2224,6 +2270,72 @@ const SalaryModule: React.FC = () => {
                                                                                 : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
                                                                         )}>
                                                                             {done ? "Resigned" : "In process"}{info?.state ? ` · ${info.state}` : ""}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : activeTab === "expired" ? (
+                                    <>
+                                        <div className="flex items-center gap-2 border-b border-violet-200 bg-violet-50 px-4 py-2 text-xs font-medium text-violet-700 dark:border-violet-900/40 dark:bg-violet-950/20 dark:text-violet-300">
+                                            <Info className="h-4 w-4 shrink-0" />
+                                            Staff with more than {MAX_SERVICE_MONTHS} months of service. Reappointment is required, and they are excluded from the salary register until then.
+                                        </div>
+                                        {expiredRecords.length === 0 ? (
+                                            <div className="py-24 text-center">
+                                                <TimerOff className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                                                <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No expired periods</p>
+                                                <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+                                                    No {staffTypeTab.toLowerCase()} staff have worked more than {MAX_SERVICE_MONTHS} months.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                                <table className="min-w-full table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                                    <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
+                                                        <tr>
+                                                            {["#", "Emp ID", "Full Name", "Department", "Role", "Project No", "Scheme", "Working Months", "Gap Period", "Status"].map(h => (
+                                                                <th key={h} className="whitespace-nowrap px-3 py-3 text-left">{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/80">
+                                                        {expiredRecords.map((r, i) => {
+                                                            const pNo = (r.project_no || "").trim();
+                                                            const summary = tenureSummaryMap[r.employee_id];
+                                                            const months = getMonthsWorked(r);
+                                                            return (
+                                                                <tr key={r.employee_id} className="hover:bg-blue-50/50 dark:hover:bg-[#27272A]">
+                                                                    <td className="px-3 py-2 text-xs font-semibold text-zinc-400">{i + 1}</td>
+                                                                    <td className="px-3 py-2 text-xs font-mono font-bold whitespace-nowrap">
+                                                                        <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="text-[#2563EB] hover:underline dark:text-[#A5B4FC]">{r.employee_id}</button>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">
+                                                                        <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="hover:text-[#2563EB] hover:underline">{r.first_name}</button>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap"><DepartmentName name={r.department} /></td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{r.designation || "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{r.project_no || "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{(pNo && schemeNumberMap[pNo]) || "—"}</td>
+                                                                    <td className="px-3 py-2 text-xs font-bold tabular-nums whitespace-nowrap">{months}m</td>
+                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">
+                                                                        {summary && summary.total_gap_days > 0 ? (
+                                                                            <span
+                                                                                title={summary.gap_ranges.map(g => `${g.from} to ${g.to} (${g.days}d)`).join(", ")}
+                                                                                className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-400"
+                                                                            >
+                                                                                {summary.total_gap_days}d gap
+                                                                            </span>
+                                                                        ) : <span className="text-zinc-400">No gap</span>}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                        <span className="inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+                                                                            Reappointment required
                                                                         </span>
                                                                     </td>
                                                                 </tr>
@@ -2313,8 +2425,8 @@ const SalaryModule: React.FC = () => {
                                                         return (
                                                             <tr key={i} className={cn("transition-colors hover:bg-[#EEF2FF] dark:hover:bg-emerald-950/10", rowBg)}>
                                                                 <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-0 z-10 px-3 py-2 text-xs text-zinc-400 tabular-nums w-[48px] min-w-[48px]", rowBg)}>{i + 1}</td>
-                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-[48px] z-10 px-3 py-2 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ?? "—"}</td>
-                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-[168px] z-10 px-3 py-2 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.first_name ?? "—"}</td>
+                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-[48px] z-10 px-3 py-2 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ? <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: ud.employee_id, name: ud.first_name ?? "" }); }} title="View full salary history" className="font-mono hover:underline">{ud.employee_id}</button> : "—"}</td>
+                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-[168px] z-10 px-3 py-2 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.employee_id ? <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: ud.employee_id, name: ud.first_name ?? "" }); }} title="View full salary history" className="hover:text-[#2563EB] hover:underline">{ud.first_name ?? "—"}</button> : (ud.first_name ?? "—")}</td>
                                                                 <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.email_id ?? "—"}</td>
                                                                 <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ? <DepartmentName name={ud.department} /> : "—"}</td>
                                                                 <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
@@ -2555,7 +2667,7 @@ const SalaryModule: React.FC = () => {
                                                     const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                                     const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
                                                     const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                                    const pTax = calcPTax(grossPay);
+                                                    const pTax = ptaxOf(inputs, grossPay);
                                                     const hraDed = inputs.hraDeduction;
                                                     const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                                     const netPay = grossPay - totalDed;
@@ -2586,9 +2698,9 @@ const SalaryModule: React.FC = () => {
 
                                                             {/* Emp ID */}
                                                             <td className={cn("px-3 py-2 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
-                                                                <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
+                                                                <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50 hover:border-[#4A6CF7] hover:text-[#2563EB] dark:hover:text-[#A5B4FC]">
                                                                     {r.employee_id}
-                                                                </span>
+                                                                </button>
                                                             </td>
 
                                                             {/* Full Name */}
@@ -2599,7 +2711,7 @@ const SalaryModule: React.FC = () => {
                                                                             {r.first_name.charAt(0).toUpperCase()}
                                                                         </span>
                                                                     </div>
-                                                                    <span className="text-sm font-semibold text-zinc-950 dark:text-zinc-100 whitespace-nowrap">{r.first_name}</span>
+                                                                    <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="text-sm font-semibold text-zinc-950 dark:text-zinc-100 whitespace-nowrap hover:text-[#2563EB] hover:underline">{r.first_name}</button>
                                                                 </div>
                                                             </td>
 
@@ -2659,7 +2771,7 @@ const SalaryModule: React.FC = () => {
                                                                                 <span className="text-zinc-400">No gap</span>
                                                                             )}
                                                                             {summary ? (
-                                                                                <span className="text-zinc-500 dark:text-zinc-400">{summary.total_months_worked}m worked</span>
+                                                                                <span className="text-zinc-500 dark:text-zinc-400">{Math.min(Number(summary.total_months_worked) || 0, calcMonthsWorked(r.joining_date, r.term_completion_date)?.months ?? 0)}m worked</span>
                                                                             ) : worked && (
                                                                                 <span className="text-zinc-500 dark:text-zinc-400">{worked.months}m {worked.days}d worked</span>
                                                                             )}
@@ -2785,7 +2897,23 @@ const SalaryModule: React.FC = () => {
                                                                     step="1"
                                                                 />
                                                             </td>
-                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-red-50/5 dark:bg-red-950/5">{fmt(pTax)}</td>
+                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                                <input
+                                                                    type="number"
+                                                                    value={pTax}
+                                                                    onChange={e => handleInputChange(r.docName, "pTax", e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                                                    onWheel={e => e.currentTarget.blur()}
+                                                                    title="Calculated from the Assam P-Tax slab; edit to override"
+                                                                    className={cn(
+                                                                        "w-20 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        isEdited.pTax
+                                                                            ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
+                                                                            : "border-zinc-200 dark:border-zinc-700"
+                                                                    )}
+                                                                    min="0"
+                                                                    step="1"
+                                                                />
+                                                            </td>
 
                                                             {/* TA Input */}
                                                             <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
@@ -3018,6 +3146,10 @@ const SalaryModule: React.FC = () => {
                 )}
             </main>
 
+            {historyFor && (
+                <SalaryHistoryModal employeeId={historyFor.id} employeeName={historyFor.name} onClose={() => setHistoryFor(null)} />
+            )}
+
             {/* Salary Slip Modal Component */}
             {selectedSlipRecord && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
@@ -3183,7 +3315,7 @@ const SalaryModule: React.FC = () => {
                                 const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                 const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                const pTax = calcPTax(grossPay);
+                                const pTax = ptaxOf(inputs, grossPay);
                                 const hraDed = inputs.hraDeduction;
                                 const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;

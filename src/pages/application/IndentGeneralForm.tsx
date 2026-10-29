@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -410,15 +410,21 @@ const IndentGeneralForm: React.FC = () => {
         if (loading) return;
 
         if (!projectNoForHeads) {
-            setLinkOptions(prev => ({ ...prev, igf_account_head: allAccountHeadOptions, budget_head: allAccountHeadOptions }));
+            setLinkOptions(prev => ({ ...prev, igf_account_head: allAccountHeadOptions, budget_head: allAccountHeadOptions, "Budget Head": allAccountHeadOptions }));
             return;
         }
 
         const heads = projectBudgetHeadsResult?.message;
         if (!heads) return;
 
-        const filtered: LinkOption[] = heads.map(h => ({ value: h.budget_head, label: h.budget_head }));
-        setLinkOptions(prev => ({ ...prev, igf_account_head: filtered, budget_head: filtered }));
+        // No project-scoped heads at all: keep the full Budget Head list rather than an empty dropdown
+        if (heads.length === 0) {
+            setLinkOptions(prev => ({ ...prev, igf_account_head: allAccountHeadOptions, budget_head: allAccountHeadOptions, "Budget Head": allAccountHeadOptions }));
+            return;
+        }
+
+        const filtered: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head || h.name }));
+        setLinkOptions(prev => ({ ...prev, igf_account_head: filtered, budget_head: filtered, "Budget Head": filtered }));
     }, [loading, projectNoForHeads, projectBudgetHeadsResult, allAccountHeadOptions]);
 
     const handleChange = useCallback(
@@ -620,9 +626,18 @@ const IndentGeneralForm: React.FC = () => {
     const isReadOnly = docStatus === 1 || docStatus === 2;
     const effectiveFields = getEffectiveFields(fields, formData);
 
+    // Project-scoped Account Heads are applied when rendering, so they win over whatever link options the
+    // form loaded (and over the full "Budget Head" list DynamicFormRenderer merges in by doctype name).
+    const scopedLinkOptions = useMemo(() => {
+        const heads = projectBudgetHeadsResult?.message;
+        if (!projectNoForHeads || !heads || heads.length === 0) return linkOptions;
+        const scoped: LinkOption[] = heads.map(h => ({ value: h.name, label: h.budget_head || h.name }));
+        return { ...linkOptions, igf_account_head: scoped, budget_head: scoped, "Budget Head": scoped };
+    }, [linkOptions, projectNoForHeads, projectBudgetHeadsResult]);
+
     const commonRendererProps = {
         formData,
-        linkOptions,
+        linkOptions: scopedLinkOptions,
         onChange: handleChange,
         onFileChange: handleFileChange,
         onTableRowChange: handleTableRowChange,

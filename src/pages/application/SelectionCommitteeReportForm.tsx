@@ -84,6 +84,7 @@ type PostDetail = {
     upfa_medical_required: number | boolean;
     upfa_total_amount: number;
     upfa_duration_months: number | string;
+    month_days?: string;
 };
 
 const getChairpersonLabel = (
@@ -158,6 +159,12 @@ const SelectionCommitteeReportForm: React.FC = () => {
     // Candidates feature
     const [candidatesList, setCandidatesList] = useState<CandidateRecord[]>([]);
     const [postDetailsCache, setPostDetailsCache] = useState<Record<string, PostDetail>>({});
+    // "Month" or "Days" as chosen on the recruitment post; defaults to Month
+    const getDurationUnit = (postId: string): 'Month' | 'Days' => {
+        const v = postDetailsCache[postId]?.month_days
+            || recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === postId)?.month_days;
+        return v === 'Days' || v === 'Day' ? 'Days' : 'Month';
+    };
     const [isFetchingCandidates, setIsFetchingCandidates] = useState(false);
     const recruitmentDocRef = useRef<any>(null);
 
@@ -224,6 +231,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                             upfa_medical_required: p.medical_required ?? p.upfa_medical_required ?? 0,
                             upfa_total_amount: p.total_amount ?? p.upfa_total_amount ?? 0,
                             upfa_duration_months: p.duration_months ?? p.upfa_duration_months ?? "",
+                            month_days: p.month_days ?? "",
                         }] as [string, PostDetail];
                     } catch { return null; }
                 })
@@ -1365,7 +1373,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                 <td style={{ textAlign: 'right', fontSize: '8.5pt', padding: '2px 0' }}>Recommended Candidates:</td>
                                             </tr></tbody></table>
                                             <table style={tbl}><thead>
-                                                <tr>{['Sl\nNo.', 'Name', 'Applied\nfor\nPosition', 'Basic Pay\nRecommended', 'Increment\n(If Any)', 'HRA\nRequired\n3515 FD', 'Medical\nRequired', 'Total\nAmount', 'Period of\nAppointment\n(In months)', 'Selection\nStatus', 'Justification', 'Candidate\nDetails'].map((h, i) => (
+                                                <tr>{['Sl\nNo.', 'Name', 'Applied\nfor\nPosition', 'Basic Pay\nRecommended', 'Increment\n(If Any)', 'HRA\nRequired\n3515 FD', 'Medical\nRequired', 'Total\nAmount', 'Period of\nAppointment\n(In months/days)', 'Selection\nStatus', 'Justification', 'Candidate\nDetails'].map((h, i) => (
                                                     <th key={i} style={{ ...hCell(), textAlign: 'center', fontSize: '7pt', whiteSpace: 'pre-line', padding: '2px 3px', width: i === 0 ? '4%' : i === 1 ? '10%' : undefined }}>{h}</th>
                                                 ))}</tr>
                                             </thead><tbody>
@@ -1381,7 +1389,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                             <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>{row.hra || '—'}</td>
                                                             <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>{row.medical_required || 'No'}</td>
                                                             <td style={{ ...cell(), textAlign: 'right', fontSize: '7.5pt' }}>{row.total_amount ? Number(row.total_amount).toLocaleString('en-IN') : '—'}</td>
-                                                            <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>{row.upfa_duration_months || postDetailsCache[row.recruitment_post_id]?.upfa_duration_months || (recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === row.recruitment_post_id)?.upfa_duration_months) || formData.upfa_project_duration || '—'}</td>
+                                                            <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>{row.upfa_duration_months || postDetailsCache[row.recruitment_post_id]?.upfa_duration_months || (recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === row.recruitment_post_id)?.upfa_duration_months) || formData.upfa_project_duration || '—'} {getDurationUnit(row.recruitment_post_id) === 'Days' ? 'Days' : 'Months'}</td>
                                                             <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>{row.recommendation || '—'}</td>
                                                             <td style={{ ...cell(), fontSize: '7.5pt' }}>{row.justification || '—'}</td>
                                                             <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}></td>
@@ -1781,7 +1789,10 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[70px]">HRA</th>
                                                                         <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[80px]">Medical</th>
                                                                         <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Total</th>
-                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Duration (Months)</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">{(() => {
+                                                                            const units = new Set(getCandidateRows().map(r => getDurationUnit(r.recruitment_post_id)));
+                                                                            return units.size > 1 ? 'Duration' : units.has('Days') ? 'Duration (Days)' : 'Duration (Months)';
+                                                                        })()}</th>
                                                                         <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[170px]">Recommendation <span className="text-red-500">*</span></th>
                                                                         <th className="px-3 py-2.5 text-center font-semibold text-zinc-700 dark:text-zinc-300 w-20">WL No.</th>
                                                                         <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Justification</th>
@@ -1846,6 +1857,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                             {/* HRA — read-only */}
                                                                             <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
                                                                                 {row.hra || '—'}
+                                                                                {' '}<span className="text-xs text-zinc-500">{getDurationUnit(row.recruitment_post_id) === 'Days' ? 'Days' : 'Months'}</span>
                                                                             </td>
 
                                                                             {/* Medical Required — read-only */}

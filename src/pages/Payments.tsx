@@ -535,6 +535,14 @@ const Payments: React.FC = () => {
         return result;
     }, [combinedMiscTabRows, selectedMiscType, debouncedMiscSearch]);
 
+    // Module filter options come from the payments themselves (every module that has a payment,
+    // including Miscellaneous Commit), not a fixed list that goes stale as modules are added.
+    const doctypeFilterOptions = React.useMemo(() => {
+        const names = new Set<string>(resolvedPayments.map(p => p.doctype || 'AccountHeadPayment'));
+        if (selectedDoctype) names.add(selectedDoctype);
+        return Array.from(names).sort((a, b) => a.localeCompare(b));
+    }, [resolvedPayments, selectedDoctype]);
+
     // Client-side filtering
     const filteredPayments = React.useMemo(() => {
         let result = resolvedPayments;
@@ -1260,14 +1268,11 @@ const Payments: React.FC = () => {
                                             className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
                                         >
                                             <option value="">All Modules</option>
-                                            <option value="AccountHeadPayment">Account Head Payment</option>
-                                            <option value="Reimbursement">Reimbursement</option>
-                                            <option value="Advance">Advance</option>
-                                            <option value="Disbursal">Disbursal</option>
-                                            <option value="Purchase">Purchase</option>
-                                            <option value="Recruitment">Recruitment</option>
-                                            <option value="Travel">Travel</option>
-                                            <option value="Utilities">Utilities</option>
+                                            {doctypeFilterOptions.map((name) => (
+                                                <option key={name} value={name}>
+                                                    {name === 'AccountHeadPayment' ? 'Account Head Payment' : name}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
 

@@ -557,7 +557,7 @@ export function HeadOverview() {
     // ── Fetch current user info & department ─────────────────────────────────
     const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
     const fullName = userData?.full_name || currentUser || "Guest";
-    const userDept = userData?.department || "";
+    const userDept = userData?.department || userData?.department_name || "";
 
     // ── Fetch Head-level Dashboard Data ──────────────────────────────────────
     const { data: headDataRes, isLoading: isHeadDataLoading } = useFrappeGetCall<{ message: any }>(
@@ -1493,6 +1493,13 @@ export function HeadOverview() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
 
+    // Headline allocation = exactly the sum of the Research / Consultancy / Others figures shown under it.
+    // The backend's fund_analytics.total_allocation is computed on a different basis and used to disagree
+    // with the breakdown, so it is only a fallback while no department projects are loaded.
+    const headlineAllocation = deptProjects.length > 0
+        ? allocationByType.rAmt + allocationByType.cAmt + allocationByType.oAmt
+        : (fundAnalytics.total_allocation || stats.totalAlloc);
+
     // Total Fund Allocation card's own breakdown — allocated amount per type.
     const allocationBreakdownGrid = React.useMemo(() => {
         const { rAmt, cAmt, oAmt } = allocationByType;
@@ -1776,7 +1783,7 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="Fund Allocation for Ongoing Projects"
-                                value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
+                                value={formatCurrency(headlineAllocation)}
                                 isLoading={isPageLoading}
                                 subtext=""
                                 icon={
@@ -2457,7 +2464,7 @@ export function HeadOverview() {
                                 <div className="p-[18px] px-[22px] space-y-3">
                                     <div className="flex gap-2">
                                         <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
-                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#2563eb]">{isPageLoading ? "—" : formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}</div>
+                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#2563eb]">{isPageLoading ? "—" : formatCurrency(headlineAllocation)}</div>
                                             <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Total Sanctioned</div>
                                         </div>
                                         <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
