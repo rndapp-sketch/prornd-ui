@@ -657,7 +657,7 @@ export function AppSidebar() {
             "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
             expanded ? "px-3 py-1.5 !h-auto min-h-[34px] justify-start items-center "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
             active
-                ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
+                ? "bg-[#BFD3FF] text-[#1E3A8A] font-semibold dark:bg-[#2563EB]/40 dark:text-[#BFDBFE]"
                 : "text-[#0F172A] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
         );
 
@@ -681,7 +681,7 @@ export function AppSidebar() {
             tone
                 ? cn("font-medium", active ? UTIL_TONES[tone].active : UTIL_TONES[tone].idle)
                 : active
-                ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
+                ? "bg-[#BFD3FF] text-[#1E3A8A] font-semibold dark:bg-[#2563EB]/40 dark:text-[#BFDBFE]"
                 : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
         );
 
@@ -689,14 +689,14 @@ export function AppSidebar() {
         cn(
             "w-full h-auto min-h-[28px] px-3 py-1.5 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150 !overflow-visible [&>span]:!overflow-visible [&>span]:!whitespace-normal [&>span]:![text-overflow:clip]",
             active
-                ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
+                ? "bg-[#BFD3FF] text-[#1E3A8A] font-semibold dark:bg-[#2563EB]/40 dark:text-[#BFDBFE]"
                 : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
         );
 
     const subListClass = "ml-[1.6rem] mt-0.5 pl-3 border-l border-[#CBD5E1] dark:border-[#3F3F46] space-y-0.5";
 
     const ActiveBar = () => (
-        <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#2563EB]" />
+        <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#1E40AF]" />
     );
 
     const sidebarBg = "bg-[#FAFAFA] dark:bg-[#18181B]";
@@ -786,7 +786,7 @@ export function AppSidebar() {
                                             <item.icon
                                                 className={cn(
                                                     "!w-5 !h-5 flex-shrink-0",
-                                                    isActive ? "text-[#2563EB] dark:text-[#93C5FD]" : "text-[#475569]",
+                                                    isActive ? "text-[#1D4ED8] dark:text-[#BFDBFE]" : "text-[#475569]",
                                                 )}
                                                 strokeWidth={1.75}
                                             />
@@ -804,7 +804,7 @@ export function AppSidebar() {
                                                 <ChevronDownIcon
                                                     className={cn(
                                                         "w-4 h-4 transition-transform flex-shrink-0 ml-auto",
-                                                        isActive ? "text-[#2563EB]" : "text-[#64748B]",
+                                                        isActive ? "text-[#1D4ED8]" : "text-[#64748B]",
                                                         isSubMenuOpen && "rotate-180",
                                                     )}
                                                     strokeWidth={2}

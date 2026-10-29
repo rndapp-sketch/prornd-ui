@@ -23,6 +23,8 @@ import {
     BookOpen,
     ChevronDown,
     ChevronUp,
+    History,
+    X,
 } from "lucide-react";
 
 interface PendingWith {
@@ -102,73 +104,146 @@ const stateColor = (state?: string) => {
     return { bg: "bg-amber-50 dark:bg-amber-950/30", text: "text-amber-700 dark:text-amber-400", border: "border-amber-200 dark:border-amber-800", solid: "bg-amber-500" };
 };
 
-const FrappeCard = ({
+const RECENT_KEY = "track-application-recent";
+const loadRecent = (): string[] => {
+    try {
+        const raw = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+        return Array.isArray(raw) ? raw.filter((x) => typeof x === "string").slice(0, 5) : [];
+    } catch {
+        return [];
+    }
+};
+
+const Panel = ({
     title,
     icon: Icon,
-    accent = "border-t-[#D97757]",
     children,
     className,
+    action,
 }: {
     title?: string;
     icon?: React.ElementType;
-    accent?: string;
     children: React.ReactNode;
     className?: string;
+    action?: React.ReactNode;
 }) => (
-    <div
+    <section
         className={cn(
-            "bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] border-t-4 shadow-sm overflow-hidden",
-            accent,
+            "bg-white dark:bg-[#27272A] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden",
             className,
         )}
     >
         {title && (
-            <div className="px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2.5 bg-[#FAFAF9]/70 dark:bg-black/10">
-                {Icon && <Icon className="w-4.5 h-4.5 text-[#D97757]" />}
-                <h3 className="text-[13.5px] font-extrabold text-[#27272A] dark:text-[#F4F4F5] tracking-tight">
+            <header className="px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2 bg-[#F8FAFF] dark:bg-black/10">
+                {Icon && <Icon className="w-4 h-4 text-[#4F46E5] dark:text-[#A5B4FC]" />}
+                <h3 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">
                     {title}
                 </h3>
-            </div>
+                {action && <div className="ml-auto">{action}</div>}
+            </header>
         )}
         <div className="p-4">{children}</div>
-    </div>
+    </section>
 );
 
-const InfoTile = ({
+const StatTile = ({
     label,
     value,
+    sub,
     icon: Icon,
-    mono = true,
+    mono = false,
 }: {
     label: string;
     value: React.ReactNode;
-    icon?: React.ElementType;
+    sub?: React.ReactNode;
+    icon: React.ElementType;
     mono?: boolean;
 }) => (
-    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/60 px-3.5 py-3">
-        <p className="flex items-center gap-1 text-[#A1A1AA] font-bold uppercase text-[10px] tracking-wider mb-1.5">
-            {Icon && <Icon className="w-3 h-3" />}
+    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3.5 py-3 shadow-sm min-w-0">
+        <p className="flex items-center gap-1.5 text-[#71717A] dark:text-[#A1A1AA] font-bold uppercase text-[10px] tracking-wider mb-1.5">
+            <span className="w-5 h-5 rounded-md bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 flex items-center justify-center">
+                <Icon className="w-3 h-3 text-[#4F46E5] dark:text-[#A5B4FC]" />
+            </span>
             {label}
         </p>
-        <p className={cn("text-[13px] font-bold text-[#27272A] dark:text-[#F4F4F5]", mono && "font-mono")}>
+        <p className={cn("text-[13.5px] font-extrabold text-[#18181B] dark:text-[#FAFAF9] truncate", mono && "font-mono")}>
             {value}
         </p>
+        {sub && <p className="text-[11.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-0.5 truncate">{sub}</p>}
     </div>
 );
+
+const Chip = ({ children, tone = "indigo" }: { children: React.ReactNode; tone?: "indigo" | "zinc" }) => (
+    <span
+        className={cn(
+            "px-2.5 py-1 rounded-full text-[11.5px] font-bold border",
+            tone === "indigo"
+                ? "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#3730A3] dark:text-[#C7D2FE] border-[#C7D2FE] dark:border-[#4A6CF7]/30"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700",
+        )}
+    >
+        {children}
+    </span>
+);
+
+const PersonList = ({ label, icon: Icon, items }: { label: string; icon?: React.ElementType; items: string[] }) => (
+    <div>
+        <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+            {Icon && <Icon className="w-3 h-3" />} {label}
+        </p>
+        <div className="space-y-1.5">
+            {items.map((a) => (
+                <p
+                    key={a}
+                    className="text-[12px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] bg-[#F8FAFF] dark:bg-[#18181B]/60 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1.5 truncate"
+                >
+                    {a}
+                </p>
+            ))}
+        </div>
+    </div>
+);
+
+const GUIDE_STEPS = [
+    { n: 1, title: "Find the document ID", body: "Copy the reference from your submission receipt or dashboard." },
+    { n: 2, title: "Search", body: "Paste it above and press Track or Enter." },
+    { n: 3, title: "Read the progress", body: "See the workflow state, who it is pending with, and the activity trail." },
+];
 
 const TrackApplication: React.FC = () => {
     const [docname, setDocname] = useState("");
     const [result, setResult] = useState<TrackApplicationResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showGuide, setShowGuide] = useState(true);
+    const [recent, setRecent] = useState<string[]>(loadRecent);
 
     const { call: trackApplication, loading } = useFrappePostCall<{
         message: TrackApplicationResult;
     }>("rndopsapp.dashboard.track_application");
 
-    const handleTrack = async () => {
-        const trimmed = docname.trim();
+    const remember = (value: string) => {
+        const next = [value, ...recent.filter((r) => r !== value)].slice(0, 5);
+        setRecent(next);
+        try {
+            localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        } catch {
+            /* storage unavailable: recent list just won't persist */
+        }
+    };
+
+    const forgetRecent = () => {
+        setRecent([]);
+        try {
+            localStorage.removeItem(RECENT_KEY);
+        } catch {
+            /* ignore */
+        }
+    };
+
+    const handleTrack = async (override?: string) => {
+        const trimmed = (override ?? docname).trim();
         if (!trimmed) return;
+        if (override) setDocname(trimmed);
         setError(null);
         setResult(null);
         setShowGuide(false);
@@ -184,6 +259,7 @@ const TrackApplication: React.FC = () => {
                 return;
             }
             setResult(data);
+            remember(trimmed);
         } catch (err) {
             const e = err as { message?: string; exception?: string };
             setError(
@@ -203,405 +279,291 @@ const TrackApplication: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
-                <div className="mb-3 rounded-lg overflow-hidden shadow-sm border border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <div className="h-1.5 bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
-                    <div className="px-4 py-2.5 bg-white dark:bg-[#27272A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                                Track
-                            </span>
-                            <h1 className="text-[20px] font-black tracking-tight text-[#18181B] dark:text-[#FAFAF9] leading-tight flex items-center gap-2.5">
-                                <Activity className="w-5.5 h-5.5 text-[#D97757]" />
-                                Track Application
-                            </h1>
-                            <p className="mt-1 text-[12.5px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                Look up any application by its document number to see its current status,
-                                who it's pending with, and its recent activity.
-                            </p>
+            <main className="flex-1 pb-6 w-full space-y-4">
+                {/* Hero: title + search */}
+                <div className="rounded-xl overflow-hidden border border-[#C7D2FE] dark:border-[#4A6CF7]/30 shadow-sm bg-gradient-to-br from-[#EEF2FF] via-white to-[#F8FAFF] dark:from-[#4A6CF7]/10 dark:via-[#27272A] dark:to-[#27272A]">
+                    <div className="px-5 pt-4 pb-5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#4F46E5] dark:text-[#A5B4FC]">
+                                    Application Tracking
+                                </span>
+                                <h1 className="text-[22px] font-black tracking-tight text-[#1E3A8A] dark:text-[#E0E7FF] leading-tight flex items-center gap-2.5">
+                                    <Activity className="w-6 h-6 text-[#4F46E5] dark:text-[#A5B4FC]" />
+                                    Track Application
+                                </h1>
+                                <p className="mt-1 text-[12.5px] font-medium text-[#52525B] dark:text-[#A1A1AA] max-w-xl">
+                                    Enter a document number to see its status, who it is pending with, and its recent activity.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowGuide((prev) => !prev)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-white/80 dark:bg-[#18181B]/60 hover:bg-white text-[#3730A3] dark:text-[#C7D2FE] transition-colors shrink-0"
+                            >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                {showGuide ? "Hide guide" : "How to use"}
+                                {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
                         </div>
-                        <button
-                            onClick={() => setShowGuide((prev) => !prev)}
-                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] hover:bg-zinc-100 dark:bg-[#18181B]/60 dark:hover:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] transition-colors shrink-0 self-start sm:self-center"
-                        >
-                            <HelpCircle className="w-4 h-4 text-[#D97757]" />
-                            <span>{showGuide ? "Hide Guide" : "How to Use"}</span>
-                            {showGuide ? (
-                                <ChevronUp className="w-3.5 h-3.5 text-[#A1A1AA]" />
-                            ) : (
-                                <ChevronDown className="w-3.5 h-3.5 text-[#A1A1AA]" />
-                            )}
-                        </button>
+
+                        <div className="mt-4 flex flex-col sm:flex-row items-stretch gap-2.5 max-w-3xl">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
+                                <input
+                                    type="text"
+                                    value={docname}
+                                    onChange={(e) => setDocname(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Document number, e.g. 2026082110002856"
+                                    className="h-12 w-full pl-10 pr-3 rounded-xl border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-white dark:bg-[#18181B] text-[14px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] placeholder:text-[#A1A1AA] placeholder:font-sans placeholder:font-normal focus:outline-none focus:border-[#4F46E5] focus:ring-[3px] focus:ring-[#4F46E5]/15 transition-colors"
+                                />
+                            </div>
+                            <button
+                                onClick={() => handleTrack()}
+                                disabled={loading || !docname.trim()}
+                                className={cn(
+                                    "h-12 px-7 rounded-xl text-[14px] font-bold bg-[#4F46E5] hover:bg-[#3730A3] text-white transition-colors disabled:cursor-not-allowed shrink-0 shadow-sm flex items-center justify-center",
+                                    !loading && "disabled:opacity-50",
+                                    loading ? "w-20" : "min-w-[96px]",
+                                )}
+                            >
+                                {loading ? <ThinkingOrbs /> : "Track"}
+                            </button>
+                        </div>
+
+                        {recent.length > 0 && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                    <History className="w-3 h-3" /> Recent
+                                </span>
+                                {recent.map((r) => (
+                                    <button
+                                        key={r}
+                                        onClick={() => handleTrack(r)}
+                                        disabled={loading}
+                                        className="px-2.5 py-1 rounded-full text-[11.5px] font-mono font-semibold border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-white/80 dark:bg-[#18181B]/60 text-[#3730A3] dark:text-[#C7D2FE] hover:bg-[#EEF2FF] dark:hover:bg-[#4A6CF7]/15 transition-colors"
+                                    >
+                                        {r}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={forgetRecent}
+                                    aria-label="Clear recent searches"
+                                    className="p-1 rounded-full text-[#71717A] hover:text-[#18181B] dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10 transition-colors"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <FrappeCard className="mb-3" accent="border-t-[#4A6CF7]">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A1A1AA]" />
-                            <input
-                                type="text"
-                                value={docname}
-                                onChange={(e) => setDocname(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Enter document number, e.g. 202234510002856"
-                                className="h-11 w-full pl-9 pr-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13.5px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] placeholder:text-[#A1A1AA] placeholder:font-sans placeholder:font-normal focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
-                            />
-                        </div>
-                        <button
-                            onClick={handleTrack}
-                            disabled={loading || !docname.trim()}
-                            className={cn(
-                                "h-11 px-6 rounded-lg text-[13.5px] font-bold bg-[#D97757] hover:bg-[#c66a4e] text-white transition-colors disabled:cursor-not-allowed shrink-0 shadow-sm flex items-center justify-center",
-                                !loading && "disabled:opacity-50",
-                                loading ? "w-16" : "min-w-[76px]",
-                            )}
-                        >
-                            {loading ? <ThinkingOrbs /> : "Track"}
-                        </button>
-                    </div>
-                </FrappeCard>
-
                 {showGuide && (
-                    <FrappeCard title="How to Use Application Tracking" icon={BookOpen} accent="border-t-[#4A6CF7]" className="mb-3">
-                        <div className="space-y-3">
-                            <div>
-                                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-[#A1A1AA] mb-3">
-                                    Quick 3-Step Process
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                                    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4 bg-[#FAFAF9] dark:bg-[#18181B]/50 flex flex-col justify-between">
-                                        <div>
-                                            <div className="w-7 h-7 rounded-lg bg-[#D97757]/10 text-[#D97757] font-black text-[13px] flex items-center justify-center mb-2.5 border border-[#D97757]/20">
-                                                1
-                                            </div>
-                                            <h5 className="text-[13.5px] font-bold text-[#18181B] dark:text-[#FAFAF9] mb-1">
-                                                Locate Document ID
-                                            </h5>
-                                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
-                                                Copy your document reference ID (e.g. <code className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[11px] font-mono font-bold text-[#18181B] dark:text-[#FAFAF9]">2026082110002856</code>) from your application submission receipt or dashboard.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4 bg-[#FAFAF9] dark:bg-[#18181B]/50 flex flex-col justify-between">
-                                        <div>
-                                            <div className="w-7 h-7 rounded-lg bg-[#4A6CF7]/10 text-[#4A6CF7] font-black text-[13px] flex items-center justify-center mb-2.5 border border-[#4A6CF7]/20">
-                                                2
-                                            </div>
-                                            <h5 className="text-[13.5px] font-bold text-[#18181B] dark:text-[#FAFAF9] mb-1">
-                                                Search Application
-                                            </h5>
-                                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
-                                                Enter the document reference into the search field above and click <strong className="text-[#18181B] dark:text-[#FAFAF9]">Track</strong> or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px] font-mono border border-zinc-300 dark:border-zinc-700">Enter</kbd>.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4 bg-[#FAFAF9] dark:bg-[#18181B]/50 flex flex-col justify-between">
-                                        <div>
-                                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-[13px] flex items-center justify-center mb-2.5 border border-emerald-500/20">
-                                                3
-                                            </div>
-                                            <h5 className="text-[13.5px] font-bold text-[#18181B] dark:text-[#FAFAF9] mb-1">
-                                                View Live Progress
-                                            </h5>
-                                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
-                                                Instantly review current workflow status, pending approvers/roles, linked project details, and the activity timeline.
-                                            </p>
-                                        </div>
+                    <Panel title="How it works" icon={BookOpen}>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {GUIDE_STEPS.map((step) => (
+                                <div
+                                    key={step.n}
+                                    className="flex items-start gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#F8FAFF] dark:bg-[#18181B]/50 p-3.5"
+                                >
+                                    <span className="w-7 h-7 rounded-lg bg-[#4F46E5] text-white font-black text-[13px] flex items-center justify-center shrink-0">
+                                        {step.n}
+                                    </span>
+                                    <div>
+                                        <h5 className="text-[13px] font-bold text-[#18181B] dark:text-[#FAFAF9]">{step.title}</h5>
+                                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed mt-0.5">{step.body}</p>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/40 p-4">
-                                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-[#A1A1AA] mb-3 flex items-center gap-1.5">
-                                    <Info className="w-3.5 h-3.5 text-[#D97757]" /> Details Provided on Lookup
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#D97757] mt-1.5 shrink-0" />
-                                        <div>
-                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Workflow State</p>
-                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Current stage (Draft, Pending Approval, Approved, PO Generated, etc.)</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#4A6CF7] mt-1.5 shrink-0" />
-                                        <div>
-                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Pending Approvers</p>
-                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Roles and specific accounts responsible for the pending action</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                                        <div>
-                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Linked Project</p>
-                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Associated Project ID and Document Type details</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                                        <div>
-                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Activity Timeline</p>
-                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Audit trail of workflow changes, comments, and approvals</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    </FrappeCard>
+                        <p className="mt-3 flex items-center gap-1.5 text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">
+                            <Info className="w-3.5 h-3.5 text-[#4F46E5]" />
+                            You will see the workflow state, pending approvers, the linked project and the activity trail.
+                        </p>
+                    </Panel>
                 )}
 
                 {error && (
-                    <div className="mb-3 flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-[13px] font-semibold text-red-700 dark:text-red-400">
-                        <AlertCircle className="w-4.5 h-4.5 shrink-0" />
+                    <div className="flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-[13px] font-semibold text-red-700 dark:text-red-400">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
                         {error}
                     </div>
                 )}
 
-                {result && (
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                        <div className="xl:col-span-2 space-y-3">
-                            {/* Overview */}
-                            <FrappeCard title="Application" icon={FileText} accent="border-t-[#D97757]">
-                                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                                    <div>
-                                        <p className="text-[17px] font-black text-[#18181B] dark:text-[#FAFAF9] tracking-tight">
-                                            {result.doctype || "—"}
-                                        </p>
-                                        <p className="text-[12.5px] font-mono font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                                            {result.docname}
-                                        </p>
-                                    </div>
-                                    {result.current_status && (
-                                        <span
-                                            className={cn(
-                                                "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-extrabold border",
-                                                statusColors.bg,
-                                                statusColors.text,
-                                                statusColors.border,
-                                            )}
-                                        >
-                                            <span className={cn("w-2 h-2 rounded-full", statusColors.solid)} />
-                                            {result.current_status.workflow_state}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <InfoTile
-                                        label="Project No"
-                                        icon={Hash}
-                                        value={result.project_no || result.linked_project?.project_no || "—"}
-                                    />
-                                    {result.linked_project?.name && (
-                                        <InfoTile
-                                            label="Linked Project"
-                                            icon={FolderKanban}
-                                            value={result.linked_project.name}
-                                        />
-                                    )}
-                                </div>
-
-                                {result.workflow_progress && (
-                                    <div className="mt-4 flex items-center gap-2.5 flex-wrap">
-                                        <span className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-                                            {result.workflow_progress.previous_state}
-                                        </span>
-                                        <ArrowRight className="w-4 h-4 text-[#A1A1AA]" />
-                                        <span
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-lg text-[12px] font-extrabold border",
-                                                statusColors.bg,
-                                                statusColors.text,
-                                                statusColors.border,
-                                            )}
-                                        >
-                                            {result.workflow_progress.current_state}
-                                        </span>
-                                    </div>
-                                )}
-                            </FrappeCard>
-
-                            {/* Recent Activity */}
-                            {!!result.recent_activity?.length && (
-                                <FrappeCard title="Recent Activity" icon={Activity} accent="border-t-[#4A6CF7]">
-                                    <div className="space-y-0">
-                                        {result.recent_activity.map((entry, i) => {
-                                            const Icon = sourceIcon(entry.source);
-                                            const isLast = i === result.recent_activity!.length - 1;
-                                            return (
-                                                <div key={i} className="flex gap-3">
-                                                    <div className="flex flex-col items-center">
-                                                        <div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-[#D97757]/15 border border-orange-100 dark:border-[#D97757]/30 flex items-center justify-center shrink-0">
-                                                            <Icon className="w-4 h-4 text-[#D97757]" />
-                                                        </div>
-                                                        {!isLast && (
-                                                            <div className="w-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46] my-1" />
-                                                        )}
-                                                    </div>
-                                                    <div className={cn("pb-4 min-w-0", isLast && "pb-0")}>
-                                                        <p className="text-[13px] text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                            <span className="font-extrabold text-[#18181B] dark:text-[#FAFAF9]">{entry.user}</span>{" "}
-                                                            <span className="text-[#52525B] dark:text-[#D4D4D8]">
-                                                                {entry.detail}
-                                                            </span>
-                                                        </p>
-                                                        <p className="text-[11px] font-semibold text-[#A1A1AA] mt-0.5">
-                                                            {entry.source} · {fmtDateTime(entry.timestamp)}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </FrappeCard>
-                            )}
-                        </div>
-
-                        <div className="space-y-3">
-                            {/* Pending With */}
-                            {result.pending_with && (
-                                <FrappeCard title="Pending With" icon={UserIcon} accent="border-t-amber-400">
-                                    <div className="space-y-4">
-                                        <div
-                                            className={cn(
-                                                "rounded-xl border px-3.5 py-3",
-                                                pendingColors.bg,
-                                                pendingColors.border,
-                                            )}
-                                        >
-                                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#A1A1AA] mb-1">
-                                                State
-                                            </p>
-                                            <p className={cn("text-[15px] font-extrabold", pendingColors.text)}>
-                                                {result.pending_with.state}
-                                            </p>
-                                        </div>
-
-                                        {!!result.pending_with.roles?.length && (
-                                            <div>
-                                                <p className="flex items-center gap-1 text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">
-                                                    <UsersIcon className="w-3 h-3" /> Roles
-                                                </p>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {result.pending_with.roles.map((r) => (
-                                                        <span
-                                                            key={r}
-                                                            className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800"
-                                                        >
-                                                            {r}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {!!result.pending_with.specific_approvers?.length && (
-                                            <div>
-                                                <p className="flex items-center gap-1 text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">
-                                                    <UserCog className="w-3 h-3" /> Approvers
-                                                </p>
-                                                <div className="space-y-1.5">
-                                                    {result.pending_with.specific_approvers.map((a) => (
-                                                        <p
-                                                            key={a}
-                                                            className="text-[12px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] bg-[#FAFAF9] dark:bg-[#18181B]/60 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1.5"
-                                                        >
-                                                            {a}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {!!result.pending_with.assigned_to?.length && (
-                                            <div>
-                                                <p className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">
-                                                    Assigned To
-                                                </p>
-                                                <div className="space-y-1.5">
-                                                    {result.pending_with.assigned_to.map((a) => (
-                                                        <p
-                                                            key={a}
-                                                            className="text-[12px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] bg-[#FAFAF9] dark:bg-[#18181B]/60 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1.5"
-                                                        >
-                                                            {a}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {result.pending_with.is_terminal && (
-                                            <div className="flex items-center gap-1.5 text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400 pt-1">
-                                                <CheckCircle2 className="w-4 h-4" />
-                                                Final state — no further action pending
-                                            </div>
-                                        )}
-                                    </div>
-                                </FrappeCard>
-                            )}
-
-                            {/* Created / Last activity */}
-                            <FrappeCard title="Timeline" icon={Clock} accent="border-t-zinc-400">
-                                <div className="space-y-4">
-                                    {result.created && (
-                                        <div>
-                                            <p className="text-[#A1A1AA] font-bold uppercase text-[10px] tracking-wider mb-1">
-                                                Created By
-                                            </p>
-                                            <p className="text-[#18181B] dark:text-[#FAFAF9] font-extrabold text-[13px]">
-                                                {result.created.by}
-                                            </p>
-                                            <p className="text-[#71717A] dark:text-[#A1A1AA] text-[11.5px] font-semibold mt-0.5">
-                                                {fmtDateTime(result.created.on)}
-                                            </p>
-                                        </div>
-                                    )}
-                                    {result.last_action && (
-                                        <div className="pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                            <p className="text-[#A1A1AA] font-bold uppercase text-[10px] tracking-wider mb-1">
-                                                Last Action
-                                            </p>
-                                            <p className="text-[#18181B] dark:text-[#FAFAF9] font-extrabold text-[13px]">
-                                                {result.last_action.user}
-                                            </p>
-                                            <p className="text-[#71717A] dark:text-[#A1A1AA] text-[11.5px] font-semibold mt-0.5">
-                                                {result.last_action.detail} · {fmtDateTime(result.last_action.timestamp)}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </FrappeCard>
-                        </div>
-                    </div>
-                )}
-
                 {loading && (
-                    <div className="py-20 text-center">
-                        <ThinkingOrbs size="w-3.5 h-3.5" color="bg-[#D97757]" className="gap-2.5 mb-4" />
-                        <p className="text-[13px] font-semibold text-[#A1A1AA]">
+                    <div className="py-16 text-center">
+                        <ThinkingOrbs size="w-3.5 h-3.5" color="bg-[#4F46E5]" className="gap-2.5 mb-4" />
+                        <p className="text-[13px] font-semibold text-[#71717A]">
                             Tracking {docname.trim() || "application"}…
                         </p>
                     </div>
                 )}
 
-                {!result && !error && !loading && (
-                    <div className="py-12 px-6 text-center bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                        <Search className="w-9 h-9 mx-auto mb-3 text-[#D97757]" />
-                        <h3 className="text-[15px] font-extrabold text-[#18181B] dark:text-[#FAFAF9]">
-                            Search Application Status
-                        </h3>
-                        <p className="text-[12.5px] text-[#71717A] dark:text-[#A1A1AA] max-w-md mx-auto mt-1 mb-3">
-                            Enter any document reference number in the search bar above (e.g. <code className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] font-bold">2026082110002856</code>) to track its progress.
+                {result && (
+                    <>
+                        {/* Summary */}
+                        <Panel>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#4F46E5] dark:text-[#A5B4FC]">
+                                        {result.doctype || "Application"}
+                                    </p>
+                                    <p className="text-[20px] font-black font-mono tracking-tight text-[#18181B] dark:text-[#FAFAF9] break-all">
+                                        {result.docname}
+                                    </p>
+                                    {result.title && (
+                                        <p className="text-[12.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-0.5">{result.title}</p>
+                                    )}
+                                </div>
+                                {result.current_status && (
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-extrabold border",
+                                            statusColors.bg,
+                                            statusColors.text,
+                                            statusColors.border,
+                                        )}
+                                    >
+                                        <span className={cn("w-2 h-2 rounded-full", statusColors.solid)} />
+                                        {result.current_status.workflow_state}
+                                    </span>
+                                )}
+                            </div>
+
+                            {result.workflow_progress && (
+                                <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2.5 flex-wrap">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#A1A1AA]">Progress</span>
+                                    <Chip tone="zinc">{result.workflow_progress.previous_state}</Chip>
+                                    <ArrowRight className="w-4 h-4 text-[#A1A1AA]" />
+                                    <span
+                                        className={cn(
+                                            "px-2.5 py-1 rounded-full text-[11.5px] font-extrabold border",
+                                            statusColors.bg,
+                                            statusColors.text,
+                                            statusColors.border,
+                                        )}
+                                    >
+                                        {result.workflow_progress.current_state}
+                                    </span>
+                                </div>
+                            )}
+                        </Panel>
+
+                        {/* Key facts */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <StatTile
+                                label="Project"
+                                icon={Hash}
+                                mono
+                                value={result.project_no || result.linked_project?.project_no || "—"}
+                                sub={result.linked_project?.name && (
+                                    <span className="inline-flex items-center gap-1">
+                                        <FolderKanban className="w-3 h-3" />
+                                        {result.linked_project.name}
+                                    </span>
+                                )}
+                            />
+                            <StatTile
+                                label="Pending with"
+                                icon={UserIcon}
+                                value={result.pending_with?.state || "—"}
+                                sub={result.pending_with?.is_terminal ? "Final state" : result.pending_with?.roles?.join(", ")}
+                            />
+                            <StatTile
+                                label="Created by"
+                                icon={UserCog}
+                                value={result.created?.by || "—"}
+                                sub={result.created ? fmtDateTime(result.created.on) : undefined}
+                            />
+                            <StatTile
+                                label="Last action"
+                                icon={Clock}
+                                value={result.last_action?.user || result.last_user || "—"}
+                                sub={result.last_action ? fmtDateTime(result.last_action.timestamp) : undefined}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+                            {/* Activity */}
+                            <Panel title="Recent activity" icon={Activity} className="xl:col-span-2">
+                                {result.recent_activity?.length ? (
+                                    <ol>
+                                        {result.recent_activity.map((entry, i) => {
+                                            const Icon = sourceIcon(entry.source);
+                                            const isLast = i === result.recent_activity!.length - 1;
+                                            return (
+                                                <li key={i} className="flex gap-3">
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="w-8 h-8 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 border border-[#C7D2FE] dark:border-[#4A6CF7]/30 flex items-center justify-center shrink-0">
+                                                            <Icon className="w-4 h-4 text-[#4F46E5] dark:text-[#A5B4FC]" />
+                                                        </div>
+                                                        {!isLast && <div className="w-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46] my-1" />}
+                                                    </div>
+                                                    <div className={cn("pb-4 min-w-0", isLast && "pb-0")}>
+                                                        <p className="text-[13px] text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                            <span className="font-extrabold text-[#18181B] dark:text-[#FAFAF9]">{entry.user}</span>{" "}
+                                                            <span className="text-[#52525B] dark:text-[#D4D4D8]">{entry.detail}</span>
+                                                        </p>
+                                                        <p className="text-[11px] font-semibold text-[#A1A1AA] mt-0.5">
+                                                            {entry.source} · {fmtDateTime(entry.timestamp)}
+                                                        </p>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ol>
+                                ) : (
+                                    <p className="text-[12.5px] text-[#71717A] dark:text-[#A1A1AA]">No activity recorded yet.</p>
+                                )}
+                            </Panel>
+
+                            {/* Pending with */}
+                            {result.pending_with && (
+                                <Panel title="Pending with" icon={UserIcon}>
+                                    <div className="space-y-4">
+                                        <div className={cn("rounded-xl border px-3.5 py-3", pendingColors.bg, pendingColors.border)}>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] mb-1">State</p>
+                                            <p className={cn("text-[15px] font-extrabold", pendingColors.text)}>{result.pending_with.state}</p>
+                                        </div>
+
+                                        {!!result.pending_with.roles?.length && (
+                                            <div>
+                                                <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                    <UsersIcon className="w-3 h-3" /> Roles
+                                                </p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {result.pending_with.roles.map((r) => (
+                                                        <Chip key={r}>{r}</Chip>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {!!result.pending_with.specific_approvers?.length && (
+                                            <PersonList label="Approvers" icon={UserCog} items={result.pending_with.specific_approvers} />
+                                        )}
+                                        {!!result.pending_with.assigned_to?.length && (
+                                            <PersonList label="Assigned to" items={result.pending_with.assigned_to} />
+                                        )}
+                                        {result.pending_with.is_terminal && (
+                                            <div className="flex items-center gap-1.5 text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Final state — no further action pending
+                                            </div>
+                                        )}
+                                    </div>
+                                </Panel>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {!result && !error && !loading && !showGuide && (
+                    <div className="py-12 px-6 text-center bg-white dark:bg-[#27272A] rounded-xl border border-dashed border-[#C7D2FE] dark:border-[#4A6CF7]/30">
+                        <FileText className="w-9 h-9 mx-auto mb-3 text-[#4F46E5] dark:text-[#A5B4FC]" />
+                        <h3 className="text-[15px] font-extrabold text-[#18181B] dark:text-[#FAFAF9]">No application loaded</h3>
+                        <p className="text-[12.5px] text-[#71717A] dark:text-[#A1A1AA] max-w-md mx-auto mt-1">
+                            Enter a document number above to see where it stands.
                         </p>
-                        {!showGuide && (
-                            <button
-                                onClick={() => setShowGuide(true)}
-                                className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#4A6CF7] hover:underline transition-all mt-1"
-                            >
-                                <HelpCircle className="w-3.5 h-3.5" /> Open How to Use Guide
-                            </button>
-                        )}
                     </div>
                 )}
             </main>

@@ -30,6 +30,9 @@ interface StaffRecord {
     department: string;
     designation: string;
     joining_date: string;
+    /** Start of the unbroken service block that ends at term_completion_date. Earlier tenure rows that run
+     *  straight into the current extension are merged in, so the first part of the month is still paid. */
+    service_start_date?: string;
     term_completion_date: string;
     basic_salary: number;
     hra: number;
@@ -128,6 +131,24 @@ const getDaysInMonth = (year: number, month: number): number => {
 };
 
 /** Calculate working days dynamically based on joining date, term completion, and selected month/year. */
+/** Start of the continuous service block containing the latest tenure row. Tenure rows that touch or overlap
+ *  (next joining within a day of the previous term end) belong to the same block; a real gap starts a new one. */
+const continuousServiceStart = (tenures: { start: string; end: string }[]): string | undefined => {
+    const rows = tenures
+        .filter(t => t.start && !isNaN(new Date(t.start).getTime()))
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    if (rows.length === 0) return undefined;
+    const DAY = 86400000;
+    let blockStart = rows[0].start;
+    let blockEnd = rows[0].end ? new Date(rows[0].end).getTime() : Infinity;
+    for (let i = 1; i < rows.length; i++) {
+        const st = new Date(rows[i].start).getTime();
+        if (st - blockEnd > DAY) blockStart = rows[i].start; // real gap: a new block begins
+        blockEnd = Math.max(blockEnd, rows[i].end ? new Date(rows[i].end).getTime() : Infinity);
+    }
+    return blockStart;
+};
+
 const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: string, year: number, month: number): number => {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
@@ -499,7 +520,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         // We re-compute inline to avoid circular dependency ordering issues
         const record = r;
         const dim = getDaysInMonth(selectedYear, selectedMonth);
-        const wd = calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth);
+        const wd = calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth);
         const defaultMedical = Math.round((record.medical_allowance / dim) * wd);
         const rowOverrides = overrides[r.docName] || {};
         const basicForRow = rowOverrides.basic ?? r.basic_salary;
@@ -736,7 +757,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             const failures: PaymentOutcome[] = [];
             for (const r of selectedRecords) {
                 const dim = getDaysInMonth(selectedYear, selectedMonth);
-                const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                 const defaultMedical = Math.round((r.medical_allowance / dim) * wd);
                 const rowOverrides = overrides[r.docName] || {};
                 const basicForRow = rowOverrides.basic ?? r.basic_salary;
@@ -793,7 +814,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const getRowInputs = useCallback((docName: string): { inputs: EditableInputs; isEdited: Record<keyof EditableInputs, boolean>; currentHRA: number } => {
         const record = records.find(r => r.docName === docName);
         const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-        const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+        const workingDays = record ? calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
         const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
 
         const rowOverrides = overrides[docName] || {};
@@ -862,7 +883,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             } else if (field === "medicalDeduction") {
                 const record = records.find(r => r.docName === docName);
                 const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-                const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+                const workingDays = record ? calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
                 const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
                 if (Math.round(Number(value)) === defaultMedical) {
                     shouldStoreOverride = false;
@@ -870,7 +891,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             } else if (field === "hraDeduction") {
                 const record = records.find(r => r.docName === docName);
                 const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-                const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+                const workingDays = record ? calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
                 const basicForRow = currentOverrides.basic ?? record?.basic_salary ?? 0;
                 const currentHRA = record ? calcHRAFromBasic(record.hra_percent, basicForRow) : 0;
                 const defaultHRADed = record ? getHRADeduction(record, Math.round((currentHRA / daysInMonth) * workingDays)) : 0;
@@ -956,7 +977,32 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                 (r.workflow_state || "").toLowerCase() === "approved"
             );
 
-            setRecords(rows.map(mapRow));
+            const mapped = rows.map(mapRow);
+
+            // Pull every tenure row (Project Staff Tenure Details) so a month that spans two extensions is paid
+            // for all of its days, not just the days of the latest extension. A failure here is non-fatal.
+            try {
+                const parentNames = mapped.map(m => m.docName).filter(Boolean);
+                if (parentNames.length > 0) {
+                    const tRes = await getList({
+                        doctype: "Project Staff Tenure Details",
+                        parent: "Project Staff Details",
+                        filters: [["parent", "in", parentNames]],
+                        fields: ["parent", "pstd_joining_date", "pstd_term_completion_date"],
+                        limit_page_length: 100000,
+                    });
+                    const byParent: Record<string, { start: string; end: string }[]> = {};
+                    ((tRes?.message ?? []) as { parent: string; pstd_joining_date?: string; pstd_term_completion_date?: string }[]).forEach(t => {
+                        (byParent[t.parent] ||= []).push({ start: t.pstd_joining_date || "", end: t.pstd_term_completion_date || "" });
+                    });
+                    mapped.forEach(m => {
+                        const start = continuousServiceStart(byParent[m.docName] ?? []);
+                        if (start) m.service_start_date = start;
+                    });
+                }
+            } catch { /* keep each staff member's current-extension dates */ }
+
+            setRecords(mapped);
         } catch (err: any) {
             setError(err?.exception || err?.message || String(err));
         } finally {
@@ -1325,7 +1371,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         // unless already paid this period — those stay visible under "Salary Processed".
         let list = records.filter(r => {
             if ((resignedMap[r.employee_id] || periodExpiredIds.has(r.employee_id)) && !processedEmployees.has(r.employee_id)) return false;
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             return wd > 0;
         });
 
@@ -1389,7 +1435,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     // used to decide whether to show the toolbar/table at all (a "no search results" state
     // should never hide the search box itself; see activeStaffCount below).
     const activeStaffRecords = useMemo(() =>
-        records.filter(r => calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth) > 0),
+        records.filter(r => calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth) > 0),
         [records, selectedYear, selectedMonth]);
 
     // Total active staff per type (for the Research/Consultancy main-tab badges) — independent
@@ -1495,22 +1541,22 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalOriginalHRA = filtered.reduce((s, r) => s + getRowInputs(r.docName).currentHRA, 0);
 
     const totalWorkingDays = filtered.reduce((s, r) =>
-        s + calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
+        s + calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
 
     const totalProRataBasic = filtered.reduce((s, r) =>
-        s + calcProRataBasic(getRowInputs(r.docName).inputs.basic, calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), daysInMonth), 0);
+        s + calcProRataBasic(getRowInputs(r.docName).inputs.basic, calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth), daysInMonth), 0);
 
     const totalHRA = filtered.reduce((s, r) =>
-        s + Math.round((getRowInputs(r.docName).currentHRA / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
+        s + Math.round((getRowInputs(r.docName).currentHRA / daysInMonth) * calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
 
     const totalMedical = filtered.reduce((s, r) =>
-        s + Math.round((r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
+        s + Math.round((r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
 
     const totalArrear = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.arrear, 0);
     const totalMedicalDed = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.medicalDeduction, 0);
     const totalPTax = filtered.reduce((s, r) => {
         const { inputs, currentHRA } = getRowInputs(r.docName);
-        const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+        const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
         const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
         const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
         const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1526,7 +1572,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalEarnings = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1544,7 +1590,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalDeductions = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1557,7 +1603,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalNetPay = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1592,7 +1638,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         ];
         const rows = pendingRecords.map((r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const workingDays = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
@@ -2719,7 +2765,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                     const { inputs, isEdited, currentHRA } = getRowInputs(r.docName);
                                                     const isProcessed = processedEmployees.has(r.employee_id);
                                                     const isChecked = selectedEmpIds.has(r.employee_id);
-                                                    const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                                    const workingDays = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                                     const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
                                                     const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                                     const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
@@ -3362,7 +3408,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Worked Days this Cycle:</span>
                                     <span className="font-bold text-zinc-950">
-                                        {calcWorkingDaysForPeriod(selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth)} / {daysInMonth} Days
+                                        {calcWorkingDaysForPeriod(selectedSlipRecord.service_start_date || selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth)} / {daysInMonth} Days
                                     </span>
                                 </div>
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
@@ -3387,7 +3433,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                             {/* Earnings & Deductions Double Column Table */}
                             {(() => {
                                 const { inputs, currentHRA } = getRowInputs(selectedSlipRecord.docName);
-                                const workingDays = calcWorkingDaysForPeriod(selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth);
+                                const workingDays = calcWorkingDaysForPeriod(selectedSlipRecord.service_start_date || selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth);
                                 const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
                                 const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                 const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
@@ -3558,7 +3604,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 {staffList.map((r, idx) => {
                                     const dim = getDaysInMonth(selectedYear, selectedMonth);
                                     const { inputs, currentHRA } = getRowInputs(r.docName);
-                                    const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                    const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                     const prb = calcProRataBasic(inputs.basic, wd, dim);
                                     const proRataHRA = Math.round((currentHRA / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
@@ -3609,7 +3655,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 const dim = getDaysInMonth(selectedYear, selectedMonth);
                                 const selectedTotal = selectedBulkRecords.reduce((sum, r) => {
                                     const { inputs, currentHRA } = getRowInputs(r.docName);
-                                    const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                    const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                     const prb = calcProRataBasic(inputs.basic, wd, dim);
                                     const proRataHRA = Math.round((currentHRA / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
