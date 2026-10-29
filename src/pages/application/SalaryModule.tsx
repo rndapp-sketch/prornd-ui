@@ -2219,58 +2219,115 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                             </div>
                                         ) : (
                                             <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
-                                                <table className="min-w-full table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                                    <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
-                                                        <tr>
-                                                            {["#", "Emp ID", "Full Name", "Department", "Role", "Project No", "Scheme", "Joining", "Term End", "Resignation No", "Resignation Date", "Status"].map(h => (
-                                                                <th key={h} className="whitespace-nowrap px-3 py-3 text-left">{h}</th>
-                                                            ))}
+                                                <table className="w-full min-w-[1100px] border-collapse text-left leading-tight">
+                                                    <thead className="sticky top-0 z-20 bg-[#E6EBD8] text-[10px] font-extrabold uppercase tracking-wider text-[#4A5A28] dark:bg-[#2A3320] dark:text-[#C5D2A3]">
+                                                        <tr className="border-b border-[#CBD5B0] dark:border-[#A3B18A]/30">
+                                                            <th className="w-10 px-3 py-2">#</th>
+                                                            <th className="px-3 py-2">Emp ID</th>
+                                                            <th className="px-3 py-2">Full Name</th>
+                                                            <th className="px-3 py-2">Role &amp; Department</th>
+                                                            <th className="px-3 py-2">Project</th>
+                                                            <th className="px-3 py-2">Service Period</th>
+                                                            <th className="px-3 py-2">Resignation</th>
+                                                            <th className="px-3 py-2">Status</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/80">
+                                                    <tbody>
                                                         {resignedRecords.map((r, i) => {
                                                             const info = resignedMap[r.employee_id];
                                                             const pNo = (r.project_no || "").trim();
+                                                            const scheme = (pNo && schemeNumberMap[pNo]) || "";
                                                             const done = !!info?.completed;
+                                                            const resignDate = info?.resignation_date || info?.last_working_date;
                                                             return (
-                                                                <tr key={r.employee_id} className="hover:bg-blue-50/50 dark:hover:bg-[#27272A]">
-                                                                    <td className="px-3 py-2 text-xs font-semibold text-zinc-400">{i + 1}</td>
-                                                                    <td className="px-3 py-2 text-xs font-mono font-bold whitespace-nowrap">
-                                                                        <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="text-[#2563EB] hover:underline dark:text-[#A5B4FC]">{r.employee_id}</button>
+                                                                <tr
+                                                                    key={r.employee_id}
+                                                                    className="border-b border-[#EEF0E6] align-middle transition-colors odd:bg-white even:bg-[#FAFBF6] hover:bg-[#F1F4E8] dark:border-[#3F3F46]/60 dark:odd:bg-transparent dark:even:bg-white/[0.02] dark:hover:bg-[#A3B18A]/10"
+                                                                >
+                                                                    <td className="px-3 py-1.5 text-xs font-semibold tabular-nums text-zinc-400">{i + 1}</td>
+
+                                                                    {/* Emp ID */}
+                                                                    <td className="whitespace-nowrap px-3 py-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }}
+                                                                            title="View full salary history"
+                                                                            className="font-mono text-[12px] font-bold text-[#2563EB] hover:underline dark:text-[#A5B4FC]"
+                                                                        >
+                                                                            {r.employee_id}
+                                                                        </button>
                                                                     </td>
-                                                                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">
-                                                                        <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="hover:text-[#2563EB] hover:underline">{r.first_name}</button>
+
+                                                                    {/* Full name */}
+                                                                    <td className="px-3 py-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }}
+                                                                            title="View full salary history"
+                                                                            className="group flex items-center gap-2 text-left"
+                                                                        >
+                                                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#E6EBD8] text-[11px] font-bold text-[#5A6B34] ring-1 ring-[#CBD5B0] dark:bg-[#A3B18A]/20 dark:text-[#C5D2A3] dark:ring-[#A3B18A]/30">
+                                                                                {r.first_name.charAt(0).toUpperCase()}
+                                                                            </span>
+                                                                            <span className="whitespace-nowrap text-[13px] font-semibold text-zinc-900 group-hover:text-[#5A6B34] group-hover:underline dark:text-zinc-100">{r.first_name}</span>
+                                                                        </button>
                                                                     </td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap"><DepartmentName name={r.department} /></td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{r.designation || "—"}</td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{r.project_no || "—"}</td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{(pNo && schemeNumberMap[pNo]) || "—"}</td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.joining_date)}</td>
-                                                                    <td className="px-3 py-2 text-xs whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
-                                                                    <td className="px-3 py-2 text-xs font-mono whitespace-nowrap">
+
+                                                                    {/* Role & department */}
+                                                                    <td className="max-w-[260px] px-3 py-1.5">
+                                                                        <span className="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100" title={r.designation}>{r.designation || "—"}</span>
+                                                                        <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+                                                                            {r.department && r.department !== "—" ? <DepartmentName name={r.department} /> : "—"}
+                                                                        </span>
+                                                                    </td>
+
+                                                                    {/* Project & scheme */}
+                                                                    <td className="px-3 py-1.5">
+                                                                        <span className="block font-mono text-[12px] text-zinc-800 dark:text-zinc-100">{r.project_no || "—"}</span>
+                                                                        <span className="mt-0.5 inline-flex items-center rounded bg-[#F1F4E8] px-1.5 text-[10px] leading-4 font-semibold text-[#5A6B34] ring-1 ring-[#CBD5B0] dark:bg-[#A3B18A]/15 dark:text-[#C5D2A3] dark:ring-[#A3B18A]/30">
+                                                                            Scheme {scheme || "—"}
+                                                                        </span>
+                                                                    </td>
+
+                                                                    {/* Service period */}
+                                                                    <td className="whitespace-nowrap px-3 py-1.5 text-[12px] leading-tight">
+                                                                        <span className="block text-zinc-800 dark:text-zinc-100">{fmtDate(r.joining_date)}</span>
+                                                                        <span className="block text-zinc-500 dark:text-zinc-400">to {r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</span>
+                                                                    </td>
+
+                                                                    {/* Resignation */}
+                                                                    <td className="whitespace-nowrap px-3 py-1.5 leading-tight">
                                                                         {info?.resignation ? (
                                                                             <a
                                                                                 href={`/project-staff-resignation?edit=${encodeURIComponent(info.resignation)}&fromSalary=true`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 title="Open resignation details, commitment and payments in a new tab"
-                                                                                className="inline-flex items-center gap-1 font-bold text-[#2563EB] hover:underline dark:text-[#A5B4FC]"
+                                                                                className="inline-flex items-center gap-1 font-mono text-[12px] font-bold text-[#2563EB] hover:underline dark:text-[#A5B4FC]"
                                                                             >
                                                                                 {info.resignation}
                                                                                 <ExternalLink className="h-3 w-3" />
                                                                             </a>
-                                                                        ) : "—"}
-                                                                    </td>
-                                                                    <td className="px-3 py-2 text-xs font-mono whitespace-nowrap">{(info?.resignation_date || info?.last_working_date) ? fmtDate((info.resignation_date || info.last_working_date) as string) : "—"}</td>
-                                                                    <td className="px-3 py-2 whitespace-nowrap">
-                                                                        <span className={cn(
-                                                                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold",
-                                                                            done
-                                                                                ? "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400"
-                                                                                : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-                                                                        )}>
-                                                                            {done ? "Resigned" : "In process"}{info?.state ? ` · ${info.state}` : ""}
+                                                                        ) : <span className="text-zinc-400">—</span>}
+                                                                        <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
+                                                                            {resignDate ? fmtDate(resignDate) : "—"}
                                                                         </span>
+                                                                    </td>
+
+                                                                    {/* Status */}
+                                                                    <td className="whitespace-nowrap px-3 py-1.5 leading-tight">
+                                                                        <span className={cn(
+                                                                            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset",
+                                                                            done
+                                                                                ? "bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/30 dark:text-rose-300 dark:ring-rose-400/20"
+                                                                                : "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-400/20"
+                                                                        )}>
+                                                                            <span className={cn("h-1.5 w-1.5 rounded-full", done ? "bg-rose-500" : "bg-amber-500")} />
+                                                                            {done ? "Resigned" : "In process"}
+                                                                        </span>
+                                                                        {info?.state && (
+                                                                            <span className="mt-0.5 block text-[11px] text-zinc-500 dark:text-zinc-400">{info.state}</span>
+                                                                        )}
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -2898,21 +2955,41 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                 />
                                                             </td>
                                                             <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
-                                                                <input
-                                                                    type="number"
-                                                                    value={pTax}
-                                                                    onChange={e => handleInputChange(r.docName, "pTax", e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0))}
-                                                                    onWheel={e => e.currentTarget.blur()}
-                                                                    title="Calculated from the Assam P-Tax slab; edit to override"
-                                                                    className={cn(
-                                                                        "w-20 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
-                                                                        isEdited.pTax
-                                                                            ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
-                                                                            : "border-zinc-200 dark:border-zinc-700"
+                                                                <div className="flex items-center gap-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode="numeric"
+                                                                        value={pTax}
+                                                                        onChange={e => {
+                                                                            // Clearing the box, or typing nil / na / n/a / -, means "no P-Tax" (0);
+                                                                            // it must not snap back to the slab amount while typing.
+                                                                            const raw = e.target.value.trim();
+                                                                            if (raw === "" || /^(nil|na|n\/a|-)$/i.test(raw)) {
+                                                                                handleInputChange(r.docName, "pTax", 0);
+                                                                                return;
+                                                                            }
+                                                                            if (!/^\d+$/.test(raw)) return;
+                                                                            handleInputChange(r.docName, "pTax", parseInt(raw, 10));
+                                                                        }}
+                                                                        title="Calculated from the Assam P-Tax slab. Edit to override; clear it or type nil / NA / 0 for no P-Tax"
+                                                                        className={cn(
+                                                                            "w-20 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                            isEdited.pTax
+                                                                                ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
+                                                                                : "border-zinc-200 dark:border-zinc-700"
+                                                                        )}
+                                                                    />
+                                                                    {isEdited.pTax && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleInputChange(r.docName, "pTax", "")}
+                                                                            title="Reset to the calculated Assam P-Tax slab amount"
+                                                                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-[#D97757] dark:hover:bg-zinc-700"
+                                                                        >
+                                                                            <RotateCcw className="h-3 w-3" />
+                                                                        </button>
                                                                     )}
-                                                                    min="0"
-                                                                    step="1"
-                                                                />
+                                                                </div>
                                                             </td>
 
                                                             {/* TA Input */}
