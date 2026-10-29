@@ -43,7 +43,12 @@ const env = loadEnv(mode, process.cwd(), "VITE_");
 
 // The app backend's *port* deliberately keeps using webserver_port from
 // common_site_config.json (see below) rather than a VITE_*_PORT env var.
-const APP_BACKEND_HOST = env.VITE_APP_BACKEND_HOST || "172.16.131.206";
+// Defaults to this host so a missing VITE_APP_BACKEND_HOST can never point a
+// deployment at someone else's bench. It used to default to a remote IP, which
+// silently routed /bk-api from http://<host>:8081 to the Live bench once the
+// v0.08 env files stopped setting the variable - submitted applications landed
+// in Live. Keep any per-server value in that server's env file, not here.
+const APP_BACKEND_HOST = env.VITE_APP_BACKEND_HOST || "127.0.0.1";
 const LEDGER_HOST = env.VITE_LEDGER_HOST || "172.16.134.81";
 const LEDGER_PORT = env.VITE_LEDGER_PORT || "18080";
 const MINIO_HOST = env.VITE_MINIO_HOST || "172.16.135.118";
