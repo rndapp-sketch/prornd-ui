@@ -123,6 +123,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/travel/${name}`;
         case "Loan Request":
             return `/loan-request/${name}`;
+        case "Acc Head to Head Fund Transfer":
+            return `/head-to-head-transfer/${name}`;
         case "Miscellaneous Commit":
             return `/miscellaneous-commit/${name}`;
         case "Indent General Form":

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { printExtensionOrder } from "@/utils/extensionOrderPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
-import { parseISO, subMonths, isBefore, startOfDay, isValid, format } from "date-fns";
+import { parseISO, subMonths, isBefore, startOfDay, isValid, format, differenceInMonths, addDays } from "date-fns";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -49,6 +49,7 @@ interface BasicDetails {
 }
 
 interface Tenure {
+  name?: string; // table_ymed child row name — present when editable
   joining_date?: string | null;
   term_completion_date?: string | null;
   basic_salary?: string | null;
@@ -108,6 +109,7 @@ const WORKFLOW_STAGES = [
   "Pending Staff Approval",
   "Pending HoS Approval",
   "Approved",
+  "Completed",
 ];
 
 const getStageStatus = (stageName: string, currentState: string) => {
@@ -117,7 +119,8 @@ const getStageStatus = (stageName: string, currentState: string) => {
     return stageName === currentState ? "failed" : stageIdx < currentIdx ? "completed" : "pending";
   }
   if (stageIdx < currentIdx) return "completed";
-  if (stageIdx === currentIdx) return "in-progress";
+  // Completed is the end of the workflow — nothing left in progress.
+  if (stageIdx === currentIdx) return currentState === "Completed" ? "completed" : "in-progress";
   return "pending";
 };
 
@@ -185,7 +188,7 @@ const getErrorText = (error: unknown, fallback = "") => {
 const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) => {
   const stages = WORKFLOW_STAGES.includes(currentState)
     ? WORKFLOW_STAGES
-    : [...WORKFLOW_STAGES.slice(0, -1), currentState, "Approved"];
+    : [...WORKFLOW_STAGES.slice(0, -2), currentState, "Approved", "Completed"];
 
   return (
     <div className="overflow-x-auto pb-1">
@@ -266,6 +269,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const [tenurePreview, setTenurePreview] = useState<PreviewNewTenure | null>(null);
   const [tenurePreviewError, setTenurePreviewError] = useState<string | null>(null);
   const [tenurePreviewLoading, setTenurePreviewLoading] = useState(false);
+  // Staff-only correction of the applicant's tenure history (table_ymed).
+  const [isEditingTenures, setIsEditingTenures] = useState(false);
+  const [tenureDraft, setTenureDraft] = useState<Tenure[]>([]);
+  const [savingTenures, setSavingTenures] = useState(false);
 
   const [docName, setDocName] = useState<string | null>(null);
   const [docstatus, setDocstatus] = useState(0);
@@ -280,7 +287,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   // Actions dropdown + comment modal (mirrors the workflow-actions pattern used elsewhere in the app)
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
-  const [actionsMenuPos, setActionsMenuPos] = useState({ top: 0, right: 0 });
+  const [actionsMenuPos, setActionsMenuPos] = useState<{ top?: number; bottom?: number; left: number }>({ top: 0, left: 0 });
   const actionsMenuBtnRef = useRef<HTMLButtonElement>(null);
   const actionsMenuPortalRef = useRef<HTMLDivElement>(null);
   const [modalAction, setModalAction] = useState<string | null>(null);
@@ -301,6 +308,40 @@ const ProjectStaffExtensionForm: React.FC = () => {
   // In edit/review mode `basic` describes the current viewer (e.g. a reviewing PI),
   // not the applicant, so it must never win over the saved application data.
   const applicantSource = isEditMode ? null : basic;
+
+  // Applicant's tenure history for an existing extension (reviewers can't use
+  // `basic`, which is themselves). `can_edit` is true only for R&D Staff at
+  // 'Pending Staff Approval' — enforced again by the backend on update.
+  const { data: applicantTenuresResp, mutate: mutateApplicantTenures } = useFrappeGetCall<{
+    message: { tenures: Tenure[]; can_edit: boolean };
+  }>(
+    extensionAPI.getApplicantTenures,
+    { docname: editDocName },
+    editDocName && currentUser ? undefined : null,
+    { revalidateOnFocus: false },
+  );
+  const applicantTenures = applicantTenuresResp?.message?.tenures;
+
+  // DocType meta (incl. Customize Form / Property Setter overrides) so fields marked
+  // hidden in the backend stay hidden here too.
+  const { data: doctypeMetaResp } = useFrappeGetCall<{
+    docs?: { name: string; fields?: { fieldname: string; hidden?: 0 | 1 }[] }[];
+  }>("frappe.desk.form.load.getdoctype", { doctype: "Project Staff Extension" }, undefined, {
+    revalidateOnFocus: false,
+  });
+  const hiddenFields = useMemo(
+    () =>
+      new Set(
+        (doctypeMetaResp?.docs?.find((d) => d.name === "Project Staff Extension")?.fields ?? [])
+          .filter((f) => f.hidden)
+          .map((f) => f.fieldname),
+      ),
+    [doctypeMetaResp],
+  );
+  const isFieldHidden = (fieldname: string) => hiddenFields.has(fieldname);
+  const { call: updateApplicantTenures } = useFrappePostCall<{
+    message: { tenures: Tenure[]; can_edit: boolean; ex_doj?: string; ex_date_of_expiry?: string };
+  }>(extensionAPI.updateApplicantTenures);
   const projectNo = basic?.project_no || loadedExtension?.ex_proj_no || projectParam;
 
   // Fetch Project Details (for project title)
@@ -459,10 +500,14 @@ const ProjectStaffExtensionForm: React.FC = () => {
   //    term completion date.
   // 2. Maximum total service period is 33 months.
   // 3. Max grantable extension = 33 − months already worked (never negative).
+  // 4. Latest term duration + extension must not exceed 11 months. If the latest
+  //    term is already ≥ 11 months, the request is a re-engagement — not blocked,
+  //    only the messaging changes.
   // NOTE: these are client-side guards for UX. The backend controller MUST enforce
   // the same rules authoritatively — the frontend cannot be trusted for policy.
   const MAX_TOTAL_SERVICE_MONTHS = 33;
   const APPLICATION_WINDOW_MONTHS = 1;
+  const MAX_TERM_MONTHS = 11;
 
   // Use the LATEST tenure's completion date (ex_date_of_expiry from the backend is
   // derived from the newest table_ymed row) — the parent ps_term_completion_date can
@@ -482,15 +527,48 @@ const ProjectStaffExtensionForm: React.FC = () => {
     ? !isBefore(startOfDay(new Date()), startOfDay(applicationWindowOpenDate))
     : true;
 
+  // Duration (whole months, start and end inclusive) of the latest tenure — the row
+  // with the newest completion date. In edit mode `basic` is the viewer, so its
+  // tenures are only trusted when the viewer is the applicant (own draft).
+  const eligibilityTenures =
+    applicantSource?.tenures ??
+    applicantTenures ??
+    (loadedExtension?.owner && loadedExtension.owner === currentUser ? basic?.tenures : undefined) ??
+    [];
+  const latestTenure = eligibilityTenures
+    .filter((t) => t.joining_date && t.term_completion_date)
+    .sort((a, b) => (b.term_completion_date as string).localeCompare(a.term_completion_date as string))[0];
+  const latestTermStart = latestTenure ? parseISO(latestTenure.joining_date as string) : null;
+  const latestTermEnd = latestTenure ? parseISO(latestTenure.term_completion_date as string) : null;
+  const latestTermMonths =
+    latestTermStart && latestTermEnd && isValid(latestTermStart) && isValid(latestTermEnd)
+      ? differenceInMonths(addDays(latestTermEnd, 1), latestTermStart)
+      : null;
+  const isReEngagement = latestTermMonths !== null && latestTermMonths >= MAX_TERM_MONTHS;
+  // Unknown term or re-engagement → no term-based cap beyond the 11-month maximum.
+  const termRemainingMonths =
+    latestTermMonths === null || isReEngagement
+      ? MAX_TERM_MONTHS
+      : MAX_TERM_MONTHS - latestTermMonths;
+
   const monthsWorkedNum = Number.parseFloat(noOfMonthsWorked) || 0;
-  const maxExtensionAllowed = Math.max(
+  const serviceRemainingMonths = Math.max(
     0,
     Math.floor(MAX_TOTAL_SERVICE_MONTHS - monthsWorkedNum),
   );
+  const maxExtensionAllowed = Math.min(serviceRemainingMonths, termRemainingMonths);
+  // Human-readable reason for whichever cap is binding, used in messages.
+  const maxExtensionReason =
+    serviceRemainingMonths <= termRemainingMonths
+      ? `total service cannot exceed ${MAX_TOTAL_SERVICE_MONTHS} months; ${monthsWorkedNum} already worked`
+      : `latest term of ${latestTermMonths} month(s) + extension cannot exceed ${MAX_TERM_MONTHS} months`;
+  const reEngagementMessage = `Your latest term was ${latestTermMonths} month(s), which already meets the ${MAX_TERM_MONTHS}-month term limit. This request will be processed as a re-engagement, not an extension.`;
   // The period selects only offer 1–11; cap the allowed range to that.
-  const maxSelectableMonths = Math.min(11, maxExtensionAllowed);
+  // Options are capped only by the service limit, not the term limit — a period that
+  // breaks the 11-month term rule is rejected on save/submit with a message instead.
+  const maxSelectableMonths = Math.min(11, serviceRemainingMonths);
   const monthOptions = Array.from({ length: Math.max(0, maxSelectableMonths) }, (_, i) => i + 1);
-  const serviceCapReached = maxExtensionAllowed <= 0;
+  const serviceCapReached = serviceRemainingMonths <= 0;
   const exceededServiceCap = monthsWorkedNum > MAX_TOTAL_SERVICE_MONTHS;
 
   const applicationWindowMessage =
@@ -507,7 +585,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
     if (!isWithinApplicationWindow) return applicationWindowMessage;
     if (serviceCapReached) return serviceCapMessage;
     if (extensionPeriod && Number(extensionPeriod) > maxExtensionAllowed) {
-      return `The maximum extension you can apply for is ${maxExtensionAllowed} month(s) (${MAX_TOTAL_SERVICE_MONTHS} − ${monthsWorkedNum} already worked). Please select ${maxExtensionAllowed} month(s) or fewer.`;
+      return `The maximum extension you can apply for is ${maxExtensionAllowed} month(s) (${maxExtensionReason}). Please select ${maxExtensionAllowed} month(s) or fewer.`;
     }
     return null;
   };
@@ -516,7 +594,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const validateGrantPeriod = (period: string, label: string): string | null => {
     if (!period) return null;
     if (Number(period) > maxExtensionAllowed) {
-      return `The extension ${label} (${period} months) cannot exceed the maximum of ${maxExtensionAllowed} month(s) (${MAX_TOTAL_SERVICE_MONTHS} − ${monthsWorkedNum} already worked).`;
+      return `The extension ${label} (${period} months) cannot exceed the maximum of ${maxExtensionAllowed} month(s) (${maxExtensionReason}).`;
     }
     return null;
   };
@@ -563,11 +641,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
       const eligibilityError = validateApplicantEligibility();
       if (eligibilityError) { showToast("error", eligibilityError); return; }
     }
-    // PI / Staff — enforce the granted period cap.
-    if (canEditPIFields) {
-      const piError = validateGrantPeriod(extensionPeriodPI, "suggested by PI");
-      if (piError) { showToast("error", piError); return; }
-    }
+    // Staff — enforce the granted period cap. The PI's suggested period is not capped.
     if (canEditStaffFields) {
       const staffError = validateGrantPeriod(extensionPeriodStaff, "allowed by Staff");
       if (staffError) { showToast("error", staffError); return; }
@@ -631,10 +705,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
     if (workflowState === "Draft") {
       const eligibilityError = validateApplicantEligibility();
       if (eligibilityError) { showToast("error", eligibilityError); setPendingAction(null); return; }
-    }
-    if (isPositiveAction && workflowState === "Pending PI Approval") {
-      const piError = validateGrantPeriod(extensionPeriodPI, "suggested by PI");
-      if (piError) { showToast("error", piError); setPendingAction(null); return; }
     }
     if (isPositiveAction && workflowState === "Pending Staff Approval") {
       const staffError = validateGrantPeriod(extensionPeriodStaff, "allowed by Staff");
@@ -753,7 +823,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const toggleActionsMenu = () => {
     if (!actionsMenuOpen && actionsMenuBtnRef.current) {
       const rect = actionsMenuBtnRef.current.getBoundingClientRect();
-      setActionsMenuPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+      const left = rect.left + window.scrollX;
+      // The action row sits at the bottom of the form, so open upward when there is no room below.
+      setActionsMenuPos(
+        window.innerHeight - rect.bottom < 280
+          ? { bottom: document.documentElement.clientHeight - rect.top - window.scrollY + 4, left }
+          : { top: rect.bottom + window.scrollY + 4, left },
+      );
     }
     setActionsMenuOpen((o) => !o);
   };
@@ -815,9 +891,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   // All tenure terms (joining + completion per term) for the applicant details table.
   // Falls back to a single-row view when the full tenure history isn't available.
+  const fetchedTenures = applicantSource?.tenures ?? applicantTenures;
   const tenureRows: Tenure[] =
-    applicantSource?.tenures && applicantSource.tenures.length > 0
-      ? applicantSource.tenures
+    fetchedTenures && fetchedTenures.length > 0
+      ? fetchedTenures
       : dateOfJoining || expiryOfTenure
         ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
         : [];
@@ -857,7 +934,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
     }
   };
 
-  const isTerminal = workflowState === "Approved" || workflowState === "Rejected" || workflowState === "Cancelled";
+  // Approved is terminal for the form: its only remaining step (Print Ext.Order → Completed)
+  // happens from the Extension Order page, not from the Actions menu.
+  const isApprovedOrCompleted = workflowState === "Approved" || workflowState === "Completed";
+  const isTerminal = isApprovedOrCompleted || workflowState === "Rejected" || workflowState === "Cancelled";
   const isEditable = workflowState === "Draft" && docstatus === 0;
   const canEdit = isEditable && isEditing;
 
@@ -909,6 +989,59 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   const canEditPIFields = !isFromRegistry && isPIActor;
   const canEditStaffFields = !isFromRegistry && isStaffActor;
+  // Tenure history is editable only from the staff dashboard (Staff Approval stage),
+  // never by the applicant or the PI. The backend re-checks this on save.
+  const canEditTenures =
+    canEditStaffFields &&
+    !!applicantTenuresResp?.message?.can_edit &&
+    tenureRows.length > 0 &&
+    tenureRows.every((t) => !!t.name);
+
+  const startEditingTenures = () => {
+    setTenureDraft(tenureRows.map((t) => ({ ...t })));
+    setIsEditingTenures(true);
+  };
+
+  const updateTenureDraft = (idx: number, field: "joining_date" | "term_completion_date", value: string) => {
+    setTenureDraft((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)));
+  };
+
+  const handleSaveTenures = async () => {
+    if (!editDocName) return;
+    for (const [idx, t] of tenureDraft.entries()) {
+      if (!t.joining_date || !t.term_completion_date) {
+        showToast("error", `Term ${idx + 1}: both dates are required.`);
+        return;
+      }
+      if (t.term_completion_date < t.joining_date) {
+        showToast("error", `Term ${idx + 1}: Term Completion Date cannot be before Date of Joining.`);
+        return;
+      }
+    }
+    setSavingTenures(true);
+    try {
+      const res = await updateApplicantTenures({
+        docname: editDocName,
+        tenures: JSON.stringify(
+          tenureDraft.map(({ name, joining_date, term_completion_date }) => ({ name, joining_date, term_completion_date })),
+        ),
+      });
+      await mutateApplicantTenures(res, { revalidate: false });
+      // Backend returns the extension's current-term dates (changed only when the latest term was edited).
+      const { ex_doj, ex_date_of_expiry } = res?.message ?? {};
+      if (ex_doj || ex_date_of_expiry) {
+        setLoadedExtension((prev) =>
+          prev ? { ...prev, ex_doj: ex_doj || prev.ex_doj, ex_date_of_expiry: ex_date_of_expiry || prev.ex_date_of_expiry } : prev,
+        );
+      }
+      setIsEditingTenures(false);
+      showToast("success", "Tenure details updated.");
+    } catch (err: unknown) {
+      showToast("error", getErrorText(err, "Could not update tenure details."));
+    } finally {
+      setSavingTenures(false);
+    }
+  };
 
   const hasUnsavedEvaluationChanges =
     (canEditPIFields && (extensionPeriodPI !== savedPIPeriod || incrementPI !== savedPIIncrement)) ||
@@ -958,7 +1091,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canEditStaffFields, applicantEmpId, extensionPeriodStaff, incrementStaff]);
+  }, [canEditStaffFields, applicantEmpId, extensionPeriodStaff, incrementStaff, applicantTenures]);
 
   const showCommitSection =
     !!docName &&
@@ -1114,7 +1247,17 @@ const ProjectStaffExtensionForm: React.FC = () => {
             status={workflowState || undefined}
             projectNumber={projectNo || undefined}
           >
-              {workflowState === "Approved" && docName && (
+              {workflowState === "Approved" && docName && isRnDStaff && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/project-staff-extension/order/${encodeURIComponent(docName)}`)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#3b5cf6]"
+                >
+                  <Printer className="h-4 w-4" />
+                  Generate Ext Order
+                </button>
+              )}
+              {isApprovedOrCompleted && docName && !(workflowState === "Approved" && isRnDStaff) && (
                 <button
                   type="button"
                   onClick={handlePrintOrder}
@@ -1131,168 +1274,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   data={loadedExtension || { ex_proj_no: projectNo }}
                 />
               )}
-              {/* Action Row — Save Draft/Save Changes + Workflow actions dropdown, same pattern as the Pending Task action menus */}
-              {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
-                const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
-                  (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
-                );
-                const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable || putBack.hasPutBack;
-
-                const categoriseAction = (action: string) => {
-                  const a = action.toLowerCase();
-                  if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
-                  if (a.includes("reject") || a.includes("cancel")) return "reject";
-                  return "neutral";
-                };
-                const actionItemStyle = (action: string) => {
-                  const cat = categoriseAction(action);
-                  if (cat === "forward") return "text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15";
-                  if (cat === "reject") return "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20";
-                  return "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700";
-                };
-                const workflowGroups = [
-                  workflowActions.filter((a) => categoriseAction(a) === "forward"),
-                  workflowActions.filter((a) => categoriseAction(a) === "neutral"),
-                  workflowActions.filter((a) => categoriseAction(a) === "reject"),
-                ].filter((g) => g.length > 0);
-
-                return (
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {/* Edit — switch from read-only to edit mode while in Draft */}
-                    {isEditable && !isEditing && (
-                      <button
-                        type="button"
-                        onClick={() => setIsEditing(true)}
-                        disabled={isBusy}
-                        className={cn(
-                          "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
-                          "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
-                          "disabled:opacity-50 disabled:cursor-not-allowed",
-                        )}
-                      >
-                        Edit
-                      </button>
-                    )}
-
-                    {/* Save Draft — only while actively editing */}
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isBusy}
-                        className={cn(
-                          "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
-                          "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                          "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
-                          "disabled:opacity-50 disabled:cursor-not-allowed",
-                        )}
-                      >
-                        {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Save Draft
-                      </button>
-                    )}
-
-                    {hasWorkflowMenuItems && (
-                      <div className="relative">
-                        <button
-                          ref={actionsMenuBtnRef}
-                          type="button"
-                          onClick={toggleActionsMenu}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
-                            actionsMenuOpen
-                              ? "bg-[#4A6CF7] text-white border border-[#3b5cf6]"
-                              : "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#4A6CF7] border border-[#4A6CF7]/40 hover:bg-[#4A6CF7] hover:text-white dark:hover:bg-[#4A6CF7]/30",
-                          )}
-                        >
-                          {isBusy ? "Processing…" : "Actions"}
-                          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", actionsMenuOpen && "rotate-180")} />
-                        </button>
-
-                        {actionsMenuOpen && createPortal(
-                          <div
-                            ref={actionsMenuPortalRef}
-                            style={{ position: "absolute", top: actionsMenuPos.top, right: actionsMenuPos.right, zIndex: 9999 }}
-                            className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
-                          >
-                            <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
-                              <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                                Workflow Actions
-                              </span>
-                            </div>
-                            {workflowGroups.map((group, gi) => (
-                              <React.Fragment key={gi}>
-                                {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
-                                {group.map((action) => (
-                                  <button
-                                    key={action}
-                                    type="button"
-                                    onClick={() => openActionModal(action)}
-                                    className={cn(
-                                      "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
-                                      actionItemStyle(action),
-                                    )}
-                                  >
-                                    {actionIcon(action)}
-                                    {action}
-                                  </button>
-                                ))}
-                              </React.Fragment>
-                            ))}
-                            {fallbackSubmitAvailable && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal("Submit", false)}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
-                              >
-                                <CheckCircle className="h-3.5 w-3.5" />
-                                Submit
-                              </button>
-                            )}
-                            {putBack.menu(() => setActionsMenuOpen(false), workflowActions.length > 0 || fallbackSubmitAvailable)}
-                          </div>,
-                          document.body,
-                        )}
-                      </div>
-                    )}
-
-                    {!canEdit && !canEditPIFields && !canEditStaffFields && !hasWorkflowMenuItems && !isEditable && (
-                      <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                        No actions available for your role in this state.
-                      </p>
-                    )}
-
-                    {commitRequired && (
-                      <span
-                        title="A commitment must be submitted before forwarding this application."
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        Commitment required before forwarding
-                      </span>
-                    )}
-                    {hasUnsavedEvaluationChanges && (
-                      <span
-                        title='Please click "Save Changes" before forwarding.'
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        Save changes before forwarding
-                      </span>
-                    )}
-                    {workflowState === "Draft" && !docName && (
-                      <span
-                        title="Please Save as draft before submitting."
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        Save as draft before submitting
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
           </PageHeader>
 
           {putBack.modal}
@@ -1372,7 +1353,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     <StatTile label="Staff allowed" value={extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"} />
                     <StatTile
                       label="New term"
-                      tone={workflowState === "Approved" ? "success" : "default"}
+                      tone={isApprovedOrCompleted ? "success" : "default"}
                       value={
                         (finalNewJoiningDate || computedNewJoiningDate) && (finalNewCompletionDate || computedNewCompletionDate)
                           ? `${finalNewJoiningDate || computedNewJoiningDate} → ${finalNewCompletionDate || computedNewCompletionDate}`
@@ -1384,14 +1365,16 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   {isTerminal && (
                     <div className={cn(
                       "flex items-center gap-2.5 px-5 py-3 text-sm border-t",
-                      workflowState === "Approved"
+                      isApprovedOrCompleted
                         ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
                         : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
                     )}>
-                      {workflowState === "Approved"
+                      {isApprovedOrCompleted
                         ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
                         : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
-                      {workflowState === "Approved"
+                      {workflowState === "Completed"
+                        ? "Your extension request has been approved and the extension order has been issued."
+                        : workflowState === "Approved"
                         ? "Your extension request has been approved."
                         : `Your extension request has been ${workflowState.toLowerCase()}. No further actions are available.`}
                     </div>
@@ -1446,6 +1429,39 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
                         Tenure Details
                       </p>
+                      {canEditTenures && (
+                        <div className="ml-auto flex items-center gap-2">
+                          {isEditingTenures ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTenures(false)}
+                                disabled={savingTenures}
+                                className="px-2.5 py-1 text-xs font-medium rounded-md border border-zinc-200 dark:border-zinc-700 text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSaveTenures}
+                                disabled={savingTenures}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-[#4A6CF7] text-white hover:bg-[#3B5BE6] disabled:opacity-50"
+                              >
+                                {savingTenures && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Save Tenure
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={startEditingTenures}
+                              className="px-2.5 py-1 text-xs font-medium rounded-md border border-[#4A6CF7]/40 text-[#4A6CF7] hover:bg-[#4A6CF7]/10"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
                       <table className="w-full text-left text-sm">
@@ -1457,7 +1473,24 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                          {tenureRows.length > 0 ? (
+                          {isEditingTenures ? (
+                            tenureDraft.map((t, idx) => (
+                              <tr key={t.name ?? idx} className="text-[#27272A] dark:text-[#E4E4E7]">
+                                <td className="px-4 py-2 text-[#71717A] dark:text-[#A1A1AA]">{idx + 1}</td>
+                                {(["joining_date", "term_completion_date"] as const).map((field) => (
+                                  <td key={field} className="px-4 py-2">
+                                    <input
+                                      type="date"
+                                      value={t[field] ?? ""}
+                                      onChange={(e) => updateTenureDraft(idx, field, e.target.value)}
+                                      disabled={savingTenures}
+                                      className="w-full px-2 py-1 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                            ))
+                          ) : tenureRows.length > 0 ? (
                             tenureRows.map((t, idx) => (
                               <tr key={idx} className="text-[#27272A] dark:text-[#E4E4E7]">
                                 <td className="px-4 py-2.5 text-[#71717A] dark:text-[#A1A1AA]">{idx + 1}</td>
@@ -1503,12 +1536,24 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                         <span>{!isWithinApplicationWindow ? applicationWindowMessage : serviceCapMessage}</span>
                       </div>
+                    ) : isReEngagement ? (
+                      <div className="flex items-start gap-2.5 px-4 py-3 mb-4 rounded-lg text-sm border bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <span>
+                          {reEngagementMessage} The maximum period you may apply for is{" "}
+                          <strong>{maxExtensionAllowed}</strong> month(s).
+                        </span>
+                      </div>
                     ) : (
                       <div className="flex items-start gap-2.5 px-4 py-3 mb-4 rounded-lg text-sm border bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
                         <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                         <span>
-                          You have worked <strong>{monthsWorkedNum}</strong> month(s). The maximum
-                          extension you may apply for is <strong>{maxExtensionAllowed}</strong> month(s).
+                          You have worked <strong>{monthsWorkedNum}</strong> month(s)
+                          {latestTermMonths !== null && (
+                            <> and your latest term is <strong>{latestTermMonths}</strong> month(s)</>
+                          )}
+                          . The maximum extension you may apply for is{" "}
+                          <strong>{maxExtensionAllowed}</strong> month(s) ({maxExtensionReason}).
                         </span>
                       </div>
                     )
@@ -1637,7 +1682,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       )}
                       {canEdit && !serviceCapReached && isWithinApplicationWindow && (
                         <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                          Maximum allowed: {maxExtensionAllowed} month(s) — total service cannot exceed {MAX_TOTAL_SERVICE_MONTHS} months.
+                          Maximum allowed: {maxExtensionAllowed} month(s) — {maxExtensionReason}.
                         </p>
                       )}
                     </div>
@@ -1690,7 +1735,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                         {canEditPIFields && (
                           <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                            Maximum grantable: {maxExtensionAllowed} month(s) ({MAX_TOTAL_SERVICE_MONTHS} − {monthsWorkedNum} worked).
+                            Maximum grantable: {maxExtensionAllowed} month(s) ({maxExtensionReason}).{isReEngagement && " This is a re-engagement."}
                           </p>
                         )}
                       </div>
@@ -1795,7 +1840,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                         {canEditStaffFields && (
                           <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                            Maximum grantable: {maxExtensionAllowed} month(s) ({MAX_TOTAL_SERVICE_MONTHS} − {monthsWorkedNum} worked).
+                            Maximum grantable: {maxExtensionAllowed} month(s) ({maxExtensionReason}).{isReEngagement && " This is a re-engagement."}
                           </p>
                         )}
                       </div>
@@ -1833,6 +1878,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                       </div>
 
+                      {!isFieldHidden("ex_scr_id") && (
                       <div>
                         <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
                           New Selection Committee Report ID
@@ -1863,6 +1909,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           </p>
                         )}
                       </div>
+                      )}
                     </div>
 
                     {/* New Tenure — live preview + editable final override.
@@ -2007,6 +2054,170 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 </aside>
               )}
             </div>
+              <div className="mt-6 mb-10 pt-5 border-t border-zinc-200 dark:border-zinc-700">
+                {/* Action Row — Save Draft + Workflow actions dropdown, at the bottom of the form */}
+                {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
+                  const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
+                    (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
+                  );
+                  const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable || putBack.hasPutBack;
+
+                  const categoriseAction = (action: string) => {
+                    const a = action.toLowerCase();
+                    if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+                    if (a.includes("reject") || a.includes("cancel")) return "reject";
+                    return "neutral";
+                  };
+                  const actionItemStyle = (action: string) => {
+                    const cat = categoriseAction(action);
+                    if (cat === "forward") return "text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15";
+                    if (cat === "reject") return "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20";
+                    return "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700";
+                  };
+                  const workflowGroups = [
+                    workflowActions.filter((a) => categoriseAction(a) === "forward"),
+                    workflowActions.filter((a) => categoriseAction(a) === "neutral"),
+                    workflowActions.filter((a) => categoriseAction(a) === "reject"),
+                  ].filter((g) => g.length > 0);
+
+                  return (
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      {/* Edit — switch from read-only to edit mode while in Draft */}
+                      {isEditable && !isEditing && (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditing(true)}
+                          disabled={isBusy}
+                          className={cn(
+                            "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
+                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                          )}
+                        >
+                          Edit
+                        </button>
+                      )}
+
+                      {/* Save Draft — only while actively editing */}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={isBusy}
+                          className={cn(
+                            "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
+                            "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
+                            "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                          )}
+                        >
+                          {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Save Draft
+                        </button>
+                      )}
+
+                      {hasWorkflowMenuItems && (
+                        <div className="relative">
+                          <button
+                            ref={actionsMenuBtnRef}
+                            type="button"
+                            onClick={toggleActionsMenu}
+                            disabled={isBusy}
+                            className={cn(
+                              "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                              actionsMenuOpen
+                                ? "bg-[#4A6CF7] text-white border border-[#3b5cf6]"
+                                : "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#4A6CF7] border border-[#4A6CF7]/40 hover:bg-[#4A6CF7] hover:text-white dark:hover:bg-[#4A6CF7]/30",
+                            )}
+                          >
+                            {isBusy ? "Processing…" : "Actions"}
+                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", actionsMenuOpen && "rotate-180")} />
+                          </button>
+
+                          {actionsMenuOpen && createPortal(
+                            <div
+                              ref={actionsMenuPortalRef}
+                              style={{ position: "absolute", top: actionsMenuPos.top, bottom: actionsMenuPos.bottom, left: actionsMenuPos.left, zIndex: 9999 }}
+                              className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                            >
+                              <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                  Workflow Actions
+                                </span>
+                              </div>
+                              {workflowGroups.map((group, gi) => (
+                                <React.Fragment key={gi}>
+                                  {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                  {group.map((action) => (
+                                    <button
+                                      key={action}
+                                      type="button"
+                                      onClick={() => openActionModal(action)}
+                                      className={cn(
+                                        "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
+                                        actionItemStyle(action),
+                                      )}
+                                    >
+                                      {actionIcon(action)}
+                                      {action}
+                                    </button>
+                                  ))}
+                                </React.Fragment>
+                              ))}
+                              {fallbackSubmitAvailable && (
+                                <button
+                                  type="button"
+                                  onClick={() => openActionModal("Submit", false)}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  Submit
+                                </button>
+                              )}
+                              {putBack.menu(() => setActionsMenuOpen(false), workflowActions.length > 0 || fallbackSubmitAvailable)}
+                            </div>,
+                            document.body,
+                          )}
+                        </div>
+                      )}
+
+                      {!canEdit && !canEditPIFields && !canEditStaffFields && !hasWorkflowMenuItems && !isEditable && (
+                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                          No actions available for your role in this state.
+                        </p>
+                      )}
+
+                      {commitRequired && (
+                        <span
+                          title="A commitment must be submitted before forwarding this application."
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Commitment required before forwarding
+                        </span>
+                      )}
+                      {hasUnsavedEvaluationChanges && (
+                        <span
+                          title='Please click "Save Changes" before forwarding.'
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Save changes before forwarding
+                        </span>
+                      )}
+                      {workflowState === "Draft" && !docName && (
+                        <span
+                          title="Please Save as draft before submitting."
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Save as draft before submitting
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </>
           )}
         </div>

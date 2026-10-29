@@ -76,6 +76,7 @@ import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
 import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
+import ExtensionOrderEditor from './pages/application/ExtensionOrderEditor.tsx';
 import IDCardRequestForm from './pages/application/IDCardRequestForm.tsx';
 import MySalarySlip from './pages/application/MySalarySlip';
 import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
@@ -101,6 +102,8 @@ import LoanSettlementDetails from './pages/application/LoanSettlementDetails.tsx
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
+import AccHeadToHeadTransferForm from './pages/application/AccHeadToHeadTransferForm.tsx';
+import AccHeadToHeadTransferDetails from './pages/application/AccHeadToHeadTransferDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -650,6 +653,15 @@ const router = createBrowserRouter(
                         </AuthRouteWrapper>
                     )
                 },
+                // Extension / Re-engagement office order — R&D Staff, from the Task Registry
+                {
+                    path: "project-staff-extension/order/:docname",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ExtensionOrderEditor />
+                        </AuthRouteWrapper>
+                    )
+                },
                 // Project staff — Employee ID Card request
                 {
                     path: "id-card-request",
@@ -777,6 +789,22 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MiscellaneousCommitDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "head-to-head-transfer-form",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <AccHeadToHeadTransferForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "head-to-head-transfer/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <AccHeadToHeadTransferDetails />
                         </AuthRouteWrapper>
                     )
                 },

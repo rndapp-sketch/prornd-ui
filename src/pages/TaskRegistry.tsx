@@ -112,6 +112,10 @@ const TaskRegistry: React.FC = () => {
     // DPF for a department head, PDF for a PI. Nothing else on this page is role-aware.
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
+    // R&D Staff issue the office order for approved extensions (Ext Order button); printing
+    // moves the extension to Completed, and it stays listed here for reprints. The backend
+    // re-checks the role.
+    const canIssueExtOrder = roles.includes('staff, RnD') || roles.includes('System Manager');
     // Backed by the URL (like PendingTask.tsx) so the selected tab/module/search survive a
     // back-navigation from an opened task's detail page instead of resetting to Research/all.
     const selectedModule = searchParams.get('module') ?? '';
@@ -534,6 +538,8 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/disbursal-of-consultancy/${task.id}`);
                                                     } else if (task.doctype === "Travel") {
                                                         navigate(`/travel/${task.id}`);
+                                                    } else if (task.doctype === "Acc Head to Head Fund Transfer") {
+                                                        navigate(`/head-to-head-transfer/${task.id}`);
                                                     } else if (task.doctype === "Miscellaneous Commit") {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
@@ -636,6 +642,8 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/disbursal-of-consultancy/${task.id}`);
                                                             } else if (task.doctype === "Travel") {
                                                                 navigate(`/travel/${task.id}`);
+                                                            } else if (task.doctype === "Acc Head to Head Fund Transfer") {
+                                                                navigate(`/head-to-head-transfer/${task.id}`);
                                                             } else if (task.doctype === "Miscellaneous Commit") {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
@@ -664,6 +672,20 @@ const TaskRegistry: React.FC = () => {
                                                     >
                                                         View
                                                     </FrappeButton>
+                                                    {canIssueExtOrder
+                                                        && task.doctype === "Project Staff Extension"
+                                                        && ["approved", "completed"].includes(task.status?.toLowerCase() ?? "") && (
+                                                        <FrappeButton
+                                                            variant="outline"
+                                                            onClick={(e) => {
+                                                                e?.stopPropagation();
+                                                                navigate(`/project-staff-extension/order/${encodeURIComponent(task.id)}`);
+                                                            }}
+                                                            className="ml-1.5 text-[11px] px-3 py-1.5"
+                                                        >
+                                                            Ext Order
+                                                        </FrappeButton>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))

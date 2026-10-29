@@ -74,6 +74,10 @@ export const extensionAPI = {
     getWorkflowActions: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_workflow_actions`,
     performAction: `${API_BASE}.project_staff_extension.project_staff_extension.perform_project_staff_extension_action`,
     previewNewTenure: `${API_BASE}.project_staff_extension.project_staff_extension.preview_new_tenure`,
+    getApplicantTenures: `${API_BASE}.project_staff_extension.project_staff_extension.get_applicant_tenures`,
+    updateApplicantTenures: `${API_BASE}.project_staff_extension.project_staff_extension.update_applicant_tenures`,
+    getExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.get_extension_order`,
+    saveExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.save_extension_order`,
 };
 
 // Temporary Advance API endpoints
@@ -342,6 +346,24 @@ export const miscellaneousCommitAPI = {
     submit: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.submit_miscellaneous_commit`,
     getWorkflowActions: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_workflow_actions`,
     performAction: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.perform_miscellaneous_commit_action`,
+};
+
+// Account Head to Head Fund Transfer API endpoints
+const H2H_BASE = `${API_BASE}.acc_head_to_head_fund_transfer.acc_head_to_head_fund_transfer`;
+export const accHeadToHeadTransferAPI = {
+    getFields: `${H2H_BASE}.get_acc_head_to_head_fund_transfer_fields`,
+    get: `${H2H_BASE}.get_acc_head_to_head_fund_transfer`,
+    // NOTE: the save endpoint takes a single `data` argument (JSON string), not `doc_data`.
+    save: `${H2H_BASE}.save_acc_head_to_head_fund_transfer_data`,
+    submit: `${H2H_BASE}.submit_acc_head_to_head_fund_transfer`,
+    delete: `${H2H_BASE}.delete_acc_head_to_head_fund_transfer`,
+    list: `${H2H_BASE}.list_acc_head_to_head_fund_transfers`,
+    getPending: `${H2H_BASE}.get_pending_acc_head_to_head_fund_transfers`,
+    getWorkflowActions: `${H2H_BASE}.get_acc_head_to_head_fund_transfer_workflow_actions`,
+    performAction: `${H2H_BASE}.perform_acc_head_to_head_fund_transfer_action`,
+    getApplicantDetails: `${H2H_BASE}.get_applicant_details`,
+    getProjectAccountHeads: `${H2H_BASE}.get_project_account_heads`,
+    getAmountInWords: `${H2H_BASE}.get_amount_in_words`,
 };
 
 // Proforma Invoice API endpoints (HoS endorsement workflow)
