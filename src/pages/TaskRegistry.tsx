@@ -10,7 +10,7 @@ import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
 import { ledgerService } from '@/services/ledgerService';
-import { resolveProjectCategory, projectTypeTabLabel, withOverheadCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
+import { projectTypeTabLabel, withOverheadCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
 
 /** The Project Registration fields this page reads, fetched once for every PR. */
 interface PRRow {
@@ -57,9 +57,8 @@ interface FlattenedTask {
     title: string;
     status: string;
     creation: string;
-    // Only populated for the client-merged Recruitment Adhoc Contractual rows below —
     // get_categorized_task_registry doesn't return `modified`, so the Modified column
-    // falls back to "-" for every other row.
+    // falls back to "-".
     modified?: string;
     owner: string;
     doctype: string;
@@ -141,9 +140,8 @@ const TaskRegistry: React.FC = () => {
         { debug: 1 }
     );
 
-    // Categorizes the client-merged Recruitment Adhoc Contractual rows below (every other
-    // doctype's project_type comes pre-resolved from get_categorized_task_registry), and
-    // supplies the project title and funding agency shown for every row.
+    // Supplies the project title and funding agency shown for every row (project_type
+    // comes pre-resolved from get_categorized_task_registry).
     const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
         fields: ["name", "project_no", "project_type", "project_title", "funding_agen"],
         limit: 0,
@@ -166,21 +164,16 @@ const TaskRegistry: React.FC = () => {
 
     // prByName / prByNo: the whole PR row, keyed both ways, so a task can yield its project's
     // title AND funding agency whichever form of project reference its row carries.
-    const { prNameToType, prNoToType, prByName, prByNo } = React.useMemo(() => {
-        const prNameToType = new Map<string, string>();
-        const prNoToType = new Map<string, string>();
+    const { prByName, prByNo } = React.useMemo(() => {
         const prByName = new Map<string, PRRow>();
         const prByNo = new Map<string, PRRow>();
         if (allProjectRegistrations) {
             allProjectRegistrations.forEach((p: PRRow) => {
-                const raw = p.project_type || '';
-                if (p.name) prNameToType.set(p.name, raw);
-                if (p.project_no) prNoToType.set(p.project_no, raw);
                 if (p.name) prByName.set(p.name, p);
                 if (p.project_no) prByNo.set(p.project_no, p);
             });
         }
-        return { prNameToType, prNoToType, prByName, prByNo };
+        return { prByName, prByNo };
     }, [allProjectRegistrations]);
 
     /**
@@ -195,22 +188,6 @@ const TaskRegistry: React.FC = () => {
         if (!task.projectNo) return undefined;
         return prByNo.get(task.projectNo) ?? prByName.get(task.projectNo);
     }, [prByName, prByNo]);
-
-    // Supplemental fetch: Recruitment Adhoc Contractual is not returned by the
-    // task-registry endpoint, so fetch them directly and merge below.
-    const { data: recData } = useFrappeGetDocList<{
-        name: string;
-        upfa_project_title?: string;
-        upfa_project_code?: string;
-        workflow_state?: string;
-        creation: string;
-        modified: string;
-        owner: string;
-    }>("Recruitment Adhoc Contractual", {
-        fields: ["name", "upfa_project_title", "upfa_project_code", "workflow_state", "creation", "modified", "owner"],
-        limit: 500,
-        orderBy: { field: "modified", order: "desc" },
-    });
 
     // App IDs whose commit already has a payment raised but is still open (the "Payment Pending"
     // rows in Payments). An approved task in this set has not cleared Accounts yet, so it reads "Pending Acc. Verification".
@@ -244,7 +221,6 @@ const TaskRegistry: React.FC = () => {
 
     // Transform API data into flattened tasks
     const allTasks: FlattenedTask[] = React.useMemo(() => {
-        const existingIds = new Set<string>();
         const tasks: FlattenedTask[] = [];
 
         if (data?.message) {
@@ -255,7 +231,6 @@ const TaskRegistry: React.FC = () => {
                 ['Overhead', data.message.overhead ?? []],
             ];
             buckets.forEach(([bucket_type, rows]) => rows.forEach((record) => {
-                existingIds.add(record.name);
                 // Overhead funds (PDF/DPF/…) announce themselves in the project number, so the
                 // task is moved into the Overhead tab whichever bucket the backend put it in.
                 const project_type = withOverheadCategory(bucket_type, record.project_no);
@@ -273,35 +248,8 @@ const TaskRegistry: React.FC = () => {
             }));
         }
 
-        // Merge Recruitment Adhoc Contractual records not already in the registry response
-        if (recData) {
-            recData.forEach((rec) => {
-                if (!existingIds.has(rec.name)) {
-                    tasks.push({
-                        id: rec.name,
-                        title: rec.upfa_project_title || rec.name,
-                        status: rec.workflow_state || '',
-                        creation: rec.creation,
-                        modified: rec.modified,
-                        owner: rec.owner,
-                        doctype: 'Recruitment Adhoc Contractual',
-                        project_type: withOverheadCategory(
-                            resolveProjectCategory(
-                                rec as unknown as Record<string, unknown>,
-                                'Recruitment Adhoc Contractual',
-                                prNameToType,
-                                prNoToType,
-                            ),
-                            rec.upfa_project_code,
-                        ),
-                        projectNo: rec.upfa_project_code || "",
-                    });
-                }
-            });
-        }
-
         return tasks;
-    }, [data, recData, prNameToType, prNoToType]);
+    }, [data]);
 
     const isPendingAccVerification = (task: FlattenedTask) =>
         task.doctype === 'Disbursal of Consultancy'
@@ -593,7 +541,7 @@ const TaskRegistry: React.FC = () => {
                                                     } else if (task.doctype === "Loan Settlement") {
                                                         navigate(`/loan-settlement/${task.id}`);
                                                     } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-                                                        navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
+                                                        navigate(`/task-registry/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                     } else if (task.doctype === "Miscellaneous Commit") {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
@@ -695,7 +643,7 @@ const TaskRegistry: React.FC = () => {
                                                             } else if (task.doctype === "Loan Settlement") {
                                                                 navigate(`/loan-settlement/${task.id}`);
                                                             } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-                                                                navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
+                                                                navigate(`/task-registry/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                             } else if (task.doctype === "Miscellaneous Commit") {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
