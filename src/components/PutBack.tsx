@@ -138,7 +138,9 @@ export const usePutBack = (
                   ...(roleStates ?? []),
               ]),
           ];
-    const states = candidates
+    // Nothing sits below Draft, and until the current state has loaded nothing can be
+    // ranked against it — offer no put back in either case.
+    const states = (!currentState || currentState === "Draft" ? [] : candidates)
         .filter(
             (st) =>
                 !(currentRank >= 0 && rank(st) >= currentRank) &&

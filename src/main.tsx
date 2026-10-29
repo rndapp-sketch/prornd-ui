@@ -76,6 +76,7 @@ import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
 import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
+import ExtensionOrderEditor from './pages/application/ExtensionOrderEditor.tsx';
 import IDCardRequestForm from './pages/application/IDCardRequestForm.tsx';
 import MySalarySlip from './pages/application/MySalarySlip';
 import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
@@ -649,6 +650,15 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="project staff">
                             <MySalarySlip />
+                        </AuthRouteWrapper>
+                    )
+                },
+                // Extension / Re-engagement office order — R&D Staff, from the Task Registry
+                {
+                    path: "project-staff-extension/order/:docname",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ExtensionOrderEditor />
                         </AuthRouteWrapper>
                     )
                 },

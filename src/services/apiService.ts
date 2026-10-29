@@ -74,6 +74,10 @@ export const extensionAPI = {
     getWorkflowActions: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_workflow_actions`,
     performAction: `${API_BASE}.project_staff_extension.project_staff_extension.perform_project_staff_extension_action`,
     previewNewTenure: `${API_BASE}.project_staff_extension.project_staff_extension.preview_new_tenure`,
+    getApplicantTenures: `${API_BASE}.project_staff_extension.project_staff_extension.get_applicant_tenures`,
+    updateApplicantTenures: `${API_BASE}.project_staff_extension.project_staff_extension.update_applicant_tenures`,
+    getExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.get_extension_order`,
+    saveExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.save_extension_order`,
 };
 
 // Temporary Advance API endpoints

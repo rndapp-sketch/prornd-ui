@@ -986,6 +986,17 @@ const PendingTask: React.FC = () => {
                                                         View
                                                     </FrappeButton>
                                                     {isStaffRnD &&
+                                                        task.doctype === "Project Staff Extension" &&
+                                                        task.status === "Approved" && (
+                                                        <FrappeButton
+                                                            variant="action"
+                                                            onClick={() => navigate(`/project-staff-extension/order/${encodeURIComponent(task.id)}`)}
+                                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                        >
+                                                            Generate Ext Order
+                                                        </FrappeButton>
+                                                    )}
+                                                    {isStaffRnD &&
                                                         task.doctype === "Selection Committee Report" &&
                                                         task.status === "Approved" && (
                                                         <FrappeButton
