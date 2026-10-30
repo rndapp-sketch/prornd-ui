@@ -31,6 +31,10 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     },
 
     // ── Direct Link DocTypes (field stores PR `name`) ────────────────────
+    'Acc Head to Head Fund Transfer': {
+        primary:  { type: 'pr_name',       field: 'h2h_proj_code' },
+        fallback: { type: 'pr_project_no', field: 'h2h_proj_num' },
+    },
     'Account Head Payment': {
         primary: { type: 'pr_name', field: 'project_ref_number' },
     },

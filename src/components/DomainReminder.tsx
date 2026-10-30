@@ -17,7 +17,8 @@ export function DomainReminder() {
     const [leaving, setLeaving] = useState(false);
 
     useEffect(() => {
-        if (!isLocalOrIpHost(window.location.hostname)) return;
+        // Never in local dev (yarn dev); only production builds served from a raw IP/localhost.
+        if (import.meta.env.DEV || !isLocalOrIpHost(window.location.hostname)) return;
         // Small delay so the slide-in is noticed after the page paints.
         const t = window.setTimeout(() => setVisible(true), 600);
         return () => window.clearTimeout(t);

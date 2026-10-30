@@ -133,6 +133,8 @@ export const getPendingTaskRoute = (doctype: string, id: string) => {
             return `/loan-request/${id}`;
         case "Loan Settlement":
             return `/loan-settlement/${id}`;
+        case "Acc Head to Head Fund Transfer":
+            return `/head-to-head-transfer/${id}`;
         default:
             return `/pending-tasks/${doctype}/${id}`;
     }
