@@ -177,10 +177,11 @@ const MySalarySlip: React.FC = () => {
     const pTax = num(u.p_tax);
     const travel = num(u.ta);
     const idCard = num(u.id_card_charge);
-    // The staged salary has no dedicated library-fine field yet, so "other deduction" fills that line.
-    const libraryFine = isEmpty(u.library_fine) ? num(u.other_deduction) : num(u.library_fine);
+    // Library fine is its own staged field (0 when absent); every other charge is "other deduction".
+    const libraryFine = num(u.library_fine);
+    const otherDeduction = num(u.other_deduction);
     const electricity = num(u.electricity_bill);
-    const listedDeductions = hostelRent + medicalDed + pTax + travel + idCard + libraryFine + electricity;
+    const listedDeductions = hostelRent + medicalDed + pTax + travel + idCard + libraryFine + otherDeduction + electricity;
     const totalDeduction = isEmpty(u.total_deduction) ? listedDeductions : num(u.total_deduction);
     const netPay = isEmpty(u.net_pay) ? grossPay - totalDeduction : num(u.net_pay);
 
@@ -360,8 +361,8 @@ const MySalarySlip: React.FC = () => {
                                             ["Worked Days this Cycle", <b>{isEmpty(u.working_days) ? "—" : `${u.working_days} / ${daysInMonth} Days`}</b>],
                                         ],
                                         [
-                                            ["Project Number", String(u.project_no ?? staff?.project_no ?? "—")],
                                             ["Bank Account Number", <span className="font-mono">{String(staff?.bank_account_number || "—")}</span>],
+                                            ["Payroll Month", monthLabel(active.ym)],
                                         ],
                                     ] as [string, React.ReactNode][][]).map((pair, i) => (
                                         <tr key={i} className="border-b border-zinc-300 last:border-b-0">
@@ -411,8 +412,9 @@ const MySalarySlip: React.FC = () => {
                                         <AmountRow label="Medical Deductions" value={medicalDed} />
                                         <AmountRow label="Professional Tax (PTAX Assam)" value={pTax} />
                                         <AmountRow label="Travel Allowance" value={travel} />
-                                        <AmountRow label="ID Card" value={idCard} />
+                                        <AmountRow label="ID Card Charges" value={idCard} />
                                         <AmountRow label="Library Fine" value={libraryFine} />
+                                        <AmountRow label="Other Deductions" value={otherDeduction} />
                                         {electricity > 0 && <AmountRow label="Electricity Bill" value={electricity} />}
                                     </tbody>
                                     <tfoot>
