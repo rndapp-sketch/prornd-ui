@@ -3,6 +3,7 @@ import { safeStorage } from "@/lib/safeStorage";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
@@ -3273,9 +3274,9 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                 <SalaryHistoryModal employeeId={historyFor.id} employeeName={historyFor.name} onClose={() => setHistoryFor(null)} />
             )}
 
-            {/* Salary Slip Modal Component */}
-            {selectedSlipRecord && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+            {/* Salary Slip Modal Component — portalled to <body> so printing can drop the rest of the page entirely */}
+            {selectedSlipRecord && createPortal(
+                <div id="payslip-print-root" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
                     <div className="relative my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757] print:hidden" />
                         {/* Control header bar - hidden during print */}
@@ -3304,258 +3305,193 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                         </div>
 
                         {/* Printable Area */}
-                        <div id="print-payslip-area" className="overflow-y-auto bg-white p-8 font-sans text-zinc-900 md:p-12 print:m-0 print:overflow-visible print:p-0">
+                        <div id="print-payslip-area" className="overflow-y-auto bg-white p-5 font-sans text-zinc-900 md:p-6 print:m-0 print:overflow-visible print:p-0">
                             {/* CSS Rules inside the printable element to enforce styles */}
                             <style>{`
+                                @page { size: A4 portrait; margin: 10mm; }
                                 @media print {
-                                    /* Hide all page content during print */
-                                    body * {
-                                        visibility: hidden;
+                                    /* Remove everything except the slip from the layout (display:none, not visibility,
+                                       otherwise the hidden register table still produces dozens of blank pages) */
+                                    body > *:not(#payslip-print-root) {
+                                        display: none !important;
                                     }
-                                    
-                                    /* Keep only the print payslip area and its descendants visible */
-                                    #print-payslip-area, #print-payslip-area * {
-                                        visibility: visible !important;
-                                    }
-                                    
-                                    /* Force parent layouts to be visible and un-clipped */
-                                    #root, 
-                                    .fixed, 
-                                    .relative, 
-                                    .overflow-hidden, 
-                                    .backdrop-blur-sm,
-                                    body, 
-                                    html {
-                                        visibility: visible !important;
-                                        overflow: visible !important;
-                                        position: static !important;
+                                    html, body {
                                         height: auto !important;
-                                        min-height: auto !important;
+                                        overflow: visible !important;
+                                        background: #fff !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                    }
+                                    /* Unclip the modal wrappers so the slip flows onto the page normally */
+                                    #payslip-print-root,
+                                    #payslip-print-root > div {
+                                        position: static !important;
+                                        display: block !important;
+                                        max-height: none !important;
+                                        height: auto !important;
+                                        overflow: visible !important;
                                         margin: 0 !important;
                                         padding: 0 !important;
                                         background: transparent !important;
-                                        box-shadow: none !important;
                                         border: none !important;
+                                        box-shadow: none !important;
                                         transform: none !important;
                                         animation: none !important;
                                         backdrop-filter: none !important;
                                     }
-                                    
-                                    /* Style the print container to cover the full A4 page perfectly */
                                     #print-payslip-area {
-                                        position: absolute !important;
-                                        left: 0 !important;
-                                        top: 0 !important;
+                                        position: static !important;
+                                        overflow: visible !important;
                                         width: 100% !important;
-                                        padding: 30px !important;
                                         margin: 0 !important;
-                                        background: white !important;
-                                        color: black !important;
-                                        border: none !important;
+                                        padding: 0 !important;
+                                        background: #fff !important;
+                                        color: #000 !important;
                                         -webkit-print-color-adjust: exact !important;
                                         print-color-adjust: exact !important;
+                                        break-inside: avoid;
+                                        page-break-inside: avoid;
                                     }
-                                    
                                     .dark #print-payslip-area {
-                                        background: white !important;
-                                        color: black !important;
+                                        background: #fff !important;
+                                        color: #000 !important;
                                     }
                                 }
                             `}</style>
 
-                            {/* Organization Header */}
-                            <div className="text-center space-y-2 pb-6 border-b-2 border-zinc-800">
-                                <div className="flex justify-center items-center gap-4 mb-2">
-                                    <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IITG Logo" className="w-14 h-14 object-contain" />
-                                    <div className="text-left">
-                                        <h2 className="text-xl md:text-2xl font-serif font-bold tracking-tight text-zinc-950 uppercase">Indian Institute of Technology Guwahati</h2>
-                                        <h3 className="text-sm font-semibold tracking-wide text-zinc-700 uppercase">Research & Development (R&D) Cell</h3>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 bg-zinc-100 py-1.5 px-4 rounded-full inline-block">
-                                    Salary Statement for {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
-                                </p>
-                            </div>
-
-                            {/* Metadata / Employee Details Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 py-6 text-sm border-b border-zinc-200">
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Employee Name:</span>
-                                    <span className="font-bold text-zinc-950">{selectedSlipRecord.first_name}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Employee ID:</span>
-                                    <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.employee_id}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Department:</span>
-                                    <span className="font-semibold text-zinc-900">
-                                        {selectedSlipRecord.department && selectedSlipRecord.department !== "—" ? (
-                                            <DepartmentName name={selectedSlipRecord.department} />
-                                        ) : (
-                                            "—"
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Designation / Role:</span>
-                                    <span className="font-semibold text-zinc-900">{selectedSlipRecord.designation}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Joining Date:</span>
-                                    <span className="font-medium text-zinc-900">{fmtDate(selectedSlipRecord.joining_date)}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Worked Days this Cycle:</span>
-                                    <span className="font-bold text-zinc-950">
-                                        {calcWorkingDaysForPeriod(selectedSlipRecord.service_start_date || selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth)} / {daysInMonth} Days
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Project Number:</span>
-                                    <span className="font-semibold text-zinc-900">{selectedSlipRecord.project_no || "—"}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Scheme:</span>
-                                    <span className="font-semibold text-violet-700">
-                                        {(() => {
-                                            const pNo = (selectedSlipRecord.project_no || "").trim();
-                                            return pNo && schemeMap[pNo] ? schemeMap[pNo].trim() : "—";
-                                        })()}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Bank Account Number:</span>
-                                    <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.bank_account_number || "—"}</span>
-                                </div>
-                            </div>
-
-                            {/* Earnings & Deductions Double Column Table */}
                             {(() => {
-                                const { inputs, currentHRA } = getRowInputs(selectedSlipRecord.docName);
-                                const workingDays = calcWorkingDaysForPeriod(selectedSlipRecord.service_start_date || selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth);
+                                const rec = selectedSlipRecord;
+                                const { inputs, currentHRA } = getRowInputs(rec.docName);
+                                const workingDays = calcWorkingDaysForPeriod(rec.service_start_date || rec.joining_date, rec.term_completion_date, selectedYear, selectedMonth);
                                 const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
                                 const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
-                                const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
+                                const proRataMedical = Math.round((rec.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                                 const pTax = ptaxOf(inputs, grossPay);
                                 const hraDed = inputs.hraDeduction;
                                 const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;
 
+                                const earnings: [string, number][] = [
+                                    ["Pro-Rata Basic Salary", proRataBasic],
+                                    ["House Rent Allowance (HRA)", proRataHRA],
+                                    ["Medical Allowance", proRataMedical],
+                                    ["Arrear", inputs.arrear],
+                                ];
+                                const deductions: [string, number][] = [
+                                    ["Hostel Rent / Campus Accommodation", hraDed],
+                                    ["Medical Deductions", inputs.medicalDeduction],
+                                    ["Professional Tax (PTAX Assam)", pTax],
+                                    ["Travel Allowance", inputs.ta],
+                                    ["ID Card Charges", inputs.idCardCharge],
+                                    ["Library Fine", 0],
+                                    ["Electricity Bill", inputs.electricityBill],
+                                    ["Other Deductions", inputs.otherDeduction],
+                                ];
+                                const rowCount = Math.max(earnings.length, deductions.length);
+                                const info: [string, React.ReactNode][][] = [
+                                    [["Employee Name", <b key="n">{rec.first_name}</b>], ["Employee ID", <b key="i" className="font-mono">{rec.employee_id}</b>]],
+                                    [["Department", rec.department && rec.department !== "—" ? <DepartmentName name={rec.department} /> : "—"], ["Designation / Role", rec.designation || "—"]],
+                                    [["Joining Date", fmtDate(rec.joining_date)], ["Worked Days", <b key="w">{workingDays} / {daysInMonth} Days</b>]],
+                                    [["Bank Account Number", <span key="b" className="font-mono">{rec.bank_account_number || "—"}</span>], ["Payroll Month", `${MONTHS.find(m => m.value === selectedMonth)?.label} ${selectedYear}`]],
+                                ];
+
                                 return (
-                                    <div className="mt-6 space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 border border-zinc-300 rounded-xl overflow-hidden divide-y md:divide-y-0 md:divide-x divide-zinc-300">
-                                            {/* Earnings Column */}
-                                            <div className="flex flex-col h-full bg-emerald-50/5">
-                                                <div className="bg-emerald-50 py-2.5 px-4 font-bold border-b border-zinc-300 text-emerald-800 text-sm tracking-wider uppercase">
-                                                    Earnings Breakdown
-                                                </div>
-                                                <div className="p-4 flex-1 space-y-2 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Pro-Rata Basic Salary:</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(proRataBasic)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">House Rent Allowance (HRA):</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(proRataHRA)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Medical Allowance:</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(proRataMedical)}</span>
-                                                    </div>
-                                                    {inputs.arrear > 0 && (
-                                                        <div className="flex justify-between font-medium text-orange-600">
-                                                            <span>Arrear Payout adjustments:</span>
-                                                            <span className="font-bold tabular-nums">+{fmt(inputs.arrear)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="mt-auto bg-emerald-50/40 border-t border-zinc-200 p-4 py-3 flex justify-between font-bold text-emerald-800 text-sm">
-                                                    <span>Gross Earnings Total:</span>
-                                                    <span className="tabular-nums">{fmt(grossPay)}</span>
-                                                </div>
+                                    <div className="text-[12px] leading-snug">
+                                        {/* Letterhead */}
+                                        <div className="flex items-center gap-3 border-b-2 border-zinc-800 pb-2">
+                                            <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IITG Logo" className="h-12 w-12 shrink-0 object-contain" />
+                                            <div className="flex-1 text-center">
+                                                <h2 className="font-serif text-base font-bold uppercase tracking-wide text-zinc-950">Indian Institute of Technology Guwahati</h2>
+                                                <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-700">Research & Development (R&D) Cell</h3>
                                             </div>
+                                            <div className="h-12 w-12 shrink-0" aria-hidden />
+                                        </div>
 
-                                            {/* Deductions Column */}
-                                            <div className="flex flex-col h-full bg-red-50/5">
-                                                <div className="bg-red-50 py-2.5 px-4 font-bold border-b border-zinc-300 text-red-800 text-sm tracking-wider uppercase">
-                                                    Deductions & Deductibles
-                                                </div>
-                                                <div className="p-4 flex-1 space-y-2 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Hostel Rent / Campus Accommodation:</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(hraDed)}</span>
-                                                    </div>
-                                                    {inputs.medicalDeduction > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Medical Deductions:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.medicalDeduction)}</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Professional Tax (PTAX Assam):</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(pTax)}</span>
-                                                    </div>
-                                                    {inputs.ta > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Travel/TA Adjustments:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.ta)}</span>
-                                                        </div>
-                                                    )}
-                                                    {inputs.idCardCharge > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">ID Card Charges:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.idCardCharge)}</span>
-                                                        </div>
-                                                    )}
-                                                    {inputs.electricityBill > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Electricity Bill:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.electricityBill)}</span>
-                                                        </div>
-                                                    )}
-                                                    {inputs.otherDeduction > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Other Deductions:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.otherDeduction)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="mt-auto bg-red-50/40 border-t border-zinc-200 p-4 py-3 flex justify-between font-bold text-red-800 text-sm">
-                                                    <span>Total Deductions:</span>
-                                                    <span className="tabular-nums">{fmt(totalDed)}</span>
-                                                </div>
+                                        {/* Title */}
+                                        <div className="mt-2 grid grid-cols-3 items-center border-b border-zinc-800 pb-1.5">
+                                            <span aria-hidden />
+                                            <span className="text-center text-[13px] font-bold uppercase tracking-[0.2em]">Salary Slip</span>
+                                            <span className="text-right text-[12px] font-semibold uppercase tracking-wider">
+                                                {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
+                                            </span>
+                                        </div>
+
+                                        {/* Employee details */}
+                                        <table className="mt-2 w-full border-collapse border border-zinc-300">
+                                            <tbody>
+                                                {info.map((pair, i) => (
+                                                    <tr key={i} className="border-b border-zinc-300 last:border-b-0">
+                                                        {pair.map(([k, v]) => (
+                                                            <React.Fragment key={k}>
+                                                                <td className="w-[19%] border-r border-zinc-300 px-2 py-1 font-medium text-zinc-600">{k}</td>
+                                                                <td className="w-[31%] border-r border-zinc-300 px-2 py-1 last:border-r-0">{v}</td>
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+
+                                        {/* Earnings | Deductions side by side */}
+                                        <table className="mt-2 w-full border-collapse border border-zinc-400">
+                                            <thead>
+                                                <tr className="border-b border-zinc-400 bg-zinc-100" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+                                                    <th className="w-[32%] px-2 py-1 text-left text-[10.5px] font-bold uppercase tracking-wider">Earnings</th>
+                                                    <th className="w-[18%] border-r border-zinc-400 px-2 py-1 text-right text-[10.5px] font-bold uppercase tracking-wider">Amount (₹)</th>
+                                                    <th className="w-[32%] px-2 py-1 text-left text-[10.5px] font-bold uppercase tracking-wider">Deductions &amp; Deductibles</th>
+                                                    <th className="w-[18%] px-2 py-1 text-right text-[10.5px] font-bold uppercase tracking-wider">Amount (₹)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Array.from({ length: rowCount }).map((_, i) => (
+                                                    <tr key={i} className="border-b border-zinc-200">
+                                                        <td className="px-2 py-1">{earnings[i]?.[0] ?? "\u00a0"}</td>
+                                                        <td className="border-r border-zinc-400 px-2 py-1 text-right tabular-nums">{earnings[i] ? fmt(earnings[i][1]) : ""}</td>
+                                                        <td className="px-2 py-1">{deductions[i]?.[0] ?? "\u00a0"}</td>
+                                                        <td className="px-2 py-1 text-right tabular-nums">{deductions[i] ? fmt(deductions[i][1]) : ""}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="border-t border-zinc-500 font-bold">
+                                                    <td className="px-2 py-1.5">Gross Earnings Total</td>
+                                                    <td className="border-r border-zinc-400 px-2 py-1.5 text-right tabular-nums">{fmt(grossPay)}</td>
+                                                    <td className="px-2 py-1.5">Total Deductions</td>
+                                                    <td className="px-2 py-1.5 text-right tabular-nums">{fmt(totalDed)}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+
+                                        {/* Net pay */}
+                                        <div className="mt-2 flex items-center justify-between gap-3 border border-zinc-800 px-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Net Pay Credited to Account</p>
+                                                <p className="text-[11.5px] font-semibold italic text-zinc-700">In Words: {numToWords(netPay)}</p>
+                                            </div>
+                                            <div className="shrink-0 text-right">
+                                                <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500">Net Disbursed</span>
+                                                <span className="font-serif text-lg font-black tabular-nums tracking-tight text-zinc-950">{fmt(netPay)}</span>
                                             </div>
                                         </div>
 
-                                        {/* Payout Totals Bar */}
-                                        <div className="p-6 bg-zinc-100 rounded-xl border border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Net Pay Credited to Account</p>
-                                                <p className="text-sm font-semibold text-zinc-700 italic">In Words: {numToWords(netPay)}</p>
-                                            </div>
-                                            <div className="text-center sm:text-right shrink-0">
-                                                <span className="text-xs font-bold text-zinc-400 block uppercase">Net Disbursed</span>
-                                                <span className="text-2xl font-black font-serif text-zinc-950 tabular-nums tracking-tight">{fmt(netPay)}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Comments Box if any */}
                                         {(inputs.comment || inputs.remarks) && (
-                                            <div className="p-4 border border-dashed border-zinc-300 rounded-lg text-xs text-zinc-500 space-y-1">
+                                            <div className="mt-2 space-y-0.5 border border-dashed border-zinc-300 px-2 py-1.5 text-[11px] text-zinc-600">
                                                 {inputs.comment && <p><span className="font-bold">Comment Note:</span> {inputs.comment}</p>}
                                                 {inputs.remarks && <p><span className="font-bold">Remarks:</span> {inputs.remarks}</p>}
                                             </div>
                                         )}
 
-
+                                        <p className="mt-3 border-t border-zinc-300 pt-1.5 text-[10px] text-zinc-500">
+                                            This is a computer-generated salary statement and does not require a signature.
+                                        </p>
                                     </div>
                                 );
                             })()}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
 
             {/* ── Scheme-wise BMR Entry Modal ── */}
