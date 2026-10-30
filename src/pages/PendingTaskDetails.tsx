@@ -1280,7 +1280,23 @@ const RecruitmentAdhocContractualWorkflowActions = ({
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action: selectedAction, comment });
+            const res: any = await performAction({ docname, action: selectedAction, comment });
+            if (res?.message?.status && res.message.status !== "success") {
+                alert(res.message.message || `Action "${selectedAction}" failed`);
+                return;
+            }
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Recruitment Adhoc Contractual",
+                        docname,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
+            clearActivityLogCache("Recruitment Adhoc Contractual", docname);
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
