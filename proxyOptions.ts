@@ -49,8 +49,8 @@ const env = loadEnv(mode, process.cwd(), "VITE_");
 // v0.08 env files stopped setting the variable - submitted applications landed
 // in Live. Keep any per-server value in that server's env file, not here.
 const APP_BACKEND_HOST = env.VITE_APP_BACKEND_HOST || "127.0.0.1";
-const LEDGER_HOST = env.VITE_LEDGER_HOST || "172.16.135.27";
-const LEDGER_PORT = env.VITE_LEDGER_PORT || "18083";
+const LEDGER_HOST = env.VITE_LEDGER_HOST || "172.16.134.81";
+const LEDGER_PORT = env.VITE_LEDGER_PORT || "18080";
 const MINIO_HOST = env.VITE_MINIO_HOST || "172.16.135.118";
 const MINIO_PORT = env.VITE_MINIO_PORT || "9000";
 const APPWRITE_HOST = env.VITE_APPWRITE_HOST || "172.16.134.179";
