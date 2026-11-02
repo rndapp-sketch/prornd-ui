@@ -43,6 +43,7 @@ const taskRoute = (doctype: string, id: string) => {
   if (doctype === "Project Staff Details") return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
   if (doctype === "Miscellaneous Commit") return `/miscellaneous-commit/${id}`;
   if (doctype === "Loan Request") return `/loan-request/${id}`;
+  if (doctype === "UC Request") return `/uc-request/${id}`;
   return `/pending-tasks/${doctype}/${id}`;
 };
 

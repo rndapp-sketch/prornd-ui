@@ -29,6 +29,7 @@ import FundDetails from "../components/FundDetails";
 import {
     ArrowLeftIcon,
     ArrowLeftRight,
+    FileCheck2,
     FileTextIcon,
     UsersIcon,
     IndianRupeeIcon,
@@ -87,7 +88,9 @@ import {
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "../components/UserRole";
 import { awaitingLabel } from "@/utils/cancellationLabels";
+import { loanSettlementAPI } from "@/services/apiService";
 import { OVERHEAD_BUDGET_HEAD, OVERHEAD_BUDGET_HEAD_ID, fetchOverheadLedger } from "@/services/overheadLedger";
+import { UC_REQUEST_ENABLED } from "@/config/features";
 
 // --- Ledger Interfaces ---
 interface LedgerTransaction {
@@ -798,6 +801,86 @@ const ScrModal = ({
     );
 };
 
+// --- LOAN SETTLEMENT STATUS ---------------------------------------------------
+// An approved Loan Request carries a second status: where its repayment stands.
+// Two sources, because neither is complete on its own:
+//   - Loan Settlement docs (Frappe) — a settlement still being processed, and its stage;
+//   - the Accounts service's open loans — whether anything is still outstanding.
+// When neither can say for sure, no settlement status is shown rather than a guess.
+
+type LoanSettlementStatus = "Unsettled" | "Settlement Submitted" | "Partially Settled" | "Settled";
+
+const LOAN_SETTLEMENT_BADGE: Record<LoanSettlementStatus, string> = {
+    Unsettled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+    "Settlement Submitted": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    "Partially Settled": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+    Settled: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+};
+
+const attachLoanSettlementStatus = async (loans: any[], projectNumber: string) => {
+    const approved = loans.filter((l) => l.workflow_state === "Approved");
+    if (!approved.length) return loans;
+
+    const getJson = (url: string) =>
+        fetch(url, { credentials: "include", headers: { Accept: "application/json" } }).then((r) =>
+            r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+        );
+
+    const [settlementsRes, openLoansRes] = await Promise.allSettled([
+        getJson(
+            `${FRAPPE_BASE_URL}/api/resource/Loan%20Settlement?fields=${encodeURIComponent(
+                JSON.stringify(["name", "loan_reference", "settlement_type", "workflow_state", "fund_received_reference"]),
+            )}&filters=${encodeURIComponent(
+                JSON.stringify([["loan_reference", "in", approved.map((l) => l.name)]]),
+            )}&limit_page_length=0`,
+        ),
+        getJson(
+            `${FRAPPE_BASE_URL}/api/method/${loanSettlementAPI.getActiveLoansForProject}?project_name=${encodeURIComponent(projectNumber)}`,
+        ),
+    ]);
+
+    const settlements: any[] =
+        settlementsRes.status === "fulfilled" ? settlementsRes.value?.data ?? [] : [];
+    const openLoans: any[] | null =
+        openLoansRes.status === "fulfilled" ? openLoansRes.value?.message?.data ?? [] : null;
+
+    return loans.map((loan) => {
+        if (loan.workflow_state !== "Approved") return loan;
+
+        const mine = settlements.filter(
+            (s) => s.loan_reference === loan.name && s.workflow_state !== "Rejected",
+        );
+        // Unlinked drafts are leftovers of the old modal flow, never part of a receipt.
+        const inProgress = mine.find(
+            (s) => s.workflow_state === "Pending Staff Processing" && s.fund_received_reference,
+        );
+        const processed = mine.filter((s) => s.workflow_state === "Processed");
+        const open = openLoans?.find((o) => o.loan_reference === loan.name);
+
+        let status: LoanSettlementStatus | null = null;
+        if (inProgress) {
+            status = "Settlement Submitted";
+        } else if (open) {
+            status =
+                open.loan_status === "PARTIALLY_SETTLED" || processed.length > 0
+                    ? "Partially Settled"
+                    : "Unsettled";
+        } else if (processed.some((s) => s.settlement_type === "Full")) {
+            status = "Settled";
+        } else if (openLoans && processed.length > 0) {
+            // Accounts no longer lists it as open, and repayments were made through here.
+            status = "Settled";
+        }
+
+        return {
+            ...loan,
+            loan_settlement_status: status,
+            loan_settlement_stage: inProgress?.workflow_state ?? null,
+            loan_outstanding: open?.outstanding_amount ?? null,
+        };
+    });
+};
+
 // --- START: REFACTORED QuickActions COMPONENT ---
 
 interface QuickActionsProps {
@@ -1133,14 +1216,17 @@ const QuickActions = ({
         }
     };
 
-    // Lock all groups except Loan and Recruitment when project has no available fund balance
+    // Lock all groups except Loan, Recruitment and UC Request when project has no available
+    // fund balance — a UC is typically raised exactly when the fund is used up.
     const isModuleLocked = !hasFunds;
     // A PDF project has no Loan tab (loans aren't possible against a personal fund), so
     // it must not be offered as an unlocked group or used as the locked-state fallback.
-    const unlockedGroups = isOverheadProject ? ["Recruitment"] : ["Loan", "Recruitment"];
+    const unlockedGroups = isOverheadProject
+        ? ["Recruitment", "UC Request"]
+        : ["Loan", "Recruitment", "UC Request"];
     const unlockedApplications = isOverheadProject
-        ? ["Adhoc/Contractual"]
-        : ["Loan Request", "Adhoc/Contractual"];
+        ? ["Adhoc/Contractual", "UC Request"]
+        : ["Loan Request", "Adhoc/Contractual", "UC Request"];
     // Where to send the user when everything is locked. Falling back to "Loan" on a PDF
     // project would select a tab that doesn't exist, leaving a blank screen with no route
     // back — and a PDF project does reach the locked state once its fund is spent down.
@@ -1202,6 +1288,9 @@ const QuickActions = ({
         ...(isOverheadProject
             ? []
             : [{ title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] }]),
+        ...(UC_REQUEST_ENABLED
+            ? [{ title: "UC Request", icon: FileCheck2, items: ["UC Request"] }]
+            : []),
         {
             title: "Head to Head Transfer",
             icon: ArrowLeftRight,
@@ -1895,13 +1984,40 @@ const QuickActions = ({
                                         ? "Cancelled"
                                         : "Draft"),
                         }));
+                    data = await attachLoanSettlementStatus(data, projectNo || projectName);
+                } catch (fetchError) {
+                    data = [];
+                }
+            } else if (selectedApplication === "UC Request") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/UC%20Request?fields=["name","creation","workflow_state","docstatus","owner","project_id","project_no","uc_type"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+                    const result = await fetchResponse.json();
+                    data = (result?.data || [])
+                        .filter((item: any) =>
+                            item.project_id === projectName ||
+                            item.project_id === projectNo ||
+                            item.project_no === projectNo,
+                        )
+                        .map((item: any) => ({
+                        ...item,
+                        applicant_webmail: item.owner,
+                        workflow_state: item.workflow_state || "Draft",
+                    }));
                 } catch (fetchError) {
                     data = [];
                 }
             } else if (selectedApplication === "Head to Head Transfer") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/v2/document/Acc%20Head%20to%20Head%20Fund%20Transfer?fields=["name","creation","workflow_state","docstatus","owner","h2h_app_webmail","h2h_proj_code","h2h_proj_num","h2h_transfer_from","h2h_transfer_to","h2h_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Acc%20Head%20to%20Head%20Fund%20Transfer?fields=["name","creation","workflow_state","docstatus","owner","h2h_app_webmail","h2h_proj_code","h2h_proj_num","h2h_transfer_from","h2h_transfer_to","h2h_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -2092,6 +2208,10 @@ const QuickActions = ({
                 onNavigate(
                     `/loan-request?project=${projectParam}&projectTitle=${encodeURIComponent(projectTitle || "")}`,
                 );
+                break;
+            case "UC Request":
+                // project_id links to the Project Registration doc name.
+                onNavigate(`/uc-request?project=${projectName}`);
                 break;
             case "Project Staff Resignation":
                 onNavigate(
@@ -2362,6 +2482,26 @@ const QuickActions = ({
                                                             </span>
                                                         );
                                                     })()}
+                                                    {selectedApplication === "Loan Request" &&
+                                                        item.loan_settlement_status && (
+                                                            <span
+                                                                className={cn(
+                                                                    "inline-flex w-fit px-2 py-1 text-xs font-medium rounded-full",
+                                                                    LOAN_SETTLEMENT_BADGE[
+                                                                        item.loan_settlement_status as LoanSettlementStatus
+                                                                    ],
+                                                                )}
+                                                                title={
+                                                                    item.loan_outstanding != null
+                                                                        ? `Outstanding: ₹${Number(item.loan_outstanding).toLocaleString("en-IN")}`
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                {item.loan_settlement_status}
+                                                                {item.loan_settlement_stage &&
+                                                                    ` · ${item.loan_settlement_stage}`}
+                                                            </span>
+                                                        )}
                                                     {/* Show linked TA/DA Settlement status for Travel Apply rows */}
                                                     {selectedApplication ===
                                                         "Travel" &&
@@ -2497,6 +2637,11 @@ const QuickActions = ({
                                                                         `/loan-request/${item.name}`,
                                                                     );
                                                                     break;
+                                                                case "UC Request":
+                                                                    onNavigate(
+                                                                        `/uc-request/${item.name}`,
+                                                                    );
+                                                                    break;
                                                                 case "Miscellaneous Commit":
                                                                     onNavigate(
                                                                         `/miscellaneous-commit/${item.name}`,
@@ -2552,6 +2697,24 @@ const QuickActions = ({
                                                     >
                                                         View
                                                     </button>
+                                                    {/* Settles from a new Fund Received, with this loan pre-selected. */}
+                                                    {selectedApplication === "Loan Request" &&
+                                                        hasSanction &&
+                                                        (item.loan_settlement_status === "Unsettled" ||
+                                                            item.loan_settlement_status === "Partially Settled") && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    onNavigate(
+                                                                        `/add-fund-received/${projectName}/?project_no=${encodeURIComponent(projectNo || "")}&settle_loan=${encodeURIComponent(item.name)}`,
+                                                                    )
+                                                                }
+                                                                className="inline-flex items-center rounded-md border border-[#D97757]/50 bg-[#FFF7ED] px-2.5 py-1 text-xs font-semibold text-[#9A3412] hover:bg-[#D97757] hover:text-white dark:bg-[#D97757]/10 dark:text-[#F7B79B] transition-colors whitespace-nowrap"
+                                                                title="Record a Fund Received that settles this loan"
+                                                            >
+                                                                Settle
+                                                            </button>
+                                                        )}
                                                     {selectedApplication ===
                                                         "Indent cum Sanction" &&
                                                         item.signed_po_file_url && (

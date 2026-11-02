@@ -55,7 +55,7 @@ function buildFundBreakupTable(fundBreakupRows: any[]): string {
 }
 
 /** Extract activity log rows from the floating activity log DOM element */
-function buildActivityLog(activityEl: HTMLElement | null): { html: string; count: number } {
+export function buildActivityLog(activityEl: HTMLElement | null): { html: string; count: number } {
     let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
     let activityCount = 0;
 
