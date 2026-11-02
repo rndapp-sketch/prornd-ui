@@ -5,6 +5,14 @@
 
 const API_BASE = 'rndopsapp.rndopsapp.doctype';
 
+// Ledger Notes API endpoints (save/delete are restricted to the "staff, RnD" role on the server)
+const LEDGER_NOTES_BASE = 'rndopsapp.rndopsapp.ledger_notes_api';
+export const ledgerNotesAPI = {
+    list: `${LEDGER_NOTES_BASE}.get_ledger_notes`,
+    save: `${LEDGER_NOTES_BASE}.save_ledger_note`,
+    remove: `${LEDGER_NOTES_BASE}.delete_ledger_note`,
+};
+
 // Rate Contract API endpoints
 export const rateContractAPI = {
     getFields: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_fields`,

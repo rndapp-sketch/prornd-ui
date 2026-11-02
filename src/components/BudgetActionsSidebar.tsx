@@ -1,10 +1,8 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFrappeAuth } from 'frappe-react-sdk';
-import { PaymentModal } from './PaymentModal';
-import { ProjectLedgerModal, type BudgetEntry } from './ProjectLedgerModal';
-import { FrappeButton } from '@/components/ui/neo-brutalism';
-import { CreditCardIcon, CheckCircle2 } from 'lucide-react';
+import { ProjectLedgerModal } from './ProjectLedgerModal';
+import { CheckCircle2 } from 'lucide-react';
 import { useUserRoles } from './UserRole';
 import { CommitPayment } from './CommitPayment';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
@@ -21,10 +19,10 @@ interface BudgetActionsSidebarProps {
     billAmount?: number;
     /** Callback to notify parent of Kafka staging status, used to gate workflow actions */
     onStagingStatusChange?: (isCommitted: boolean) => void;
-    /** Hide the Record Payment widget (default: true) */
-    showPayment?: boolean;
     /** Budget Head label to pre-select in "Make a Commitment" when it exists in the fetched budget head list (e.g. the resolved "Account Head from Travel" on a TA DA Settlement) */
     defaultBudgetHead?: string;
+    /** When set, new commitments are blocked and this message is shown instead of the form */
+    commitBlockedReason?: string;
     /** Optional helper note shown under the "Make a Commitment" title (e.g. clarifying what the pre-filled amount represents) */
     commitAmountNote?: string;
     /** Include bill_amount (equal to the entered commitment amount) in the Kafka commit payload — e.g. required for TA DA Settlement */
@@ -39,8 +37,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     parentAppId,
     billAmount,
     onStagingStatusChange,
-    showPayment = true,
     defaultBudgetHead,
+    commitBlockedReason,
     commitAmountNote,
     includeBillAmount = false,
 }) => {
@@ -53,9 +51,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         r === "System Manager" || r === "staff, RnD"
     );
 
-    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
-    const [initialPaymentData, setInitialPaymentData] = useState<any>(null);
 
     const [commitSuccess, setCommitSuccess] = useState<{ amount: number; head: string } | null>(null);
 
@@ -146,37 +142,12 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     billAmount={billAmount}
                     parentAppId={parentAppId}
                     defaultBudgetHead={defaultBudgetHead}
+                    blockedReason={commitBlockedReason}
                     description={commitAmountNote}
                     includeBillAmount={includeBillAmount}
                     onCommitSuccess={(head, amount) => setCommitSuccess({ head, amount })}
                     onStagingStatusChange={onStagingStatusChange}
                 />
-
-            {/* Payment Widget */}
-            {showPayment && (
-                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                    <h3 className="frappe-widget-title mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Record Payment</h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Process payment for this project directly.</p>
-                    <FrappeButton
-                        onClick={() => {
-                            setInitialPaymentData(null);
-                            setIsPaymentOpen(true);
-                        }}
-                        className="w-full flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                    >
-                        <CreditCardIcon className="w-4 h-4" />
-                        Record Payment
-                    </FrappeButton>
-                </div>
-            )}
-
-            <PaymentModal
-                isOpen={isPaymentOpen}
-                onClose={() => setIsPaymentOpen(false)}
-                projectName={projectName}
-                budgetHeadList={budgetHeadList}
-                initialData={initialPaymentData}
-            />
 
             <ProjectLedgerModal
                 isOpen={isLedgerOpen}
@@ -184,24 +155,6 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                 projectName={projectName}
                 budgetHeadList={budgetHeadList}
                 manualCommitments={[]}
-                onPaymentClick={(row: BudgetEntry) => {
-                    // Logic to open payment modal from ledger
-                    // Map row data to payment form prefill
-                    const accountHeadValue = budgetHeadList.find(bh =>
-                        bh.name.toLowerCase() === (row.head || row.accountHead || '').toLowerCase()
-                    );
-
-                    setInitialPaymentData({
-                        payment_amount: row.committed || 0,
-                        budget_head: accountHeadValue?.name || row.head || '',
-                        payment_bmr: row.bmr || '',
-                        payment_particular: (row.particulars || '').slice(0, 140),
-                        commit_id: row.transactionId || ''
-                    });
-                    setIsPaymentOpen(true);
-                    // Optionally close ledger or keep it open?
-                    // ProjectDetails keeps it open I think.
-                }}
             />
         </div>
     );

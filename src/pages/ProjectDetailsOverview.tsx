@@ -11,6 +11,8 @@ import React, {
     useMemo,
 } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import LedgerNotesModal from "@/components/LedgerNotesModal";
+import type { NoteReference } from "@/components/LedgerNotesEditor";
 
 import { createPortal } from "react-dom";
 import {
@@ -57,6 +59,7 @@ import {
     Settings,
     FileSpreadsheet as LedgerIcon,
     ExternalLinkIcon,
+    NotebookPen,
     ChevronRight,
     Plus,
     X,
@@ -3376,6 +3379,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     >([]);
     const [isLedgerLoading, setIsLedgerLoading] = useState(false);
     const [ledgerError, setLedgerError] = useState<string | null>(null);
+    const [isLedgerNotesOpen, setIsLedgerNotesOpen] = useState(false);
+    const [noteReference, setNoteReference] = useState<NoteReference | null>(null);
     const [ledgerSortOrder, setLedgerSortOrder] = useState<"newest" | "oldest">(
         "oldest",
     );
@@ -7118,6 +7123,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             {/* --- LEDGER TAB CONTENT --- */}
                             {activeTab === "ledger" && (
                                 <div className="space-y-6">
+                                    <LedgerNotesModal
+                                        isOpen={isLedgerNotesOpen}
+                                        onClose={() => setIsLedgerNotesOpen(false)}
+                                        projectName={data?.project_no || projectName}
+                                        reference={noteReference}
+                                    />
                                     {/* Ledger Head Tabs */}
                                     {/* Ledger Head Tabs and Actions */}
                                     <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-3 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 min-w-0">
@@ -7176,6 +7187,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                 {ledgerSortOrder === "newest"
                                                     ? "Newest"
                                                     : "Oldest"}
+                                            </button>
+                                            <button
+                                                onClick={() => { setNoteReference(null); setIsLedgerNotesOpen((o) => !o); }}
+                                                className="inline-flex items-center gap-1.5 px-3 h-9 text-[12px] font-bold rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#71717A] dark:text-[#A1A1AA] hover:text-[#D97757] transition-colors"
+                                                title="Open Notes"
+                                            >
+                                                <NotebookPen className="w-3.5 h-3.5" />
+                                                Notes
                                             </button>
                                             <Button
                                                 variant="outline"
@@ -7248,7 +7267,21 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         key={`${txn.transactionId}-${idx}`}
                                                         className="grid grid-cols-2 xl:grid-cols-[repeat(11,minmax(0,1fr))] items-center border-x border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] min-w-0"
                                                     >
-                                                        <div className="min-w-0 px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                        <div
+                                                            title="Click to add a note for this transaction"
+                                                            onClick={() => {
+                                                                if (window.getSelection()?.toString()) return;
+                                                                const amount = txn.paymentAmount || txn.commitAmount || txn.fundReceivedAmount;
+                                                                const summary = [
+                                                                    txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString("en-IN") : "",
+                                                                    txn.particulars,
+                                                                    amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "",
+                                                                ].filter(Boolean).join(" · ");
+                                                                setNoteReference({ key: Date.now(), tid: txn.transactionId, summary });
+                                                                setIsLedgerNotesOpen(true);
+                                                            }}
+                                                            className="min-w-0 px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:bg-[#EEF2FF] dark:hover:bg-blue-950/20"
+                                                        >
                                                             <div className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString("en-IN") : "-"}</div>
                                                             <div className="text-[10px] font-semibold text-[#A1A1AA] break-words leading-tight">TID {txn.transactionId || "-"}</div>
                                                         </div>

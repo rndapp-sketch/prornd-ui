@@ -1,4 +1,5 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { useCancellationFrozen } from "@/components/CancellationLock";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
@@ -269,6 +270,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     );
     const { budgetData, actualBalance, commitableBalance } = useProjectBudget(projectCode);
     const currentDocName = editDocName || savedDocName || "";
+    // A pending/approved cancellation freezes the application: no payments either.
+    const cancellationFrozen = useCancellationFrozen("Recruitment Adhoc Contractual", currentDocName);
     const linkedCommitment = budgetData.find(
         (e) => (e.ref === currentDocName || e.frapAppId === currentDocName) && e.type === "commitment",
     );
@@ -1546,6 +1549,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             )}
 
                             {/* Record Payment */}
+                            {!cancellationFrozen && (
                             <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                     Record Payment
@@ -1605,6 +1609,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+                            )}
 
                         </div>
                     )}
