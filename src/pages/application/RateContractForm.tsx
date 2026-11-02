@@ -15,6 +15,8 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { rateContractAPI, commonAPI, prepareFormDataForApi } from '@/services/apiService';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../../components/ErrorModal";
+import { CommentModal } from "../../components/CommentModal";
+import { useActionComment } from "@/hooks/useActionComment";
 import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
@@ -125,19 +127,33 @@ const RateContractForm: React.FC = () => {
             .catch(() => setRcPiHeads([]));
     }, [rcSelectedProject]);
 
-    const handleRcPiAction = async (action: string) => {
+    // Every action needs a comment, collected in a dialog before the workflow call.
+    const postComment = useActionComment();
+    const [pendingRcAction, setPendingRcAction] = useState('');
+    const handleRcPiAction = (action: string) => {
         const isFwd = action.toLowerCase() === 'forward' || action.toLowerCase() === 'approve';
         if (isFwd && (!rcSelectedProject || !rcSelectedHead)) {
             alert('Please select a project and account head before approving.');
             return;
         }
+        setPendingRcAction(action);
+    };
+
+    const handleConfirmRcAction = async (comment: string) => {
+        const action = pendingRcAction;
+        setPendingRcAction('');
+        if (!action) return;
+        const isFwd = action.toLowerCase() === 'forward' || action.toLowerCase() === 'approve';
         try {
-            const payload: Record<string, any> = { docname: editDocName, action };
+            const payload: Record<string, any> = { docname: editDocName, action, comment: comment.trim() };
             if (isFwd) {
                 payload.extra_data = JSON.stringify({ project_name: rcSelectedProject, account_head: rcSelectedHead });
             }
             const res: any = await performRcAction(payload);
             if (res?.message?.status === 'success') {
+                if (!(await postComment('Rate Contract', editDocName, comment))) {
+                    alert('The action was completed, but the comment could not be saved.');
+                }
                 alert(`Action '${action}' completed. New state: ${res.message.workflow_state}`);
                 navigate('/pending-tasks');
             } else {
@@ -666,6 +682,14 @@ const RateContractForm: React.FC = () => {
                     )}
                 </form>
             </main>
+            <CommentModal
+                isOpen={!!pendingRcAction}
+                onClose={() => setPendingRcAction('')}
+                onSubmit={handleConfirmRcAction}
+                action={pendingRcAction}
+                isLoading={isActing}
+                requireComment
+            />
             <ErrorModal
                 open={errorModal.open}
                 title={errorModal.title}
