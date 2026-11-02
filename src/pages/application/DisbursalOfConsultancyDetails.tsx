@@ -1,5 +1,5 @@
 import { getConsultancyBudgetHead } from "@/utils/budgetHead";
-import { CancellationLockBanner } from "@/components/CancellationLock";
+import { CancellationLockBanner, useCancellationFrozen } from "@/components/CancellationLock";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -133,6 +133,8 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [commitHead, setCommitHead] = useState("");
     // commitAmount moved to CommitPayment component
     const [paymentAmount, setPaymentAmount] = useState("");
+    // A pending/approved cancellation freezes the application: no payments either.
+    const cancellationFrozen = useCancellationFrozen("Disbursal of Consultancy", id);
     // Staged commit: tracked locally because consultancy commits are staged (ledger not updated until Dean approves)
     const [stagedCommit, setStagedCommit] = useState<{ head: string; amount: number } | null>(null);
 
@@ -659,7 +661,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                             )}
 
                         {/* Record Payment */}
-                        {(formData.workflow_state === "Pending Staff Approval" ||
+                        {!cancellationFrozen && (formData.workflow_state === "Pending Staff Approval" ||
                             formData.workflow_state === "Approved") &&
                             isRnDStaff && (
                                 <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">

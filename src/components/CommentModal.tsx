@@ -16,7 +16,7 @@ export const CommentModal = ({
     onSubmit,
     action,
     isLoading,
-    requireComment = false,
+    requireComment = true,
 }: CommentModalProps) => {
     const [comment, setComment] = useState("");
 

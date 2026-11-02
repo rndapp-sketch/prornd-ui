@@ -1,5 +1,5 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
-import { CancellationLockBanner } from "@/components/CancellationLock";
+import { CancellationLockBanner, useCancellationFrozen } from "@/components/CancellationLock";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -205,6 +205,8 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     // Commit / Payment state (commitAmount moved to CommitPayment component)
     const [commitHead, setCommitHead] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    // A pending/approved cancellation freezes the application: no payments either.
+    const cancellationFrozen = useCancellationFrozen("Disbursal of Honorarium", id);
     // Track commitment staging status to gate workflow action buttons for Staff RnD
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
@@ -861,7 +863,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
 
 
                         {/* Record Payment */}
-                        {(formData.workflow_state ===
+                        {!cancellationFrozen && (formData.workflow_state ===
                             "Pending Staff Approval" ||
                             formData.workflow_state === "Approved") &&
                             isRnDStaff && (

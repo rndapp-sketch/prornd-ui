@@ -28,8 +28,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { fetchOverheadLedger, isOverheadProjectNo } from "@/services/overheadLedger";
 import { createPortal } from "react-dom";
-import { useFrappePostCall } from "frappe-react-sdk";
-import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X, BookOpen, RefreshCw, Circle } from "lucide-react";
+import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X, BookOpen, RefreshCw, Circle, Clock } from "lucide-react";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
@@ -152,6 +152,8 @@ export interface CommitPaymentProps {
     defaultParticular?: string;
     /** Optional: show only an existing commitment; render nothing when none exists (no submit form) */
     readOnly?: boolean;
+    /** Optional: when set, no new commitment can be made — this message is shown in place of the form (an existing commitment is still displayed) */
+    blockedReason?: string;
     /** Optional: class overrides for the outer container */
     className?: string;
 }
@@ -360,6 +362,38 @@ const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
 };
 
 // ---------------------------------------------------------------------------
+// The ledger API's accountHeadId is an Integer. Resolve a head label to that id, and return
+// undefined when it cannot be resolved rather than sending the label (which the ledger
+// rejects with a 500 type-conversion error).
+// ---------------------------------------------------------------------------
+const resolveLedgerHeadId = (
+    ids: Record<string, string | number> | undefined,
+    label: string,
+): string | undefined => {
+    if (!ids || !label) return undefined;
+    const wanted = label.trim().toLowerCase();
+    const raw = ids[label] ?? Object.entries(ids).find(([k]) => k.trim().toLowerCase() === wanted)?.[1];
+    const id = raw === undefined || raw === null ? "" : String(raw).trim();
+    return /^\d+$/.test(id) ? id : undefined;
+};
+
+// Fallback for callers that don't supply a label → id map (e.g. Direct Purchase, Task Registry):
+// read the Budget Head table and match the label against its title / budget_head / name.
+const fetchLedgerHeadId = async (label: string): Promise<string | undefined> => {
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["*"]&limit_page_length=0`);
+    const result = await res.json();
+    const rows: Record<string, unknown>[] = Array.isArray(result?.data) ? result.data : [];
+    const ids = Object.fromEntries(
+        rows.flatMap((r) =>
+            [r.title, r.budget_head, r.name]
+                .filter((n): n is string => typeof n === "string" && n.trim() !== "")
+                .map((n) => [n, r.id as string | number]),
+        ),
+    );
+    return resolveLedgerHeadId(ids, label);
+};
+
+// ---------------------------------------------------------------------------
 // Committed Data Display card
 // ---------------------------------------------------------------------------
 interface CommittedDataCardProps {
@@ -410,8 +444,8 @@ const SyncProgress: React.FC<{
             if (isOverheadProjectNo(projectNo)) {
                 rows = (await fetchOverheadLedger(projectNo)) as LedgerEntry[];
             } else {
-                const headId = budgetHeadIds?.[headLabel] ?? headLabel;
-                if (!headId) throw new Error("Budget head is unknown.");
+                const headId = resolveLedgerHeadId(budgetHeadIds, headLabel) ?? (await fetchLedgerHeadId(headLabel));
+                if (!headId) throw new Error(`Ledger id for budget head "${headLabel}" is unknown.`);
                 const res = await fetch(
                     `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${encodeURIComponent(String(headId))}`,
                 );
@@ -440,12 +474,14 @@ const SyncProgress: React.FC<{
     const notConsumed = published && ledger.state === "pending" && age !== null && age > 15;
     const consumed = published && ledger.state === "consumed";
 
-    const step = (label: string, done: boolean, bad = false, active = false) => (
+    const step = (label: string, done: boolean, bad = false, active = false, waiting = false) => (
         <div className="flex items-center gap-1.5">
             {bad ? (
                 <AlertCircle className="h-4 w-4 text-red-500" />
             ) : done ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            ) : waiting ? (
+                <Clock className="h-4 w-4 text-amber-500" />
             ) : active ? (
                 <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
             ) : (
@@ -460,7 +496,7 @@ const SyncProgress: React.FC<{
         const reason = stagingRecord.error_message ?? stagingRecord.error ?? stagingRecord.remarks ?? stagingRecord.message;
         message = { tone: "bad", text: `Publishing failed${reason ? `: ${String(reason)}` : "."} Ask the system admin to check the error.` };
     } else if (awaitingApproval) {
-        message = { tone: "wait", text: "Waiting for approval. Nothing has been sent to the ledger yet." };
+        message = { tone: "wait", text: "Once the Dean approves the application, this will be reflected in the ledger. Until then, it will not appear in the ledger." };
     } else if (queued) {
         message = stuckQueued
             ? { tone: "bad", text: `Not published after ${Math.round(age!)} minutes. It may be stuck; ask the system admin to check.` }
@@ -491,7 +527,7 @@ const SyncProgress: React.FC<{
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                {step("Approval", approvalDone, false, awaitingApproval)}
+                {step("Approval", approvalDone, false, false, awaitingApproval)}
                 <span className="text-zinc-300">›</span>
                 {step("Published", published || consumed, failed || stuckQueued, queued && !stuckQueued)}
                 <span className="text-zinc-300">›</span>
@@ -753,6 +789,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     lockBudgetHead = false,
     stagingReferenceName,
     readOnly = false,
+    blockedReason,
     stagingTriggerState,
     excludeStagingTriggerState,
     legacyStagingReferenceName,
@@ -811,6 +848,23 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     const requiredPayloadKeysKey = requiredPayloadKeys?.join("|") || "";
 
     // ── Frappe API hook ──────────────────────────────────────────────────────
+    // A pending or approved cancellation request freezes the application, so no new commitment may be made
+    // from ANY screen that embeds this widget (callers no longer have to remember to pass blockedReason).
+    // Forms that replace the built-in one (customForm, e.g. decommit) are left alone: they release funds.
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: { cancellation_requests?: { status?: string }[] };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        { reference_doctype: doctype, reference_name: docName },
+        docName && !customForm ? undefined : null,
+    );
+    const cancellationBlockedReason = cancellationStatus?.message?.cancellation_requests?.some((r) =>
+        /pending|approved/i.test(r.status || ""),
+    )
+        ? "This application has a cancellation request, so no new commitment can be made."
+        : undefined;
+    const effectiveBlockedReason = blockedReason ?? cancellationBlockedReason;
+
     const { call: callCommit } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_commit_data"
     );
@@ -1095,8 +1149,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             if (!refDetails && parentAppId) {
                 try {
                     // The ledger API's accountHeadId param expects the Budget Head's numeric/short id,
-                    // not the human-readable label — resolve it via budgetHeadIds, falling back to the
-                    // label itself if no mapping was provided.
+                    // not the human-readable label — resolve it via budgetHeadIds (never the label itself).
                     if (isOverheadProjectNo(projectName)) {
                         // An overhead fund's log must not travel over /ledger-api (unauthenticated
                         // proxy — see services/overheadLedger), so it is read through the whitelisted
@@ -1111,7 +1164,8 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                             refDetails = String(parentEntry.transactionId);
                         }
                     } else {
-                        const accountHeadId = budgetHeadIds?.[commitHead] ?? commitHead;
+                        const accountHeadId = resolveLedgerHeadId(budgetHeadIds, commitHead);
+                        if (!accountHeadId) throw new Error(`Ledger id for budget head "${commitHead}" is unknown.`);
                         const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
                         const ledgerRes = await fetch(ledgerUrl);
                         if (ledgerRes.ok) {
@@ -1234,6 +1288,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     }
 
     if (readOnly) return null;
+
+    if (effectiveBlockedReason) {
+        return (
+            <div className={cn("bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm", className)}>
+                <h3 className="frappe-widget-title mb-2 font-semibold text-zinc-900 dark:text-zinc-100">Make a Commitment</h3>
+                <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-lg p-3">
+                    <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{effectiveBlockedReason}</span>
+                </div>
+            </div>
+        );
+    }
 
     // ── Render: Success state (just submitted) ───────────────────────────────
     if (submitSuccess) {

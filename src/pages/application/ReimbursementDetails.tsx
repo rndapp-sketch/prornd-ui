@@ -1,4 +1,5 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { useCancellationFrozen } from "@/components/CancellationLock";
 import BudgetHeadBalance from "@/components/BudgetHeadBalance";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -635,6 +636,8 @@ const ReimbursementDetails: React.FC = () => {
   const activityLogContainerRef = useRef<HTMLDivElement>(null);
   const [commitHead, setCommitHead] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
+  // A pending/approved cancellation freezes the application: no payments either.
+  const cancellationFrozen = useCancellationFrozen("Reimbursement", id);
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
   const { call: submitPayment, loading: isPaying } = useFrappePostCall(
@@ -1555,6 +1558,7 @@ const ReimbursementDetails: React.FC = () => {
                   onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                 />
 
+                {!cancellationFrozen && (
                 <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
                   <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
                     Record Payment
@@ -1607,6 +1611,7 @@ const ReimbursementDetails: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
               </>
             )}
 
