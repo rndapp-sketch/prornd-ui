@@ -1,4 +1,5 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { useCancellationFrozen } from "@/components/CancellationLock";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
@@ -248,6 +249,8 @@ const TravelDetails: React.FC = () => {
 
     const [commitHead, setCommitHead] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    // A pending/approved cancellation freezes the application: no payments either.
+    const cancellationFrozen = useCancellationFrozen("Travel", docName);
     // Track Kafka Commit Staging status to gate workflow action buttons for Staff RnD
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
@@ -1079,7 +1082,7 @@ const TravelDetails: React.FC = () => {
                         )}
 
                         {/* Record Payment */}
-                        {showCommitSection && (
+                        {!cancellationFrozen && showCommitSection && (
                             <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                     Record Payment
