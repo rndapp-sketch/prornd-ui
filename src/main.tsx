@@ -99,6 +99,9 @@ import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsul
 import LoanRequestForm from './pages/application/LoanRequestForm.tsx';
 import LoanRequestDetails from './pages/application/LoanRequestDetails.tsx';
 import LoanSettlementDetails from './pages/application/LoanSettlementDetails.tsx';
+import UCRequestForm from './pages/application/UCRequestForm.tsx';
+import UCRequestDetails from './pages/application/UCRequestDetails.tsx';
+import { UC_REQUEST_ENABLED } from './config/features';
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
@@ -760,6 +763,24 @@ const router = createBrowserRouter(
                         </AuthRouteWrapper>
                     )
                 },
+                ...(UC_REQUEST_ENABLED ? [
+                {
+                    path: "uc-request",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <UCRequestForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "uc-request/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <UCRequestDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                ] : []),
                 {
                     path: "loan-settlement/:id",
                     element: (

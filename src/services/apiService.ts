@@ -310,6 +310,19 @@ export const loanRequestAPI = {
     performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
 };
 
+// UC (Utilization Certificate) Request API endpoints
+export const ucRequestAPI = {
+    getFields: `${API_BASE}.uc_request.uc_request.get_uc_request_fields`,
+    getProjectDetails: `${API_BASE}.uc_request.uc_request.get_project_details_for_uc`,
+    save: `${API_BASE}.uc_request.uc_request.save_uc_request`,
+    submit: `${API_BASE}.uc_request.uc_request.submit_uc_request`,
+    getWorkflowActions: `${API_BASE}.uc_request.uc_request.get_uc_request_workflow_actions`,
+    performAction: `${API_BASE}.uc_request.uc_request.perform_uc_request_action`,
+    updateStaffSection: `${API_BASE}.uc_request.uc_request.update_uc_request_staff_section`,
+    attachDirectorPdf: `${API_BASE}.uc_request.uc_request.attach_registrar_signed_uc`,
+    getPendingDirectorUploads: `${API_BASE}.uc_request.uc_request.get_pending_registrar_uploads`,
+};
+
 // Loan Settlement API endpoints (settling a project loan out of an incoming Fund Received)
 // Overhead funds surfaced as projects — PDF (per employee) and DPF (per department).
 // Lives outside the doctype namespace: overhead_fund is a plain module, not a doctype
@@ -371,6 +384,7 @@ export const accHeadToHeadTransferAPI = {
     performAction: `${H2H_BASE}.perform_acc_head_to_head_fund_transfer_action`,
     getApplicantDetails: `${H2H_BASE}.get_applicant_details`,
     getProjectAccountHeads: `${H2H_BASE}.get_project_account_heads`,
+    getHeadSanctionSummary: `${H2H_BASE}.get_transfer_head_sanction_summary`,
     getAmountInWords: `${H2H_BASE}.get_amount_in_words`,
 };
 

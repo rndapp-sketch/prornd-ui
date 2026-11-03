@@ -1274,8 +1274,12 @@ const PendingTask: React.FC = () => {
                                     navigate(`/miscellaneous-commit/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Request") {
                                     navigate(`/loan-request/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "UC Request") {
+                                    navigate(`/uc-request/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Settlement") {
                                     navigate(`/loan-settlement/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "Acc Head to Head Fund Transfer") {
+                                    navigate(`/head-to-head-transfer/${selectedTask.docname}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }
