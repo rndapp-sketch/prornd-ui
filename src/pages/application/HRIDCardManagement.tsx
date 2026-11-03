@@ -104,22 +104,41 @@ const isVerifiedOrGeneratedState = (status?: string) => {
 // The list opens on requests awaiting HR action; "All Statuses" is one click away.
 const DEFAULT_STATUS_FILTER = 'Submitted';
 
+interface TabFilters {
+    searchTerm: string;
+    statusFilter: string;
+    designationFilter: string;
+    departmentFilter: string;
+    projectFilter: string;
+    dateFrom: string;
+    dateTo: string;
+    page: number;
+}
+const newTabFilters = (): TabFilters => ({
+    searchTerm: '', statusFilter: DEFAULT_STATUS_FILTER, designationFilter: 'All',
+    departmentFilter: 'All', projectFilter: 'All', dateFrom: '', dateTo: '', page: 1,
+});
+
 const HRIDCardManagement: React.FC = () => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>(DEFAULT_STATUS_FILTER);
-    const [designationFilter, setDesignationFilter] = useState('All');
-    const [departmentFilter, setDepartmentFilter] = useState('All');
-    const [projectFilter, setProjectFilter] = useState('All');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [activeTab, setActiveTabState] = useState<ProjectTab>('research');
-    const [page, setPage] = useState(1);
+    const [activeTab, setActiveTab] = useState<ProjectTab>('research');
+    // Every tab owns its filters and page, so switching tabs never carries a search, status,
+    // dropdown or date range over to another tab — and returning to a tab restores its own.
+    const [filtersByTab, setFiltersByTab] = useState<Record<ProjectTab, TabFilters>>(() => ({
+        research: newTabFilters(), consultancy: newTabFilters(), others: newTabFilters(),
+    }));
+    const { searchTerm, statusFilter, designationFilter, departmentFilter, projectFilter, dateFrom, dateTo, page } =
+        filtersByTab[activeTab];
+    const patchFilters = (patch: Partial<TabFilters>) =>
+        setFiltersByTab(prev => ({ ...prev, [activeTab]: { ...prev[activeTab], ...patch } }));
+    const setSearchTerm = (v: string) => patchFilters({ searchTerm: v });
+    const setStatusFilter = (v: string) => patchFilters({ statusFilter: v });
+    const setDesignationFilter = (v: string) => patchFilters({ designationFilter: v });
+    const setDepartmentFilter = (v: string) => patchFilters({ departmentFilter: v });
+    const setProjectFilter = (v: string) => patchFilters({ projectFilter: v });
+    const setDateFrom = (v: string) => patchFilters({ dateFrom: v });
+    const setDateTo = (v: string) => patchFilters({ dateTo: v });
+    const setPage = (n: number) => patchFilters({ page: n });
     const [pageSize, setPageSizeState] = useState<number>(PAGE_SIZE_OPTIONS[0]);
-    const setActiveTab = (tab: ProjectTab) => {
-        setActiveTabState(tab);
-        setDesignationFilter('All'); setDepartmentFilter('All'); setProjectFilter('All');
-        setPage(1);
-    };
     const setPageSize = (n: number) => { setPageSizeState(n); setPage(1); };
     const [selectedCard, setSelectedCard] = useState<IDCardRecord | null>(null);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
@@ -212,8 +231,7 @@ const HRIDCardManagement: React.FC = () => {
         !!searchTerm || statusFilter !== DEFAULT_STATUS_FILTER || designationFilter !== 'All' || departmentFilter !== 'All' ||
         projectFilter !== 'All' || !!dateFrom || !!dateTo;
     const clearFilters = () => {
-        setSearchTerm(''); setStatusFilter(DEFAULT_STATUS_FILTER); setDesignationFilter('All');
-        setDepartmentFilter('All'); setProjectFilter('All'); setDateFrom(''); setDateTo(''); setPage(1);
+        patchFilters(newTabFilters());
     };
 
     // Pagination (clamped so a shrinking list never leaves us on an empty page)
@@ -245,7 +263,7 @@ const HRIDCardManagement: React.FC = () => {
             verified: nonDrafts.filter(c => c.workflow_state?.toLowerCase().includes('verified')).length,
             generated: nonDrafts.filter(c => c.workflow_state?.toLowerCase().includes('generated')).length,
         };
-    }, [cardList]);
+    }, [cardList, activeTab]);
 
     // Start editing form in modal
     const handleStartEdit = useCallback(() => {

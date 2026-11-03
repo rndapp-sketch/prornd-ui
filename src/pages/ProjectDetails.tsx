@@ -1714,7 +1714,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     }, [data]);
 
     const handleSavePfms = useCallback(async () => {
-        if (!projectName) return;
+        if (!projectName || cancellationStatus?.message?.has_cancellation) return;
         setIsSavingPfms(true);
         try {
             await updatePfmsFields({
@@ -1732,7 +1732,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         } finally {
             setIsSavingPfms(false);
         }
-    }, [projectName, pfmsForm, updatePfmsFields, mutate]);
+    }, [projectName, pfmsForm, updatePfmsFields, mutate, cancellationStatus]);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
@@ -3387,6 +3387,18 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             {(needsProjectNumberGeneration || isRnDStaff) && (
                                 <div className="lg:col-span-1">
                                     <div className="sticky top-6 space-y-4">
+                                        {cancellationStatus?.message?.has_cancellation && (
+                                            <p className="rounded-lg border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300">
+                                                A cancellation request exists for this application, so project number generation and account details are locked.
+                                            </p>
+                                        )}
+                                        <fieldset
+                                            disabled={!!cancellationStatus?.message?.has_cancellation}
+                                            className={cn(
+                                                "m-0 min-w-0 space-y-4 border-0 p-0",
+                                                cancellationStatus?.message?.has_cancellation && "pointer-events-none select-none opacity-50",
+                                            )}
+                                        >
                                         {needsProjectNumberGeneration && (
                                             <ProjectNumberGenerationForm
                                                 projectData={data}
@@ -3471,6 +3483,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 </button>
                                             </div>
                                         )}
+                                        </fieldset>
                                     </div>
                                 </div>
                             )}

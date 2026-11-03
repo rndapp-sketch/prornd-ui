@@ -11,6 +11,7 @@ import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { awaitingLabel } from '@/utils/cancellationLabels';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
@@ -657,6 +658,38 @@ const PendingTask: React.FC = () => {
     const indexOfFirstTask = indexOfLastTask - itemsPerPage;
     const currentTasks = filteredTasks.slice(indexOfFirstTask, indexOfLastTask);
 
+    // Cancellation request (if any) per visible row, keyed "doctype|id" — same lookup the
+    // detail page's CancellationStatusBanner uses.
+    const [cancellations, setCancellations] = React.useState<Map<string, { status: string; workflowState?: string }>>(new Map());
+    const cancellationLookedUp = React.useRef<Set<string>>(new Set());
+    React.useEffect(() => {
+        const toFetch = currentTasks.filter(
+            (t) => t.doctype !== "Cancellation Request" && !cancellationLookedUp.current.has(`${t.doctype}|${t.id}`),
+        );
+        if (!toFetch.length) return;
+        toFetch.forEach((t) => cancellationLookedUp.current.add(`${t.doctype}|${t.id}`));
+
+        Promise.all(
+            toFetch.map(async (t) => {
+                try {
+                    const params = new URLSearchParams({ reference_doctype: t.doctype, reference_name: t.id });
+                    const res = await fetch(
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_cancellation_status?${params}`,
+                        { credentials: "include" },
+                    ).then((r) => r.json());
+                    const list: { status?: string; workflow_state?: string }[] = res?.message?.cancellation_requests || [];
+                    const req = list.find((r) => (r.status || "").toLowerCase() === "pending") || list[0];
+                    return req ? ([`${t.doctype}|${t.id}`, { status: (req.status || "Pending").trim(), workflowState: req.workflow_state }] as const) : null;
+                } catch {
+                    return null;
+                }
+            }),
+        ).then((entries) => {
+            const found = entries.filter((e): e is NonNullable<typeof e> => !!e);
+            if (found.length) setCancellations((prev) => new Map([...prev, ...found]));
+        });
+    }, [currentTasks]);
+
     const handlePageChange = (pageNumber: number) => setCurrentPage(pageNumber);
 
     const handleProjectTypeChange = (tab: ProjectTypeTab) => {
@@ -905,6 +938,20 @@ const PendingTask: React.FC = () => {
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
+                                                {(() => {
+                                                    const c = cancellations.get(`${task.doctype}|${task.id}`);
+                                                    if (!c) return null;
+                                                    const approved = /approved/i.test(c.status);
+                                                    const rejected = /rejected|declined/i.test(c.status);
+                                                    const label = approved ? "Cancelled" : rejected ? "Cancellation Rejected" : "Cancellation Pending";
+                                                    const who = !approved && !rejected ? awaitingLabel(c.workflowState) : null;
+                                                    return (
+                                                        <span className={`mt-1.5 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide ${rejected ? "text-zinc-500 dark:text-zinc-400" : "text-red-600 dark:text-red-400"}`}>
+                                                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${rejected ? "bg-zinc-400" : "bg-red-500"}`} />
+                                                            {label}{who ? ` · with ${who}` : ""}
+                                                        </span>
+                                                    );
+                                                })()}
                                                 {task.status === "Pending Director Approval" &&
                                                     DIRECTOR_PDF_DOCTYPES.includes(task.doctype) &&
                                                     directorPdfStatus.get(task.id) && (
@@ -1227,8 +1274,12 @@ const PendingTask: React.FC = () => {
                                     navigate(`/miscellaneous-commit/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Request") {
                                     navigate(`/loan-request/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "UC Request") {
+                                    navigate(`/uc-request/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Settlement") {
                                     navigate(`/loan-settlement/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "Acc Head to Head Fund Transfer") {
+                                    navigate(`/head-to-head-transfer/${selectedTask.docname}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }

@@ -1,6 +1,6 @@
 // -=-=-=-=-=-=
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 
@@ -358,6 +358,7 @@ const MemoizedBudgetBreakupTable = memo(
         usedAccountHeads,
         settlementHeads,
         settlementLocked,
+        addDisabled,
     }: any) => {
         const options = budgetHeadOptions || [];
         // {label: amount} the loan settlements oblige this receipt to credit.
@@ -531,7 +532,13 @@ const MemoizedBudgetBreakupTable = memo(
                             remarks: "",
                         })
                     }
-                    className="mt-2.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wide text-white bg-[#D97757] border border-[#D97757] hover:bg-[#c5684a] transition-colors"
+                    disabled={addDisabled}
+                    title={
+                        addDisabled
+                            ? "The whole received amount is going to the loan, so there is nothing left for other heads."
+                            : undefined
+                    }
+                    className="mt-2.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wide text-white bg-[#D97757] border border-[#D97757] hover:bg-[#c5684a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                     + Add Budget Item
                 </button>
@@ -637,11 +644,12 @@ const HelpFloating: React.FC = () => {
     );
 };
 
-// --- LOAN SETTLEMENT MODAL ---------------------------------------------------
-// Shown when the project has one or more loans that aren't fully settled. The user
-// either settles them (saved to the Loan Settlement doctype straight away, before
-// this Fund Received is even submitted) or defers. See
-// docs/misc/loan-settlement-implementation.md.
+// --- LOAN SETTLEMENT ---------------------------------------------------------
+// When the project has loans that aren't fully settled, a popup tells the user so,
+// and the receipt then settles them inline: the Fund Received Amount goes to the
+// ticked loans first and only what is left over is free for other budget heads.
+// Settlements are created by the backend together with the Fund Received, in the
+// same submit. See docs/misc/loan-settlement-inline-implementation.md.
 
 /** A budget head the loan was drawn against, as the Accounts service reports it. */
 interface LoanBudgetHead {
@@ -669,60 +677,192 @@ interface ActiveLoan {
     budget_heads: LoanBudgetHead[];
 }
 
-interface LoanSelection {
-    checked: boolean;
-    settlementType: "" | "Full" | "Partial";
-    amount: string;
-    /** Head-wise return keyed by account_head_id. Only edited for Partial. */
-    heads: Record<number, string>;
+type AllocationMethod = "oldest_first" | "proportional";
+
+interface PlannedSettlement {
+    loan: ActiveLoan;
+    settlement_type: "Full" | "Partial";
+    settlement_amount: number;
+    /** Return per head, keyed by headKey(). */
+    heads: Record<number, number>;
+    /** Partial only: why the user's head-wise split can't be accepted. */
+    splitError: string | null;
 }
 
-/** What the saved settlements oblige this Fund Received to carry. */
-interface SettlementRequirements {
-    total: number;
-    /** {Budget Head docname: amount} */
-    heads: Record<string, number>;
-    /** {Budget Head docname: human label} */
-    head_labels: Record<string, string>;
-    /** true when every settlement is Partial: the figures are a target, not a floor. */
+interface LoanPlan {
+    settlements: PlannedSettlement[];
+    /** Outstanding of the ticked loans. */
+    outstanding: number;
+    /** Part of the receipt that goes to loans: min(received, outstanding). */
+    toLoans: number;
+    /** Part of the receipt left for budget heads: max(received − outstanding, 0). */
+    available: number;
+    /** Received ≤ outstanding: the whole receipt goes to loans, breakup is pinned. */
     exact: boolean;
-    settlements: {
-        name: string;
-        loan_reference: string;
-        settlement_type: string;
-        settlement_amount: number;
-        budget_breakup: {
-            account_head: string | null;
-            account_head_label: string | null;
-            return_amount: number;
-        }[];
-    }[];
+    /** {breakup label: amount} the settlements oblige this receipt to credit. */
+    headsByLabel: Record<string, number>;
+    /** Set when the receipt can't be submitted as things stand. */
+    blocking: string | null;
 }
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+const headKey = (h: LoanBudgetHead, i: number) => h.account_head_id ?? i;
+const headLabel = (h: LoanBudgetHead, i: number) =>
+    h.account_head_label || h.account_head || `Head ${headKey(h, i)}`;
+
+const hasUnknownBalance = (l: ActiveLoan) =>
+    !!l.balance_unavailable || l.outstanding_amount == null;
 
 /**
- * Split `target` across heads in proportion to each head's loan amount, mirroring
- * _prorate() in loan_settlement.py so the modal previews exactly what the server will
- * store. The server's figures remain authoritative — this is display only.
+ * Split `target` in proportion to `weights`, rounded to 2 dp with the rounding
+ * remainder on the largest weight — the same rule as _prorate() in loan_settlement.py,
+ * so the form shows exactly what the server will store.
  */
-const prorate = (heads: LoanBudgetHead[], target: number): Record<number, number> => {
-    const total = heads.reduce((s, h) => s + (h.loan_amount || 0), 0);
-    if (!heads.length || total <= 0) return {};
+const splitProportionally = (weights: number[], target: number): number[] => {
+    const total = weights.reduce((s, w) => s + (w || 0), 0);
+    if (!weights.length || total <= 0) return weights.map(() => 0);
 
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    const parts = heads.map((h) => round2(((h.loan_amount || 0) * target) / total));
-
+    const parts = weights.map((w) => round2(((w || 0) * target) / total));
     const residue = round2(target - parts.reduce((s, p) => s + p, 0));
     if (residue) {
         let biggest = 0;
-        heads.forEach((h, i) => {
-            if ((h.loan_amount || 0) > (heads[biggest].loan_amount || 0)) biggest = i;
+        weights.forEach((w, i) => {
+            if ((w || 0) > (weights[biggest] || 0)) biggest = i;
         });
         parts[biggest] = round2(parts[biggest] + residue);
     }
+    return parts;
+};
 
-    return Object.fromEntries(
-        heads.map((h, i) => [h.account_head_id ?? i, parts[i]]),
-    );
+/** A loan's return split across its heads in proportion to what each head borrowed. */
+const prorate = (heads: LoanBudgetHead[], target: number): Record<number, number> => {
+    const parts = splitProportionally(heads.map((h) => h.loan_amount || 0), target);
+    return Object.fromEntries(heads.map((h, i) => [headKey(h, i), parts[i]]));
+};
+
+const byOldest = (a: ActiveLoan, b: ActiveLoan) => {
+    const da = a.loan_received_date || "9999-12-31";
+    const db = b.loan_received_date || "9999-12-31";
+    return da === db ? a.ledger_loan_number - b.ledger_loan_number : da < db ? -1 : 1;
+};
+
+/**
+ * Work out what this receipt settles. The received amount goes to the ticked loans
+ * first — oldest first, or in proportion to their outstanding — and only what is left
+ * after every ticked loan is cleared is available for other heads. A loan that ends
+ * up with nothing gets no settlement at all.
+ */
+const planLoanSettlements = (
+    loans: ActiveLoan[],
+    unticked: Set<number>,
+    method: AllocationMethod,
+    received: number,
+    /** User-adjusted head splits for Partial settlements, {loan no: {head key: amount}}. */
+    overrides: Record<number, Record<number, string>>,
+): LoanPlan => {
+    const plan: LoanPlan = {
+        settlements: [],
+        outstanding: 0,
+        toLoans: 0,
+        available: 0,
+        exact: false,
+        headsByLabel: {},
+        blocking: null,
+    };
+    if (!loans.length) return plan;
+
+    // An unknown balance means Full/Partial and the amounts can't be worked out, and a
+    // wrong guess could never be corrected (loanSettlementNumber is an idempotency key
+    // on the Accounts side) — so the receipt waits until every balance is known.
+    const unknown = loans.filter(hasUnknownBalance);
+    if (unknown.length) {
+        plan.blocking =
+            `Couldn't get the balance of ${unknown.map((l) => l.loan_reference).join(", ")} ` +
+            `from the Accounts service — please try again shortly.`;
+        return plan;
+    }
+
+    const ticked = loans.filter((l) => !unticked.has(l.ledger_loan_number)).sort(byOldest);
+    if (!ticked.length) {
+        plan.blocking = "Select at least one loan to settle from this receipt.";
+        return plan;
+    }
+
+    plan.outstanding = round2(ticked.reduce((s, l) => s + (l.outstanding_amount ?? 0), 0));
+    const amt = isNaN(received) || received < 0 ? 0 : received;
+    plan.toLoans = round2(Math.min(amt, plan.outstanding));
+    plan.available = round2(Math.max(amt - plan.outstanding, 0));
+    plan.exact = amt > 0 && amt <= plan.outstanding + 0.009;
+    if (amt <= 0) return plan;
+
+    let shares: number[];
+    if (method === "proportional") {
+        shares = splitProportionally(
+            ticked.map((l) => l.outstanding_amount ?? 0),
+            plan.toLoans,
+        );
+    } else {
+        let left = plan.toLoans;
+        shares = ticked.map((l) => {
+            const share = round2(Math.min(left, l.outstanding_amount ?? 0));
+            left = round2(left - share);
+            return share;
+        });
+    }
+
+    ticked.forEach((loan, li) => {
+        const share = shares[li];
+        if (share <= 0) return;
+        const outstanding = loan.outstanding_amount ?? 0;
+        const type: "Full" | "Partial" = share >= outstanding - 0.009 ? "Full" : "Partial";
+        const heads = loan.budget_heads || [];
+        let splitError: string | null = null;
+
+        if (!heads.length) {
+            plan.blocking ??=
+                `The Accounts service reports no budget head breakup for ${loan.loan_reference}, ` +
+                `so it can't be settled head-wise.`;
+        }
+
+        let split = prorate(heads, share);
+        const override = type === "Partial" ? overrides[loan.ledger_loan_number] : undefined;
+        if (override && heads.length) {
+            split = Object.fromEntries(
+                heads.map((h, i) => [headKey(h, i), parseFloat(override[headKey(h, i)] ?? "") || 0]),
+            );
+            const over = heads.find((h, i) => {
+                const v = split[headKey(h, i)];
+                return v < 0 || v > (h.loan_amount || 0) + 0.009;
+            });
+            const allocated = round2(Object.values(split).reduce((s, v) => s + v, 0));
+            if (over) {
+                splitError = `Return against ${headLabel(over, heads.indexOf(over))} must be between ₹0 and what that head borrowed.`;
+            } else if (allocated > share + 0.009) {
+                splitError = `Head-wise return exceeds the received amount by ${fmtINR(allocated - share)}.`;
+            } else if (allocated < share - 0.009) {
+                splitError = `${fmtINR(share - allocated)} still to allocate across heads.`;
+            }
+            if (splitError) plan.blocking ??= `${loan.loan_reference}: ${splitError}`;
+        }
+
+        heads.forEach((h, i) => {
+            const v = split[headKey(h, i)] || 0;
+            if (v <= 0) return;
+            const label = headLabel(h, i);
+            plan.headsByLabel[label] = round2((plan.headsByLabel[label] || 0) + v);
+        });
+
+        plan.settlements.push({
+            loan,
+            settlement_type: type,
+            settlement_amount: share,
+            heads: split,
+            splitError,
+        });
+    });
+
+    return plan;
 };
 
 const fmtINR = (v: number) =>
@@ -731,179 +871,51 @@ const fmtINR = (v: number) =>
         maximumFractionDigits: 2,
     })}`;
 
-const LoanSettlementModal: React.FC<{
+/** Loan reference, balances and status — shared by the popup and the inline section. */
+const LoanSummary: React.FC<{ loan: ActiveLoan }> = ({ loan }) => (
+    <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-mono">
+                {loan.loan_reference}
+            </span>
+            {hasUnknownBalance(loan) ? (
+                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                    Balance unavailable
+                </span>
+            ) : (
+                <span className="text-sm font-bold text-[#D97757]">
+                    {fmtINR(loan.outstanding_amount ?? 0)}{" "}
+                    <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+                        outstanding
+                    </span>
+                </span>
+            )}
+        </div>
+        <div className="mt-1 flex items-center gap-3 flex-wrap text-[11px] text-zinc-500 dark:text-zinc-400">
+            <span>Loan: {fmtINR(loan.loan_amount)}</span>
+            {(loan.total_settled ?? 0) > 0 && (
+                <span>Settled: {fmtINR(loan.total_settled ?? 0)}</span>
+            )}
+            {loan.loan_type && <span>Type: {loan.loan_type}</span>}
+            {loan.loan_received_date && <span>Received: {loan.loan_received_date}</span>}
+            <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-semibold">
+                {loan.loan_status}
+            </span>
+        </div>
+    </div>
+);
+
+/**
+ * Popup shown when the project has outstanding loans. Information only — what is
+ * settled, and how, is worked out from the Fund Received Amount in the form itself.
+ */
+const LoanNoticeModal: React.FC<{
     loans: ActiveLoan[];
-    projectName: string;
-    /** Project Registration docname — for navigating back to its overview page on Cancel.
-     * Distinct from `projectName`, which here is the project *number* the loan/backend
-     * calls key off; project-details-overview needs the actual docname instead. */
+    /** Project Registration docname — for navigating back to its overview page on Cancel. */
     overviewProjectRef: string;
-    onSettle: (
-        settlementNames: string[],
-        requirements: SettlementRequirements | null,
-        selections: Record<number, LoanSelection>,
-    ) => void;
-    /** Re-opened via "Edit" — restores the previous choices and offers a way out. */
-    isEditing?: boolean;
-    initialSelections?: Record<number, LoanSelection> | null;
-    /** Settlements saved on the previous pass; discarded before new ones are created. */
-    previousRefs?: string[];
-    onCancelEdit?: () => void;
-}> = ({ loans, projectName, overviewProjectRef, onSettle, isEditing, initialSelections, previousRefs, onCancelEdit }) => {
+    onContinue: () => void;
+}> = ({ loans, overviewProjectRef, onContinue }) => {
     const navigate = useNavigate();
-    const [selections, setSelections] = useState<Record<number, LoanSelection>>(() =>
-        Object.fromEntries(
-            loans.map((l) => [
-                l.ledger_loan_number,
-                initialSelections?.[l.ledger_loan_number] ?? {
-                    checked: false,
-                    settlementType: "",
-                    amount: "",
-                    heads: {},
-                },
-            ]),
-        ),
-    );
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const { call: saveRequests } = useFrappePostCall<{
-        message: {
-            status: string;
-            data: string[];
-            requirements?: SettlementRequirements;
-        };
-    }>(loanSettlementAPI.saveRequests);
-    const { call: discardRequests } = useFrappePostCall<{
-        message: { status: string; data: string[] };
-    }>(loanSettlementAPI.discardRequests);
-
-    /** Sum of what the user has typed head-wise for one loan. */
-    const headTotal = (sel: LoanSelection) =>
-        Object.values(sel.heads || {}).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-
-    const allChecked = loans.length > 0 && loans.every((l) => selections[l.ledger_loan_number]?.checked);
-
-    const toggleAll = (checked: boolean) => {
-        setSelections((prev) =>
-            Object.fromEntries(
-                loans.map((l) => [
-                    l.ledger_loan_number,
-                    { ...prev[l.ledger_loan_number], checked },
-                ]),
-            ),
-        );
-    };
-
-    const update = (loanNo: number, patch: Partial<LoanSelection>) => {
-        setSelections((prev) => ({ ...prev, [loanNo]: { ...prev[loanNo], ...patch } }));
-    };
-
-    const checkedLoans = loans.filter((l) => selections[l.ledger_loan_number]?.checked);
-
-    // Enabled only once every checked loan has a complete, valid choice — including a
-    // head-wise return that adds up to the amount being settled.
-    const canSettle =
-        checkedLoans.length > 0 &&
-        checkedLoans.every((l) => {
-            if (l.balance_unavailable || l.outstanding_amount == null) return false;
-            if (!l.budget_heads?.length) return false;
-            const sel = selections[l.ledger_loan_number];
-            if (sel.settlementType === "Full") return true;
-            if (sel.settlementType === "Partial") {
-                const amt = parseFloat(sel.amount);
-                if (isNaN(amt) || amt <= 0 || amt > l.outstanding_amount) return false;
-                const overHead = l.budget_heads.some((h) => {
-                    const v = parseFloat(sel.heads[h.account_head_id ?? -1] || "0") || 0;
-                    return v < 0 || v > h.loan_amount;
-                });
-                return !overHead && Math.abs(headTotal(sel) - amt) < 0.01;
-            }
-            return false;
-        });
-
-    const handleSettle = async () => {
-        setError(null);
-        setSubmitting(true);
-        try {
-            const payload = checkedLoans.map((l) => {
-                const sel = selections[l.ledger_loan_number];
-                return {
-                    loan_reference: l.loan_reference,
-                    ledger_loan_number: l.ledger_loan_number,
-                    settlement_type: sel.settlementType,
-                    settlement_amount:
-                        sel.settlementType === "Full" ? (l.outstanding_amount ?? 0) : parseFloat(sel.amount),
-                    loan_amount: l.loan_amount,
-                    project_number: l.project_number,
-                    // Only sent for Partial — the server derives the Full split itself.
-                    budget_breakup:
-                        sel.settlementType === "Partial"
-                            ? l.budget_heads.map((h) => ({
-                                  account_head_id: h.account_head_id,
-                                  account_head: h.account_head,
-                                  return_amount:
-                                      parseFloat(sel.heads[h.account_head_id ?? -1] || "0") || 0,
-                              }))
-                            : [],
-                };
-            });
-
-            // Save the replacements BEFORE discarding the old ones. If the save fails, the
-            // previous settlement is still intact and the user simply hasn't changed
-            // anything — whereas discarding first would leave them with no settlement at
-            // all on a failure, and settlement is mandatory here.
-            //
-            // Not an in-place edit, deliberately: loanSettlementNumber is an idempotency
-            // key on the Accounts side, so revised figures must travel under a fresh
-            // settlement number rather than reusing a doc.
-            const res = await saveRequests({
-                project_name: projectName,
-                loans: JSON.stringify(payload),
-            });
-
-            if (res?.message?.status === "success") {
-                if (previousRefs?.length) {
-                    // Best-effort: these are unlinked, never-published drafts. If the
-                    // cleanup fails they are inert clutter, which is a far better outcome
-                    // than failing an edit the user has already successfully made.
-                    try {
-                        await discardRequests({
-                            settlement_names: JSON.stringify(previousRefs),
-                        });
-                    } catch (discardErr) {
-                        console.error("Could not discard superseded loan settlements", discardErr);
-                    }
-                }
-                onSettle(res.message.data || [], res.message.requirements ?? null, selections);
-            } else {
-                setError("Could not save the loan settlement. Please try again.");
-            }
-        } catch (err: any) {
-            // The backend re-validates against the Accounts service, so this is where a
-            // loan that changed since the page loaded surfaces — while the user can still act.
-            const serverMsg = err?._server_messages
-                ? (() => {
-                      try {
-                          return JSON.parse(err._server_messages)
-                              .map((m: string) => {
-                                  try {
-                                      return JSON.parse(m)?.message || m;
-                                  } catch {
-                                      return m;
-                                  }
-                              })
-                              .join("\n");
-                      } catch {
-                          return null;
-                      }
-                  })()
-                : null;
-            setError(serverMsg || err?.message || "Could not save the loan settlement.");
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     return createPortal(
         <div
@@ -911,377 +923,336 @@ const LoanSettlementModal: React.FC<{
             style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
         >
             <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-3xl max-h-[90vh] flex flex-col">
-                {/* Header */}
                 <div className="flex items-start gap-2.5 px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
                     <AlertCircleIcon className="w-5 h-5 text-[#D97757] flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                            {isEditing
-                                ? "Update loan settlement"
-                                : loans.length === 1
-                                    ? "This project has an outstanding loan"
-                                    : `This project has ${loans.length} outstanding loans`}
+                            {loans.length === 1
+                                ? "This project has an outstanding loan"
+                                : `This project has ${loans.length} outstanding loans`}
                         </h2>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                            {isEditing
-                                ? "Revise what is being settled. Saving replaces the settlement recorded earlier, and the Fund Received Amount and Budget Breakup are refreshed to match."
-                                : `${loans.length === 1 ? "It" : "They"} must be settled from this fund receipt — choose how much comes back against each budget head.`}
+                            The amount you enter as Fund Received will be used to settle{" "}
+                            {loans.length === 1 ? "this loan" : "the loans you select"} first. Any
+                            amount above the outstanding balance can be allocated to budget heads.
                         </p>
                     </div>
                     <button
                         type="button"
-                        onClick={() =>
-                            isEditing && onCancelEdit
-                                ? onCancelEdit()
-                                : navigate(`/project-details-overview/${overviewProjectRef}?tab=overview`)
-                        }
-                        title={isEditing ? "Close" : "Cancel and return to the project overview"}
+                        onClick={() => navigate(`/project-details-overview/${overviewProjectRef}?tab=overview`)}
+                        title="Cancel and return to the project overview"
                         className="flex-shrink-0 p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 transition-colors"
                     >
                         <XIcon className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Loan list */}
-                <div className="px-5 py-4 overflow-y-auto flex-1">
-                    {loans.length > 1 && (
-                        <label className="flex items-center gap-2 mb-3 pb-3 border-b border-zinc-100 dark:border-zinc-800 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={allChecked}
-                                onChange={(e) => toggleAll(e.target.checked)}
-                                className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757]"
-                            />
-                            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                                Select all loans
-                            </span>
-                        </label>
-                    )}
-
-                    <div className="space-y-3">
-                        {loans.map((loan) => {
-                            const sel = selections[loan.ledger_loan_number];
-                            const amt = parseFloat(sel.amount);
-                            const unavailable =
-                                !!loan.balance_unavailable || loan.outstanding_amount == null;
-                            const amountInvalid =
-                                sel.settlementType === "Partial" &&
-                                sel.amount !== "" &&
-                                (isNaN(amt) || amt <= 0 || amt > (loan.outstanding_amount ?? 0));
-                            const allocated = headTotal(sel);
-                            const headsBalanced =
-                                !isNaN(amt) && Math.abs(allocated - amt) < 0.01;
-
-                            return (
-                                <div
-                                    key={loan.ledger_loan_number}
-                                    className={cn(
-                                        "rounded-xl border p-3 transition-colors",
-                                        unavailable
-                                            ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
-                                            : sel.checked
-                                                ? "border-[#D97757] bg-[#FFF7ED] dark:bg-[#D97757]/10"
-                                                : "border-zinc-200 dark:border-zinc-700",
-                                    )}
-                                >
-                                    <label className="flex items-start gap-2.5 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={sel.checked}
-                                            disabled={unavailable}
-                                            onChange={(e) =>
-                                                update(loan.ledger_loan_number, { checked: e.target.checked })
-                                            }
-                                            className="mt-0.5 w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757] disabled:opacity-40 disabled:cursor-not-allowed"
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-3 flex-wrap">
-                                                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                                                    {loan.loan_reference}
-                                                </span>
-                                                {unavailable ? (
-                                                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
-                                                        Balance unavailable
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-sm font-bold text-[#D97757]">
-                                                        {fmtINR(loan.outstanding_amount ?? 0)}{" "}
-                                                        <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                                                            outstanding
-                                                        </span>
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="mt-1 flex items-center gap-3 flex-wrap text-[11px] text-zinc-500 dark:text-zinc-400">
-                                                <span>Loan: {fmtINR(loan.loan_amount)}</span>
-                                                {(loan.total_settled ?? 0) > 0 && (
-                                                    <span>Settled: {fmtINR(loan.total_settled ?? 0)}</span>
-                                                )}
-                                                {loan.loan_type && <span>Type: {loan.loan_type}</span>}
-                                                {loan.loan_received_date && (
-                                                    <span>Received: {loan.loan_received_date}</span>
-                                                )}
-                                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-semibold">
-                                                    {loan.loan_status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </label>
-
-                                    {unavailable && (
-                                        <p className="mt-2 ml-7 text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
-                                            The Accounts service could not report this loan's outstanding
-                                            balance right now, so it can't be settled from this receipt.
-                                            The loan itself is still outstanding — you can settle it once
-                                            the balance is available again.
-                                        </p>
-                                    )}
-
-                                    {/* Per-loan Full/Partial */}
-                                    {!unavailable && sel.checked && (
-                                        <div className="mt-3 ml-7 pt-3 border-t border-zinc-200 dark:border-zinc-700 space-y-2">
-                                            <div className="flex items-center gap-4">
-                                                {(["Full", "Partial"] as const).map((t) => (
-                                                    <label
-                                                        key={t}
-                                                        className="flex items-center gap-1.5 cursor-pointer text-sm text-zinc-700 dark:text-zinc-300"
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            name={`type-${loan.ledger_loan_number}`}
-                                                            checked={sel.settlementType === t}
-                                                            onChange={() => {
-                                                                const full = t === "Full";
-                                                                const target = loan.outstanding_amount ?? 0;
-                                                                update(loan.ledger_loan_number, {
-                                                                    settlementType: t,
-                                                                    amount: full ? String(target) : "",
-                                                                    // Full is fixed and shown read-only;
-                                                                    // Partial starts blank for the user to fill.
-                                                                    heads: full
-                                                                        ? Object.fromEntries(
-                                                                              Object.entries(
-                                                                                  prorate(loan.budget_heads, target),
-                                                                              ).map(([k, v]) => [k, String(v)]),
-                                                                          )
-                                                                        : {},
-                                                                });
-                                                            }}
-                                                            className="text-[#D97757] focus:ring-[#D97757]"
-                                                        />
-                                                        {t} settlement
-                                                    </label>
-                                                ))}
-                                            </div>
-
-                                            {sel.settlementType === "Full" && (
-                                                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                                    Settles the full outstanding balance of{" "}
-                                                    <strong>{fmtINR(loan.outstanding_amount ?? 0)}</strong>.
-                                                </p>
-                                            )}
-
-                                            {sel.settlementType === "Partial" && (
-                                                <div>
-                                                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
-                                                        Total amount being returned
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        max={loan.outstanding_amount ?? undefined}
-                                                        value={sel.amount}
-                                                        onChange={(e) =>
-                                                            update(loan.ledger_loan_number, {
-                                                                amount: e.target.value,
-                                                            })
-                                                        }
-                                                        onWheel={(e) => e.currentTarget.blur()}
-                                                        placeholder={`Amount (max ${loan.outstanding_amount ?? 0})`}
-                                                        className={cn(
-                                                            "w-full max-w-xs px-3 py-1.5 border rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2",
-                                                            amountInvalid
-                                                                ? "border-red-400 focus:ring-red-300/30"
-                                                                : "border-zinc-300 dark:border-zinc-700 focus:ring-[#D97757]/25 focus:border-[#D97757]",
-                                                        )}
-                                                    />
-                                                    {amountInvalid && (
-                                                        <p className="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400">
-                                                            Enter an amount between 0 and{" "}
-                                                            {fmtINR(loan.outstanding_amount ?? 0)}.
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Head-wise return. Read-only for Full (the split is
-                                                derived); entered by the user for Partial. */}
-                                            {sel.settlementType !== "" && (
-                                                <div className="pt-1">
-                                                    <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">
-                                                        <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
-                                                            Return against budget heads
-                                                        </span>
-                                                        {sel.settlementType === "Partial" && (
-                                                            <span
-                                                                className={cn(
-                                                                    "text-[11px] font-semibold",
-                                                                    headsBalanced
-                                                                        ? "text-green-600 dark:text-green-400"
-                                                                        : "text-amber-600 dark:text-amber-400",
-                                                                )}
-                                                            >
-                                                                Allocated {fmtINR(allocated)}
-                                                                {!headsBalanced &&
-                                                                    ` of ${fmtINR(parseFloat(sel.amount) || 0)}`}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {loan.budget_heads?.length ? (
-                                                        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                                            <table className="min-w-full text-[11px]">
-                                                                <thead className="bg-zinc-50 dark:bg-zinc-800">
-                                                                    <tr>
-                                                                        <th className="px-2 py-1.5 text-left font-bold text-zinc-600 dark:text-zinc-300">
-                                                                            Budget Head
-                                                                        </th>
-                                                                        <th className="px-2 py-1.5 text-right font-bold text-zinc-600 dark:text-zinc-300">
-                                                                            Loan Taken
-                                                                        </th>
-                                                                        <th className="px-2 py-1.5 text-right font-bold text-zinc-600 dark:text-zinc-300">
-                                                                            Return
-                                                                        </th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                                                    {loan.budget_heads.map((h) => {
-                                                                        const key = h.account_head_id ?? -1;
-                                                                        const raw = sel.heads[key] ?? "";
-                                                                        const val = parseFloat(raw) || 0;
-                                                                        const over = val > h.loan_amount;
-                                                                        return (
-                                                                            <tr key={key}>
-                                                                                <td className="px-2 py-1.5 text-zinc-800 dark:text-zinc-200">
-                                                                                    {h.account_head_label ||
-                                                                                        h.account_head ||
-                                                                                        `Head ${key}`}
-                                                                                </td>
-                                                                                <td className="px-2 py-1.5 text-right text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
-                                                                                    {fmtINR(h.loan_amount)}
-                                                                                </td>
-                                                                                <td className="px-2 py-1.5 text-right">
-                                                                                    {sel.settlementType === "Full" ? (
-                                                                                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                                                                            {fmtINR(val)}
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <input
-                                                                                            type="number"
-                                                                                            min="0"
-                                                                                            max={h.loan_amount}
-                                                                                            value={raw}
-                                                                                            onChange={(e) =>
-                                                                                                update(
-                                                                                                    loan.ledger_loan_number,
-                                                                                                    {
-                                                                                                        heads: {
-                                                                                                            ...sel.heads,
-                                                                                                            [key]: e.target.value,
-                                                                                                        },
-                                                                                                    },
-                                                                                                )
-                                                                                            }
-                                                                                            onWheel={(e) =>
-                                                                                                e.currentTarget.blur()
-                                                                                            }
-                                                                                            placeholder="0.00"
-                                                                                            className={cn(
-                                                                                                "w-28 px-2 py-1 border rounded-md text-[11px] text-right bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2",
-                                                                                                over
-                                                                                                    ? "border-red-400 focus:ring-red-300/30"
-                                                                                                    : "border-zinc-300 dark:border-zinc-700 focus:ring-[#D97757]/25",
-                                                                                            )}
-                                                                                        />
-                                                                                    )}
-                                                                                </td>
-                                                                            </tr>
-                                                                        );
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    ) : (
-                                                        <p className="text-[11px] text-red-600 dark:text-red-400">
-                                                            The Accounts service reports no budget head breakup for
-                                                            this loan, so it cannot be settled head-wise.
-                                                        </p>
-                                                    )}
-
-                                                    {sel.settlementType === "Partial" &&
-                                                        !headsBalanced &&
-                                                        (parseFloat(sel.amount) || 0) > 0 && (
-                                                            <p className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                                                                {allocated < (parseFloat(sel.amount) || 0)
-                                                                    ? `${fmtINR((parseFloat(sel.amount) || 0) - allocated)} still to be allocated across heads.`
-                                                                    : `Head-wise return exceeds the total by ${fmtINR(allocated - (parseFloat(sel.amount) || 0))}.`}
-                                                            </p>
-                                                        )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                <div className="px-5 py-4 overflow-y-auto flex-1 space-y-3">
+                    {loans.map((loan) => (
+                        <div
+                            key={loan.ledger_loan_number}
+                            className={cn(
+                                "rounded-xl border p-3",
+                                hasUnknownBalance(loan)
+                                    ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
+                                    : "border-zinc-200 dark:border-zinc-700",
+                            )}
+                        >
+                            <LoanSummary loan={loan} />
+                            {loan.budget_heads?.length > 0 && (
+                                <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                    <table className="min-w-full text-[11px]">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-800">
+                                            <tr>
+                                                <th className="px-2 py-1.5 text-left font-bold text-zinc-600 dark:text-zinc-300">
+                                                    Budget Head
+                                                </th>
+                                                <th className="px-2 py-1.5 text-right font-bold text-zinc-600 dark:text-zinc-300">
+                                                    Loan Taken
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                            {loan.budget_heads.map((h, i) => (
+                                                <tr key={headKey(h, i)}>
+                                                    <td className="px-2 py-1.5 text-zinc-800 dark:text-zinc-200">
+                                                        {headLabel(h, i)}
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-right text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                                        {fmtINR(h.loan_amount)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                            );
-                        })}
-                    </div>
-
-                    {error && (
-                        <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 whitespace-pre-line">
-                            <AlertCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                            {error}
+                            )}
                         </div>
-                    )}
+                    ))}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
-                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        {checkedLoans.length > 0
-                            ? `${checkedLoans.length} loan${checkedLoans.length > 1 ? "s" : ""} selected`
-                            : "No loans selected"}
-                    </span>
-                    <div className="flex items-center gap-3">
-                        {/* "Settle Later" is deliberately absent: an outstanding loan must be
-                            settled from this receipt. Only the re-opened (Edit) modal offers a
-                            way out, and that keeps the settlement already saved. */}
-                        {isEditing && (
-                            <button
-                                type="button"
-                                onClick={onCancelEdit}
-                                disabled={submitting}
-                                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
-                            >
-                                Keep Existing
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={handleSettle}
-                            disabled={!canSettle || submitting}
-                            className="px-5 py-2 text-sm font-semibold text-white bg-[#D97757] hover:bg-[#c66a4e] rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {submitting
-                                ? "Saving…"
-                                : isEditing
-                                    ? "Update Settlement"
-                                    : "Settle the Loan"}
-                        </button>
-                    </div>
+                <div className="flex justify-end px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <button
+                        type="button"
+                        onClick={onContinue}
+                        className="px-5 py-2 text-sm font-semibold text-white bg-[#D97757] hover:bg-[#c66a4e] rounded-lg transition-colors shadow-sm"
+                    >
+                        Continue
+                    </button>
                 </div>
             </div>
         </div>,
         document.body,
+    );
+};
+
+/** Inline "Loan Settlement" section, shown beside the Fund Received Amount. */
+const LoanSettlementPanel: React.FC<{
+    loans: ActiveLoan[];
+    plan: LoanPlan;
+    received: number;
+    /** Σ Budget Breakup, to show how much of the available amount is allocated. */
+    breakupTotal: number;
+    unticked: Set<number>;
+    onToggle: (loanNo: number, ticked: boolean) => void;
+    onToggleAll: (ticked: boolean) => void;
+    method: AllocationMethod;
+    onMethod: (m: AllocationMethod) => void;
+    overrides: Record<number, Record<number, string>>;
+    onHeadChange: (loanNo: number, key: number, value: string) => void;
+    onRetry: () => void;
+    retrying: boolean;
+}> = ({
+    loans,
+    plan,
+    received,
+    breakupTotal,
+    unticked,
+    onToggle,
+    onToggleAll,
+    method,
+    onMethod,
+    overrides,
+    onHeadChange,
+    onRetry,
+    retrying,
+}) => {
+    const anyUnknown = loans.some(hasUnknownBalance);
+    const tickedCount = loans.filter((l) => !unticked.has(l.ledger_loan_number)).length;
+    const hasAmount = !isNaN(received) && received > 0;
+    const allocatedElsewhere = round2(Math.max(breakupTotal - plan.toLoans, 0));
+
+    return (
+        <div className="rounded-lg border border-[#D97757]/40 bg-[#FFF7ED] dark:bg-[#D97757]/10 p-3 space-y-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                    <h3 className="text-sm font-bold text-[#9A3412] dark:text-[#F7B79B]">
+                        Loan Settlement
+                    </h3>
+                    <p className="text-xs text-[#9A3412]/90 dark:text-[#F7B79B]/90 mt-0.5">
+                        The Fund Received Amount settles the selected loan(s) first. Full or
+                        Partial is decided by the amount.
+                    </p>
+                </div>
+                {loans.length > 1 && tickedCount > 1 && (
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#9A3412] dark:text-[#F7B79B]">
+                        Share the amount
+                        <select
+                            value={method}
+                            onChange={(e) => onMethod(e.target.value as AllocationMethod)}
+                            className="h-8 px-2 rounded-lg border border-[#D97757]/50 bg-white dark:bg-zinc-900 text-xs text-zinc-800 dark:text-zinc-100"
+                        >
+                            <option value="oldest_first">Oldest loan first</option>
+                            <option value="proportional">In proportion to outstanding</option>
+                        </select>
+                    </label>
+                )}
+            </div>
+
+            {anyUnknown && (
+                <div className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 text-xs text-amber-800 dark:text-amber-300">
+                    <span>{plan.blocking}</span>
+                    <button
+                        type="button"
+                        onClick={onRetry}
+                        disabled={retrying}
+                        className="shrink-0 px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wide bg-white dark:bg-zinc-900 border border-amber-400 hover:bg-amber-100 disabled:opacity-50"
+                    >
+                        {retrying ? "Retrying…" : "Retry"}
+                    </button>
+                </div>
+            )}
+
+            {loans.length > 1 && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <input
+                        type="checkbox"
+                        checked={unticked.size === 0}
+                        onChange={(e) => onToggleAll(e.target.checked)}
+                        className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757]"
+                    />
+                    Select all loans
+                </label>
+            )}
+
+            <div className="space-y-2">
+                {loans.map((loan) => {
+                    const ticked = !unticked.has(loan.ledger_loan_number);
+                    const s = plan.settlements.find(
+                        (p) => p.loan.ledger_loan_number === loan.ledger_loan_number,
+                    );
+                    const partial = s?.settlement_type === "Partial";
+                    const override = overrides[loan.ledger_loan_number];
+                    const allocated = s
+                        ? round2(Object.values(s.heads).reduce((a, v) => a + v, 0))
+                        : 0;
+
+                    return (
+                        <div
+                            key={loan.ledger_loan_number}
+                            className={cn(
+                                "rounded-xl border p-3 bg-white dark:bg-zinc-900",
+                                ticked ? "border-[#D97757]" : "border-zinc-200 dark:border-zinc-700",
+                            )}
+                        >
+                            <div className="flex items-start gap-2.5">
+                                {loans.length > 1 && (
+                                    <input
+                                        type="checkbox"
+                                        checked={ticked}
+                                        onChange={(e) => onToggle(loan.ledger_loan_number, e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757]"
+                                    />
+                                )}
+                                <LoanSummary loan={loan} />
+                            </div>
+
+                            {ticked && !hasUnknownBalance(loan) && (
+                                <div className={cn("mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 space-y-2", loans.length > 1 && "ml-7")}>
+                                    {/* Shown, not chosen: the amount decides it. */}
+                                    <div className="flex items-center gap-4 flex-wrap">
+                                        {(["Full", "Partial"] as const).map((t) => (
+                                            <label key={t} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+                                                <input
+                                                    type="radio"
+                                                    disabled
+                                                    checked={s?.settlement_type === t}
+                                                    readOnly
+                                                    className="text-[#D97757]"
+                                                />
+                                                {t} settlement
+                                            </label>
+                                        ))}
+                                        <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                                            {s
+                                                ? `Settling ${fmtINR(s.settlement_amount)}`
+                                                : hasAmount
+                                                    ? "Not settled from this receipt"
+                                                    : "Enter the Fund Received Amount"}
+                                        </span>
+                                    </div>
+
+                                    {s && loan.budget_heads?.length > 0 && (
+                                        <div>
+                                            <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">
+                                                <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                                                    Return against budget heads
+                                                    {partial && " — you can adjust the split"}
+                                                </span>
+                                                {partial && (
+                                                    <span
+                                                        className={cn(
+                                                            "text-[11px] font-semibold",
+                                                            s.splitError
+                                                                ? "text-amber-600 dark:text-amber-400"
+                                                                : "text-green-600 dark:text-green-400",
+                                                        )}
+                                                    >
+                                                        Allocated {fmtINR(allocated)} of {fmtINR(s.settlement_amount)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                                <table className="min-w-full text-[11px]">
+                                                    <thead className="bg-zinc-50 dark:bg-zinc-800">
+                                                        <tr>
+                                                            <th className="px-2 py-1.5 text-left font-bold text-zinc-600 dark:text-zinc-300">Budget Head</th>
+                                                            <th className="px-2 py-1.5 text-right font-bold text-zinc-600 dark:text-zinc-300">Loan Taken</th>
+                                                            <th className="px-2 py-1.5 text-right font-bold text-zinc-600 dark:text-zinc-300">Return</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                        {loan.budget_heads.map((h, i) => {
+                                                            const key = headKey(h, i);
+                                                            const val = s.heads[key] || 0;
+                                                            return (
+                                                                <tr key={key}>
+                                                                    <td className="px-2 py-1.5 text-zinc-800 dark:text-zinc-200">{headLabel(h, i)}</td>
+                                                                    <td className="px-2 py-1.5 text-right text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                                                        {fmtINR(h.loan_amount)}
+                                                                    </td>
+                                                                    <td className="px-2 py-1.5 text-right">
+                                                                        {partial ? (
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                max={h.loan_amount}
+                                                                                value={override?.[key] ?? String(val)}
+                                                                                onChange={(e) =>
+                                                                                    onHeadChange(loan.ledger_loan_number, key, e.target.value)
+                                                                                }
+                                                                                onWheel={(e) => e.currentTarget.blur()}
+                                                                                className={cn(
+                                                                                    "w-28 px-2 py-1 border rounded-md text-[11px] text-right bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2",
+                                                                                    val > h.loan_amount + 0.009 || val < 0
+                                                                                        ? "border-red-400 focus:ring-red-300/30"
+                                                                                        : "border-zinc-300 dark:border-zinc-700 focus:ring-[#D97757]/25",
+                                                                                )}
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                                                                {fmtINR(val)}
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {s.splitError && (
+                                                <p className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                                                    {s.splitError}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {!anyUnknown && plan.blocking && !plan.settlements.some((s) => s.splitError) && (
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">{plan.blocking}</p>
+            )}
+
+            {hasAmount && !anyUnknown && (
+                <div className="flex items-center gap-x-5 gap-y-1 flex-wrap pt-2 border-t border-[#D97757]/30 text-xs font-semibold text-[#7C2D12] dark:text-[#F7B79B]">
+                    <span>Received {fmtINR(received)}</span>
+                    <span>To loan {fmtINR(plan.toLoans)}</span>
+                    <span>Available {fmtINR(plan.available)}</span>
+                    {plan.available > 0 && (
+                        <span className="font-medium">
+                            — allocated to budget heads {fmtINR(allocatedElsewhere)}, remaining{" "}
+                            {fmtINR(Math.max(plan.available - allocatedElsewhere, 0))}
+                        </span>
+                    )}
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -1407,10 +1378,15 @@ const AddFundReceived: React.FC = () => {
     );
 
     // --- LOAN SETTLEMENT -------------------------------------------------
-    // If this project has unsettled loans, block the form behind a modal asking
-    // whether to settle them out of this receipt. Fails open: if the Accounts
-    // service is unreachable the backend returns [], no modal, business as usual.
-    const { data: activeLoansData, error: activeLoansError } = useFrappeGetCall<{
+    // If this project has unsettled loans, tell the user with a popup and settle them
+    // inline from the Fund Received Amount. Fails open: if the Accounts service is
+    // unreachable the backend returns [], no popup, business as usual.
+    const {
+        data: activeLoansData,
+        error: activeLoansError,
+        mutate: refetchActiveLoans,
+        isValidating: activeLoansValidating,
+    } = useFrappeGetCall<{
         message: { status: string; data: ActiveLoan[] };
     }>(
         loanSettlementAPI.getActiveLoansForProject,
@@ -1433,104 +1409,82 @@ const AddFundReceived: React.FC = () => {
         }
     }, [activeLoansError]);
 
-    const activeLoans = activeLoansData?.message?.data ?? [];
+    const activeLoans = useMemo(
+        () => activeLoansData?.message?.data ?? [],
+        [activeLoansData],
+    );
     const [loanModalDismissed, setLoanModalDismissed] = useState(false);
-    const [loanSettlementRefs, setLoanSettlementRefs] = useState<string[]>([]);
-    const [settlementReq, setSettlementReq] = useState<SettlementRequirements | null>(null);
-    // Kept so re-opening via "Edit" restores exactly what the user chose last time,
-    // rather than making them re-enter every head from scratch.
-    const [settlementSelections, setSettlementSelections] =
-        useState<Record<number, LoanSelection> | null>(null);
-    const [editingSettlement, setEditingSettlement] = useState(false);
+    const showLoanModal = activeLoans.length > 0 && !loanModalDismissed;
 
-    const showLoanModal =
-        activeLoans.length > 0 && (!loanModalDismissed || editingSettlement);
+    // Every loan is ticked unless the user unticks it, so only the exceptions are kept.
+    const [untickedLoans, setUntickedLoans] = useState<Set<number>>(() => new Set());
+    const [allocationMethod, setAllocationMethod] = useState<AllocationMethod>("oldest_first");
+    const [partialSplitOverrides, setPartialSplitOverrides] = useState<
+        Record<number, Record<number, string>>
+    >({});
 
-    // When every settlement is Partial the user has already stated the exact amount and
-    // its head-wise split, so the form is filled in and locked rather than re-typed.
-    // With a Full settlement the receipt may legitimately be larger, so the prefilled
-    // figures are only a starting point and stay editable (the backend enforces the floor).
-    const settlementLocked = !!settlementReq && settlementReq.exact;
+    // Opened from a loan's "Settle" button: start with just that loan ticked. Applied
+    // once, so the user can still tick other loans afterwards.
+    const settleLoanFromUrl = urlSearchParams.get("settle_loan") || "";
+    const settleLoanApplied = useRef(false);
+    useEffect(() => {
+        if (settleLoanApplied.current || !settleLoanFromUrl || !activeLoans.length) return;
+        settleLoanApplied.current = true;
+        if (!activeLoans.some((l) => l.loan_reference === settleLoanFromUrl)) return;
+        setUntickedLoans(
+            new Set(
+                activeLoans
+                    .filter((l) => l.loan_reference !== settleLoanFromUrl)
+                    .map((l) => l.ledger_loan_number),
+            ),
+        );
+    }, [activeLoans, settleLoanFromUrl]);
 
-    // Re-keyed by label, because that is what the breakup rows and the dropdown use.
-    const settlementHeadsByLabel: Record<string, number> = Object.fromEntries(
-        Object.entries(settlementReq?.heads ?? {}).map(([docname, amount]) => [
-            settlementReq?.head_labels?.[docname] || docname,
-            amount,
-        ]),
+    const loanPlan = useMemo(
+        () =>
+            planLoanSettlements(
+                activeLoans,
+                untickedLoans,
+                allocationMethod,
+                parseFloat(formData.fund_received_amt),
+                partialSplitOverrides,
+            ),
+        [activeLoans, untickedLoans, allocationMethod, formData.fund_received_amt, partialSplitOverrides],
     );
 
-    /**
-     * Fill the receipt in from the settlements just saved.
-     *
-     * Heads are written using their label ("Manpower"), because that is the form the
-     * sanction-derived dropdown offers; the backend resolves label, docname and numeric
-     * id to the same Budget Head when it validates.
-     */
-    const applySettlementRequirements = (
-        req: SettlementRequirements,
-        /** The requirement being replaced, when re-opened via "Edit". */
-        prevReq?: SettlementRequirements | null,
-    ) => {
-        setFormData((prev) => {
-            let rows = [...(prev.received_amt_breakup || [])];
+    // A hand-tuned split is only meaningful for the amount it was made for, so any change
+    // to what is being settled starts again from the prorated default.
+    useEffect(() => {
+        setPartialSplitOverrides({});
+    }, [formData.fund_received_amt, untickedLoans, allocationMethod]);
 
-            // Back the previous settlement's contribution out first. Without this, a head
-            // dropped from the settlement — or an amount revised downwards — would leave
-            // its old money sitting in the breakup, silently inflating the total. Anything
-            // the user added on top of the requirement is preserved; only the settlement's
-            // own share is withdrawn, and a row emptied by that is dropped.
-            if (prevReq) {
-                Object.entries(prevReq.heads || {}).forEach(([docname, was]) => {
-                    const label = prevReq.head_labels?.[docname] || docname;
-                    const idx = rows.findIndex(
-                        (r) => r.account_head === label || r.account_head === docname,
-                    );
-                    if (idx === -1) return;
+    const toggleLoan = useCallback((loanNo: number, ticked: boolean) => {
+        setUntickedLoans((prev) => {
+            const next = new Set(prev);
+            if (ticked) next.delete(loanNo);
+            else next.add(loanNo);
+            return next;
+        });
+    }, []);
 
-                    const remaining = (parseFloat(rows[idx].amount_received) || 0) - was;
-                    rows[idx] = {
-                        ...rows[idx],
-                        amount_received: remaining > 0.009 ? String(Math.round(remaining * 100) / 100) : "",
-                    };
-                });
-                rows = rows.filter((r) => r.account_head && r.amount_received !== "");
+    const toggleAllLoans = useCallback(
+        (ticked: boolean) => {
+            setUntickedLoans(ticked ? new Set() : new Set(activeLoans.map((l) => l.ledger_loan_number)));
+        },
+        [activeLoans],
+    );
 
-                const afterRemoval = (parseFloat(prev.fund_received_amt) || 0) - prevReq.total;
-                prev = {
-                    ...prev,
-                    fund_received_amt: afterRemoval > 0.009 ? String(Math.round(afterRemoval * 100) / 100) : "",
-                };
-            }
-
-            Object.entries(req.heads).forEach(([docname, required]) => {
-                const label = req.head_labels?.[docname] || docname;
-                const idx = rows.findIndex(
-                    (r) => r.account_head === label || r.account_head === docname,
+    const changePartialSplit = (loanNo: number, key: number, value: string) => {
+        setPartialSplitOverrides((prev) => {
+            // Seed from the split on screen, so editing one head leaves the others as shown.
+            const current =
+                prev[loanNo] ??
+                Object.fromEntries(
+                    Object.entries(
+                        loanPlan.settlements.find((s) => s.loan.ledger_loan_number === loanNo)?.heads ?? {},
+                    ).map(([k, v]) => [k, String(v)]),
                 );
-
-                if (idx === -1) {
-                    rows.push({
-                        id: `${Date.now()}-${docname}`,
-                        account_head: label,
-                        amount_received: String(required),
-                        remarks: "",
-                    });
-                    return;
-                }
-
-                const existing = parseFloat(rows[idx].amount_received) || 0;
-                // Exact: pinned. Floor: only raise a shortfall, never trim a larger entry.
-                if (req.exact || existing < required) {
-                    rows[idx] = { ...rows[idx], amount_received: String(required) };
-                }
-            });
-
-            const currentAmt = parseFloat(prev.fund_received_amt) || 0;
-            const fundAmt =
-                req.exact || currentAmt < req.total ? String(req.total) : prev.fund_received_amt;
-
-            return { ...prev, fund_received_amt: fundAmt, received_amt_breakup: rows };
+            return { ...prev, [loanNo]: { ...current, [key]: value } };
         });
     };
 
@@ -1555,6 +1509,7 @@ const AddFundReceived: React.FC = () => {
     // Handle Edit Mode
     const editSearchParams = new URLSearchParams(location.search);
     const editDocName = editSearchParams.get("id");
+    const [editDocLoaded, setEditDocLoaded] = useState(false);
 
     // Fetch existing document for editing
     useEffect(() => {
@@ -1597,6 +1552,7 @@ const AddFundReceived: React.FC = () => {
                             sanction_ref_no:
                                 doc.sanction_ref_no || prev.sanction_ref_no,
                         }));
+                        setEditDocLoaded(true);
                     }
                 }
             } catch (err) {
@@ -1607,6 +1563,69 @@ const AddFundReceived: React.FC = () => {
         // Load doc only after form fields are initialized
         loadExistingDoc();
     }, [editDocName, result]); // depend on result (form fields loaded)
+
+    // What the loan settlement put into the Budget Breakup last time, by head label.
+    // Kept so a change only moves the loan's own share: rows the user added, and any
+    // amount they put on top of a loan head, survive the amount being re-typed.
+    const appliedLoanHeads = useRef<Record<string, number> | null>(null);
+    const loanHeadsKey = JSON.stringify(loanPlan.headsByLabel) + String(loanPlan.exact);
+
+    useEffect(() => {
+        if (!activeLoans.length) return;
+        if (editDocName && !editDocLoaded) return;
+
+        const next = loanPlan.headsByLabel;
+        // A saved receipt already carries its settlement's share, so the first plan in
+        // edit mode is taken as already applied rather than added on top.
+        if (appliedLoanHeads.current === null && editDocName) {
+            appliedLoanHeads.current = next;
+            return;
+        }
+        const prev = appliedLoanHeads.current || {};
+        appliedLoanHeads.current = next;
+        const exact = loanPlan.exact;
+
+        setFormData((p) => {
+            const rows: any[] = [...(p.received_amt_breakup || [])];
+            const dropped = new Set<number>();
+
+            new Set([...Object.keys(prev), ...Object.keys(next)]).forEach((label) => {
+                const was = prev[label] || 0;
+                const now = next[label] || 0;
+                const idx = rows.findIndex((r) => r.account_head === label);
+
+                if (idx === -1) {
+                    if (now > 0) {
+                        rows.push({
+                            id: `${Date.now()}-${label}`,
+                            account_head: label,
+                            amount_received: String(now),
+                            remarks: "",
+                        });
+                    }
+                    return;
+                }
+
+                const current = parseFloat(rows[idx].amount_received) || 0;
+                // Exact: nothing is left for other heads, so the row is pinned. Otherwise
+                // the loan's share is a floor and whatever the user added on top stays.
+                const target =
+                    now > 0 ? (exact ? now : Math.max(now, current - was + now)) : current - was;
+
+                if (target <= 0.009 && was > 0) {
+                    dropped.add(idx);
+                } else if (Math.abs(target - current) >= 0.01) {
+                    rows[idx] = { ...rows[idx], amount_received: String(round2(target)) };
+                }
+            });
+
+            return {
+                ...p,
+                received_amt_breakup: rows.filter((_, i) => !dropped.has(i)),
+            };
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loanHeadsKey, activeLoans.length, editDocLoaded]);
 
     useEffect(() => {
         if (result?.message) {
@@ -2029,22 +2048,15 @@ const AddFundReceived: React.FC = () => {
                 throw new Error(lines.join("\n"));
             }
 
-            // ── Validate against the loan settlements raised from this receipt ──
-            // The backend re-checks all of this; doing it here just avoids a round-trip.
-            if (settlementReq && settlementReq.total > 0) {
-                const shortTotal = settlementReq.exact
-                    ? Math.abs(fundReceivedAmt - settlementReq.total) >= 0.01
-                    : fundReceivedAmt < settlementReq.total - 0.01;
-                if (shortTotal) {
-                    throw new Error(
-                        `❌ LOAN SETTLEMENT VALIDATION FAILED\n\n` +
-                        `Fund Received Amount must be ${settlementReq.exact ? "exactly" : "at least"} ` +
-                        `₹${settlementReq.total.toLocaleString("en-IN")} to settle the selected loan(s).\n` +
-                        `Current: ₹${(fundReceivedAmt || 0).toLocaleString("en-IN")}`,
-                    );
+            // ── Validate the loan settlement this receipt makes ──
+            // The backend recomputes and re-checks all of this; doing it here just avoids
+            // a round-trip.
+            if (activeLoans.length > 0) {
+                if (loanPlan.blocking) {
+                    throw new Error(`❌ LOAN SETTLEMENT VALIDATION FAILED\n\n${loanPlan.blocking}`);
                 }
 
-                const shortHeads = Object.entries(settlementHeadsByLabel)
+                const shortHeads = Object.entries(loanPlan.headsByLabel)
                     .map(([label, req]) => {
                         const got = (formData.received_amt_breakup || [])
                             .filter((r) => r.account_head === label)
@@ -2052,7 +2064,7 @@ const AddFundReceived: React.FC = () => {
                                 (s: number, r) => s + (parseFloat(r.amount_received) || 0),
                                 0,
                             );
-                        const bad = settlementReq.exact
+                        const bad = loanPlan.exact
                             ? Math.abs(got - req) >= 0.01
                             : got < req - 0.01;
                         return bad ? `• ${label}: ₹${got.toLocaleString("en-IN")} of ₹${req.toLocaleString("en-IN")}` : null;
@@ -2062,7 +2074,7 @@ const AddFundReceived: React.FC = () => {
                 if (shortHeads.length > 0) {
                     throw new Error(
                         `❌ LOAN SETTLEMENT VALIDATION FAILED\n\n` +
-                        `The Budget Breakup must credit ${settlementReq.exact ? "exactly" : "at least"} ` +
+                        `The Budget Breakup must credit ${loanPlan.exact ? "exactly" : "at least"} ` +
                         `the amount being returned to each head:\n\n${shortHeads.join("\n")}`,
                     );
                 }
@@ -2251,8 +2263,27 @@ const AddFundReceived: React.FC = () => {
                 })
                 .filter((r: any) => r !== null);
 
-            if (loanSettlementRefs.length > 0) {
-                dataToSubmit.loan_settlement_refs = loanSettlementRefs;
+            // Not Fund Received fields — the backend pops these off doc_data, re-plans the
+            // settlement against fresh Accounts balances, and creates the Loan Settlement
+            // docs in the same transaction as this receipt.
+            if (activeLoans.length > 0) {
+                dataToSubmit.allocation_method = allocationMethod;
+                dataToSubmit.selected_loans = activeLoans
+                    .filter((l) => !untickedLoans.has(l.ledger_loan_number))
+                    .map((l) => l.ledger_loan_number);
+                dataToSubmit.loan_settlements = loanPlan.settlements.map((s) => ({
+                    loan_reference: s.loan.loan_reference,
+                    ledger_loan_number: s.loan.ledger_loan_number,
+                    settlement_type: s.settlement_type,
+                    settlement_amount: s.settlement_amount,
+                    loan_amount: s.loan.loan_amount,
+                    project_number: s.loan.project_number,
+                    budget_breakup: s.loan.budget_heads.map((h, i) => ({
+                        account_head_id: h.account_head_id,
+                        account_head: h.account_head,
+                        return_amount: s.heads[headKey(h, i)] || 0,
+                    })),
+                }));
             }
 
             await submitForm({
@@ -2283,18 +2314,13 @@ const AddFundReceived: React.FC = () => {
         if (!field || field.hidden || field.fieldtype === "Section Break")
             return null;
 
-        // A partial settlement pins the receipt to the amount the user declared in the
-        // modal, so the field is theirs to change there, not here.
-        const lockedBySettlement =
-            settlementLocked && field.fieldname === "fund_received_amt";
-
         const commonProps = {
             id: field.fieldname,
             name: field.fieldname,
-            className: cn(inputClasses, lockedBySettlement && "bg-zinc-100 dark:bg-zinc-800 cursor-not-allowed"),
-            readOnly: field.read_only === 1 || lockedBySettlement,
+            className: inputClasses,
+            readOnly: field.read_only === 1,
             required: field.mandatory === 1,
-            disabled: field.read_only === 1 || lockedBySettlement,
+            disabled: field.read_only === 1,
             value: formData[field.fieldname] ?? field.default ?? "",
             onChange: (
                 e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -2419,23 +2445,7 @@ const AddFundReceived: React.FC = () => {
                         <span className="text-red-500">*</span>
                     )}
                 </label>
-                {/* The amount is driven by the loan settlement, so the way to change it is
-                    to revise the settlement — not to type over the figure. */}
-                {isFundReceivedAmtField && settlementReq && settlementReq.total > 0 ? (
-                    <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">{renderInput()}</div>
-                        <button
-                            type="button"
-                            onClick={() => setEditingSettlement(true)}
-                            className="shrink-0 h-[38px] px-3 rounded-lg text-[11px] font-bold uppercase tracking-wide text-[#D97757] bg-[#FFF7ED] dark:bg-[#D97757]/10 border border-[#D97757]/50 hover:bg-[#D97757]/15 transition-colors"
-                            title="Reopen the loan settlement to change the amount"
-                        >
-                            Edit
-                        </button>
-                    </div>
-                ) : (
-                    renderInput()
-                )}
+                {renderInput()}
                 {/* Character limit indicator for bank_account */}
                 {isBankAccountField && (
                     <div className="flex items-center justify-between mt-1">
@@ -2455,21 +2465,12 @@ const AddFundReceived: React.FC = () => {
                         </span>
                     </div>
                 )}
-                {isFundReceivedAmtField && lockedBySettlement && (
+                {isFundReceivedAmtField && loanPlan.outstanding > 0 && (
                     <p className="text-xs font-medium mt-1 text-[#D97757]">
-                        Fixed at the total of the partial loan settlement(s) raised from this
-                        receipt. Use <strong>Edit</strong> to change what is being settled.
+                        Up to {fmtINR(loanPlan.outstanding)} goes to the selected loan(s) first —
+                        see Loan Settlement below.
                     </p>
                 )}
-                {isFundReceivedAmtField &&
-                    !lockedBySettlement &&
-                    settlementReq &&
-                    settlementReq.total > 0 && (
-                        <p className="text-xs font-medium mt-1 text-[#D97757]">
-                            Must be at least {fmtINR(settlementReq.total)} to settle the selected
-                            loan(s) in full.
-                        </p>
-                    )}
                 {/* Real-time: transaction total and breakup total must both equal this. */}
                 {isFundReceivedAmtField && transactionAmtError && (
                     <p className="text-xs font-medium mt-1 text-blue-600 dark:text-blue-400">
@@ -2560,101 +2561,47 @@ const AddFundReceived: React.FC = () => {
             // A loan can be drawn against a head this sanction doesn't budget for. The row
             // still has to be shown and submitted, so keep it selectable; the existing
             // head-wise sanction check is what flags the overrun.
-            ...Object.keys(settlementHeadsByLabel),
+            ...Object.keys(loanPlan.headsByLabel),
         ]),
     ];
+
+    // Shown right under the Fund Received Amount; if that field isn't in a regular
+    // section, it goes above the Budget Breakup instead.
+    const fundAmtInOtherSection = sections.some(
+        (s) =>
+            s.title !== "Transaction & Budget Breakups" &&
+            s.fields.some((f) => f.fieldname === "fund_received_amt"),
+    );
+    const loanSettlementPanel = activeLoans.length > 0 && (
+        <LoanSettlementPanel
+            loans={activeLoans}
+            plan={loanPlan}
+            received={fundReceivedAmt}
+            breakupTotal={totalBreakupAmt}
+            unticked={untickedLoans}
+            onToggle={toggleLoan}
+            onToggleAll={toggleAllLoans}
+            method={allocationMethod}
+            onMethod={setAllocationMethod}
+            overrides={partialSplitOverrides}
+            onHeadChange={changePartialSplit}
+            onRetry={() => refetchActiveLoans()}
+            retrying={activeLoansValidating}
+        />
+    );
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
 
             {showLoanModal && (
-                <LoanSettlementModal
+                <LoanNoticeModal
                     loans={activeLoans}
-                    projectName={projectNoFromUrl || projectName || ""}
                     overviewProjectRef={projectRegFromUrl || projectName || ""}
-                    isEditing={editingSettlement}
-                    initialSelections={settlementSelections}
-                    previousRefs={loanSettlementRefs}
-                    onCancelEdit={() => setEditingSettlement(false)}
-                    onSettle={(names, requirements, selections) => {
-                        setLoanSettlementRefs(names);
-                        setSettlementSelections(selections);
-                        if (requirements) {
-                            applySettlementRequirements(
-                                requirements,
-                                editingSettlement ? settlementReq : null,
-                            );
-                            setSettlementReq(requirements);
-                        }
-                        setEditingSettlement(false);
-                        setLoanModalDismissed(true);
-                    }}
+                    onContinue={() => setLoanModalDismissed(true)}
                 />
             )}
 
             <main className="flex-1 px-0 pt-0 pb-4">
-                {settlementReq && settlementReq.total > 0 && (
-                    <div className="mb-3 rounded-lg border border-[#D97757]/40 bg-[#FFF7ED] dark:bg-[#D97757]/10 px-3 py-2">
-                        <div className="flex items-start justify-between gap-3 mb-1">
-                            <h3 className="text-sm font-bold text-[#9A3412] dark:text-[#F7B79B]">
-                                Loan settlement raised from this receipt
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => setEditingSettlement(true)}
-                                className="shrink-0 px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wide text-[#9A3412] dark:text-[#F7B79B] bg-white/70 dark:bg-black/20 border border-[#D97757]/50 hover:bg-white transition-colors"
-                            >
-                                Edit
-                            </button>
-                        </div>
-                        <p className="text-xs text-[#9A3412]/90 dark:text-[#F7B79B]/90 mb-3">
-                            {settlementReq.exact
-                                ? "The Fund Received Amount and the highlighted budget heads are fixed at what you chose to return, and cannot be edited here."
-                                : "This receipt must carry at least the amounts below. Anything above them is ordinary project funding and is yours to allocate."}
-                        </p>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-xs">
-                                <thead>
-                                    <tr className="text-left text-[10px] uppercase tracking-wider text-[#9A3412]/70 dark:text-[#F7B79B]/70">
-                                        <th className="pr-4 pb-1 font-bold">Loan</th>
-                                        <th className="pr-4 pb-1 font-bold">Type</th>
-                                        <th className="pr-4 pb-1 font-bold">Head</th>
-                                        <th className="pb-1 font-bold text-right">Return</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-[#7C2D12] dark:text-[#F7B79B]">
-                                    {settlementReq.settlements.flatMap((s) =>
-                                        s.budget_breakup.map((b, bi) => (
-                                            <tr key={`${s.name}-${b.account_head}-${bi}`}>
-                                                <td className="pr-4 py-0.5 font-mono">
-                                                    {bi === 0 ? s.loan_reference : ""}
-                                                </td>
-                                                <td className="pr-4 py-0.5">
-                                                    {bi === 0 ? s.settlement_type : ""}
-                                                </td>
-                                                <td className="pr-4 py-0.5">
-                                                    {b.account_head_label || b.account_head}
-                                                </td>
-                                                <td className="py-0.5 text-right font-semibold whitespace-nowrap">
-                                                    {fmtINR(b.return_amount)}
-                                                </td>
-                                            </tr>
-                                        )),
-                                    )}
-                                    <tr className="border-t border-[#D97757]/30 font-bold">
-                                        <td className="pr-4 pt-1" colSpan={3}>
-                                            Total
-                                        </td>
-                                        <td className="pt-1 text-right whitespace-nowrap">
-                                            {fmtINR(settlementReq.total)}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-
                 <header className="mb-3 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-sm">
                     <div className="h-[3px] bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
                     <div className="px-4 py-2.5 flex items-center gap-3">
@@ -2748,6 +2695,7 @@ const AddFundReceived: React.FC = () => {
                                                         fundReceivedAmt
                                                     }
                                                 />
+                                                {!fundAmtInOtherSection && loanSettlementPanel}
                                                 <MemoizedBudgetBreakupTable
                                                     tableData={
                                                         formData.received_amt_breakup
@@ -2764,15 +2712,21 @@ const AddFundReceived: React.FC = () => {
                                                     }
                                                     hasEmptyAccountHead={hasEmptyAccountHead}
                                                     usedAccountHeads={usedAccountHeads}
-                                                    settlementHeads={settlementHeadsByLabel}
-                                                    settlementLocked={settlementLocked}
+                                                    settlementHeads={loanPlan.headsByLabel}
+                                                    settlementLocked={loanPlan.exact}
+                                                    addDisabled={activeLoans.length > 0 && loanPlan.exact}
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                {section.fields.map(
-                                                    renderFormField,
-                                                )}
+                                            <div className="space-y-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                    {section.fields.map(
+                                                        renderFormField,
+                                                    )}
+                                                </div>
+                                                {section.fields.some(
+                                                    (f) => f.fieldname === "fund_received_amt",
+                                                ) && loanSettlementPanel}
                                             </div>
                                         )}
                                     </NeoSection>
@@ -2789,7 +2743,7 @@ const AddFundReceived: React.FC = () => {
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
-                                    disabled={isSubmitting || !isFundAmtBreakupValid || !isTransactionAmtValid || hasEmptyAccountHead}
+                                    disabled={isSubmitting || !isFundAmtBreakupValid || !isTransactionAmtValid || hasEmptyAccountHead || !!loanPlan.blocking}
                                     className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] disabled:bg-zinc-300"
                                 >
                                     {isSubmitting

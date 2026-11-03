@@ -3,6 +3,7 @@ import { safeStorage } from "@/lib/safeStorage";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
@@ -19,6 +20,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
 import { SalaryHistoryModal } from "@/components/SalaryHistoryModal";
 import { useUserRoles } from "@/components/UserRole";
+import { HScrollArea } from "@/components/HScrollArea";
+import { isConsultancyToResearchProject } from "@/constants/consultancyToResearchProjects";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -30,6 +33,9 @@ interface StaffRecord {
     department: string;
     designation: string;
     joining_date: string;
+    /** Start of the unbroken service block that ends at term_completion_date. Earlier tenure rows that run
+     *  straight into the current extension are merged in, so the first part of the month is still paid. */
+    service_start_date?: string;
     term_completion_date: string;
     basic_salary: number;
     hra: number;
@@ -128,6 +134,24 @@ const getDaysInMonth = (year: number, month: number): number => {
 };
 
 /** Calculate working days dynamically based on joining date, term completion, and selected month/year. */
+/** Start of the continuous service block containing the latest tenure row. Tenure rows that touch or overlap
+ *  (next joining within a day of the previous term end) belong to the same block; a real gap starts a new one. */
+const continuousServiceStart = (tenures: { start: string; end: string }[]): string | undefined => {
+    const rows = tenures
+        .filter(t => t.start && !isNaN(new Date(t.start).getTime()))
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    if (rows.length === 0) return undefined;
+    const DAY = 86400000;
+    let blockStart = rows[0].start;
+    let blockEnd = rows[0].end ? new Date(rows[0].end).getTime() : Infinity;
+    for (let i = 1; i < rows.length; i++) {
+        const st = new Date(rows[i].start).getTime();
+        if (st - blockEnd > DAY) blockStart = rows[i].start; // real gap: a new block begins
+        blockEnd = Math.max(blockEnd, rows[i].end ? new Date(rows[i].end).getTime() : Infinity);
+    }
+    return blockStart;
+};
+
 const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: string, year: number, month: number): number => {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
@@ -378,6 +402,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const [deptFilter, setDeptFilter] = useState<string>("All");
     const [desigFilter, setDesigFilter] = useState<string>("All");
     const [projectFilter, setProjectFilter] = useState<string>("All");
+    const [convertedOnly, setConvertedOnly] = useState(false);
     const [schemeFilter, setSchemeFilter] = useState<string>("All");
     // Primary staff-type tab — Research vs Consultancy staff are shown in entirely separate tabs
     // rather than an optional filter, so the two payrolls can never bleed into each other.
@@ -499,7 +524,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         // We re-compute inline to avoid circular dependency ordering issues
         const record = r;
         const dim = getDaysInMonth(selectedYear, selectedMonth);
-        const wd = calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth);
+        const wd = calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth);
         const defaultMedical = Math.round((record.medical_allowance / dim) * wd);
         const rowOverrides = overrides[r.docName] || {};
         const basicForRow = rowOverrides.basic ?? r.basic_salary;
@@ -736,7 +761,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             const failures: PaymentOutcome[] = [];
             for (const r of selectedRecords) {
                 const dim = getDaysInMonth(selectedYear, selectedMonth);
-                const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                 const defaultMedical = Math.round((r.medical_allowance / dim) * wd);
                 const rowOverrides = overrides[r.docName] || {};
                 const basicForRow = rowOverrides.basic ?? r.basic_salary;
@@ -793,7 +818,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const getRowInputs = useCallback((docName: string): { inputs: EditableInputs; isEdited: Record<keyof EditableInputs, boolean>; currentHRA: number } => {
         const record = records.find(r => r.docName === docName);
         const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-        const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+        const workingDays = record ? calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
         const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
 
         const rowOverrides = overrides[docName] || {};
@@ -862,7 +887,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             } else if (field === "medicalDeduction") {
                 const record = records.find(r => r.docName === docName);
                 const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-                const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+                const workingDays = record ? calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
                 const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
                 if (Math.round(Number(value)) === defaultMedical) {
                     shouldStoreOverride = false;
@@ -870,7 +895,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             } else if (field === "hraDeduction") {
                 const record = records.find(r => r.docName === docName);
                 const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-                const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+                const workingDays = record ? calcWorkingDaysForPeriod(record.service_start_date || record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
                 const basicForRow = currentOverrides.basic ?? record?.basic_salary ?? 0;
                 const currentHRA = record ? calcHRAFromBasic(record.hra_percent, basicForRow) : 0;
                 const defaultHRADed = record ? getHRADeduction(record, Math.round((currentHRA / daysInMonth) * workingDays)) : 0;
@@ -956,7 +981,32 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                 (r.workflow_state || "").toLowerCase() === "approved"
             );
 
-            setRecords(rows.map(mapRow));
+            const mapped = rows.map(mapRow);
+
+            // Pull every tenure row (Project Staff Tenure Details) so a month that spans two extensions is paid
+            // for all of its days, not just the days of the latest extension. A failure here is non-fatal.
+            try {
+                const parentNames = mapped.map(m => m.docName).filter(Boolean);
+                if (parentNames.length > 0) {
+                    const tRes = await getList({
+                        doctype: "Project Staff Tenure Details",
+                        parent: "Project Staff Details",
+                        filters: [["parent", "in", parentNames]],
+                        fields: ["parent", "pstd_joining_date", "pstd_term_completion_date"],
+                        limit_page_length: 100000,
+                    });
+                    const byParent: Record<string, { start: string; end: string }[]> = {};
+                    ((tRes?.message ?? []) as { parent: string; pstd_joining_date?: string; pstd_term_completion_date?: string }[]).forEach(t => {
+                        (byParent[t.parent] ||= []).push({ start: t.pstd_joining_date || "", end: t.pstd_term_completion_date || "" });
+                    });
+                    mapped.forEach(m => {
+                        const start = continuousServiceStart(byParent[m.docName] ?? []);
+                        if (start) m.service_start_date = start;
+                    });
+                }
+            } catch { /* keep each staff member's current-extension dates */ }
+
+            setRecords(mapped);
         } catch (err: any) {
             setError(err?.exception || err?.message || String(err));
         } finally {
@@ -1325,7 +1375,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         // unless already paid this period — those stay visible under "Salary Processed".
         let list = records.filter(r => {
             if ((resignedMap[r.employee_id] || periodExpiredIds.has(r.employee_id)) && !processedEmployees.has(r.employee_id)) return false;
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             return wd > 0;
         });
 
@@ -1351,6 +1401,9 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         if (projectFilter !== "All") {
             list = list.filter(r => r.project_no === projectFilter);
         }
+        if (convertedOnly) {
+            list = list.filter(r => isConsultancyToResearchProject(r.project_no));
+        }
         if (schemeFilter !== "All") {
             list = list.filter(r => {
                 const pNo = (r.project_no || "").trim();
@@ -1367,7 +1420,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         }
 
         // Apply Sorting
-        return [...list].sort((a, b) => {
+        const sorted = [...list].sort((a, b) => {
             const getDepartmentName = (record: StaffRecord) =>
                 departmentLabels[record.department] || record.department;
             const av = sortKey === "department" ? getDepartmentName(a) : a[sortKey];
@@ -1383,13 +1436,15 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
             }
             return sortDir === "asc" ? cmp : -cmp;
         });
-    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, periodExpiredIds, processedEmployees]);
+        // Consultancy → Research staff always sit at the top, in the chosen sort order within each group.
+        return [...sorted.filter(r => isConsultancyToResearchProject(r.project_no)), ...sorted.filter(r => !isConsultancyToResearchProject(r.project_no))];
+    }, [records, search, deptFilter, desigFilter, projectFilter, convertedOnly, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, periodExpiredIds, processedEmployees]);
 
     // Staff active in the selected period, before any type/search/dept/etc. filtering —
     // used to decide whether to show the toolbar/table at all (a "no search results" state
     // should never hide the search box itself; see activeStaffCount below).
     const activeStaffRecords = useMemo(() =>
-        records.filter(r => calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth) > 0),
+        records.filter(r => calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth) > 0),
         [records, selectedYear, selectedMonth]);
 
     // Total active staff per type (for the Research/Consultancy main-tab badges) — independent
@@ -1495,22 +1550,22 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalOriginalHRA = filtered.reduce((s, r) => s + getRowInputs(r.docName).currentHRA, 0);
 
     const totalWorkingDays = filtered.reduce((s, r) =>
-        s + calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
+        s + calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
 
     const totalProRataBasic = filtered.reduce((s, r) =>
-        s + calcProRataBasic(getRowInputs(r.docName).inputs.basic, calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), daysInMonth), 0);
+        s + calcProRataBasic(getRowInputs(r.docName).inputs.basic, calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth), daysInMonth), 0);
 
     const totalHRA = filtered.reduce((s, r) =>
-        s + Math.round((getRowInputs(r.docName).currentHRA / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
+        s + Math.round((getRowInputs(r.docName).currentHRA / daysInMonth) * calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
 
     const totalMedical = filtered.reduce((s, r) =>
-        s + Math.round((r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
+        s + Math.round((r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
 
     const totalArrear = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.arrear, 0);
     const totalMedicalDed = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.medicalDeduction, 0);
     const totalPTax = filtered.reduce((s, r) => {
         const { inputs, currentHRA } = getRowInputs(r.docName);
-        const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+        const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
         const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
         const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
         const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1526,7 +1581,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalEarnings = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1544,7 +1599,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalDeductions = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1557,7 +1612,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
     const totalNetPay = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
@@ -1592,7 +1647,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         ];
         const rows = pendingRecords.map((r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
-            const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const workingDays = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
             const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
@@ -2108,13 +2163,35 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 </select>
                             </div>
 
+                            {/* Consultancy → Research converted projects: highlighted in the table, filterable here */}
+                            {(() => {
+                                const convertedCount = records.filter(r => isConsultancyToResearchProject(r.project_no)).length;
+                                return (
+                                    <button
+                                        type="button"
+                                        onClick={() => setConvertedOnly(v => !v)}
+                                        title="Staff on projects converted from consultancy to research (highlighted in the table)"
+                                        className={cn(
+                                            "inline-flex h-8 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-bold transition-all",
+                                            convertedOnly
+                                                ? "border-[#1F4D2B] bg-[#1F4D2B] text-white ring-2 ring-[#1F4D2B]/30"
+                                                : "border-[#7FA37A] bg-[#EEF5EC] text-[#1F4D2B] hover:bg-[#DDEBD9] dark:border-[#2F5D3A]/70 dark:bg-[#2F5D3A]/20 dark:text-[#BFE0B8]",
+                                        )}
+                                    >
+                                        <span className="h-2.5 w-2.5 rounded-full bg-[#1F4D2B]" />
+                                        Consultancy → Research
+                                        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[#1F4D2B] px-1.5 text-[10px] font-bold text-white">{convertedCount}</span>
+                                    </button>
+                                );
+                            })()}
+
                             {/* Clear button with filter count */}
                             {(() => {
-                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All"].filter(Boolean).length;
+                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All", convertedOnly].filter(Boolean).length;
                                 if (activeCount === 0) return null;
                                 return (
                                     <button
-                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); }}
+                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); setConvertedOnly(false); }}
                                         className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
                                     >
                                         <X className="h-3.5 w-3.5" />
@@ -2160,8 +2237,8 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                         })()}
 
                         {/* Table Container */}
-                        <Card key={staffTypeTab} className="animate-in fade-in duration-300 overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                            <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-[22px] py-[14px] dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <Card key={staffTypeTab} className="animate-in fade-in duration-300 overflow-clip rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                            <div className="sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[#E4E4E7] bg-[#FAFAF9] px-[22px] py-1.5 dark:border-[#3F3F46] dark:bg-[#27272A]">
                                 <div className="flex items-center gap-3 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/20">
                                         <IndianRupee className="h-3.5 w-3.5" />
@@ -2171,7 +2248,9 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                         {activeTab === "processed" ? filteredStagingRecords.length : displayedRecords.length} {(activeTab === "processed" ? filteredStagingRecords.length : displayedRecords.length) === 1 ? 'record' : 'records'}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                {/* Horizontal-scroll arrows of the table below render here (see HScrollArea) */}
+                                <div id="salary-register-scroll-controls" className="flex min-h-8 items-center justify-center" />
+                                <div className="flex items-center justify-self-end gap-2">
                                     <span className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
                                         {MONTHS[selectedMonth].label} {selectedYear}
                                     </span>
@@ -2218,7 +2297,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                            <HScrollArea controlsTargetId="salary-register-scroll-controls" className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
                                                 <table className="w-full min-w-[1100px] border-collapse text-left leading-tight">
                                                     <thead className="sticky top-0 z-20 bg-[#E6EBD8] text-[10px] font-extrabold uppercase tracking-wider text-[#4A5A28] dark:bg-[#2A3320] dark:text-[#C5D2A3]">
                                                         <tr className="border-b border-[#CBD5B0] dark:border-[#A3B18A]/30">
@@ -2334,7 +2413,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                         })}
                                                     </tbody>
                                                 </table>
-                                            </div>
+                                            </HScrollArea>
                                         )}
                                     </>
                                 ) : activeTab === "expired" ? (
@@ -2352,7 +2431,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                            <HScrollArea controlsTargetId="salary-register-scroll-controls" className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
                                                 <table className="min-w-full table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                                     <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
                                                         <tr>
@@ -2400,7 +2479,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                         })}
                                                     </tbody>
                                                 </table>
-                                            </div>
+                                            </HScrollArea>
                                         )}
                                     </>
                                 ) : activeTab === "processed" ? (
@@ -2413,7 +2492,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                        <HScrollArea controlsTargetId="salary-register-scroll-controls" className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
                                             <table className="min-w-[4600px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                                 <thead className="border-r border-[#C7D2FE]/70 whitespace-nowrap sticky top-0 z-20 bg-[#EEF2FF] text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A]  dark:text-[#1E3A8A] dark:text-[#C7D2FE]">
                                                     <tr className="border-b border-emerald-200 dark:border-emerald-900/40">
@@ -2605,7 +2684,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                     </tr>
                                                 </tfoot>
                                             </table>
-                                        </div>
+                                        </HScrollArea>
                                     )
                                 ) : pendingRecords.length === 0 ? (
                                     <div className="py-24 text-center">
@@ -2630,13 +2709,13 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                    <HScrollArea controlsTargetId="salary-register-scroll-controls" className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
                                         <table className="min-w-[2400px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
                                                 <tr className="border-b border-[#C7D2FE]/70 bg-[#EEF2FF] dark:border-[#4A6CF7]/25 dark:bg-[#1E3A8A]/18">
                                                     {/* Checkbox select-all — shown on pending and termending tabs */}
                                                     {(activeTab === "pending" || activeTab === "termending") && (
-                                                        <th rowSpan={2} className="w-[44px] min-w-[44px] border-r border-[#C7D2FE]/70 px-3 py-4 text-center dark:border-[#4A6CF7]/25 sticky left-0 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">
+                                                        <th rowSpan={2} className="w-[44px] min-w-[44px] border-r border-[#C7D2FE]/70 px-3 py-2 text-center dark:border-[#4A6CF7]/25 sticky left-0 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">
                                                             <input
                                                                 type="checkbox"
                                                                 title="Select all"
@@ -2652,20 +2731,20 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             />
                                                         </th>
                                                     )}
-                                                    <th rowSpan={2} className={cn("min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", (activeTab === "pending" || activeTab === "termending") ? "w-[48px] sticky left-[44px]" : "w-[48px] sticky left-0")}>#</th>
-                                                    <th rowSpan={2} className={cn("w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]")}>Emp ID</th>
-                                                    <th rowSpan={2} className={cn("w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]")}>Full Name</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Email ID</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Department</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Role</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Joining</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Exit Date</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Project No</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Scheme</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Bank A/C No</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">IFSC Code</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Gap Period</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-center">Hostel</th>
+                                                    <th rowSpan={2} className={cn("min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-2 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", (activeTab === "pending" || activeTab === "termending") ? "w-[48px] sticky left-[44px]" : "w-[48px] sticky left-0")}>#</th>
+                                                    <th rowSpan={2} className={cn("w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-2 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]")}>Emp ID</th>
+                                                    <th rowSpan={2} className={cn("w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-2 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]")}>Full Name</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Email ID</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Department</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Role</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Joining</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Exit Date</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Project No</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Scheme</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Bank A/C No</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">IFSC Code</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Gap Period</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-center">Hostel</th>
 
                                                     {/* Earnings section */}
                                                     <th colSpan={9} className="px-3 py-2 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 text-center border-b border-zinc-200 dark:border-zinc-800">Earnings Details (₹)</th>
@@ -2673,10 +2752,10 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                     {/* Deductions section */}
                                                     <th colSpan={8} className="px-3 py-2 bg-red-50/50 dark:bg-red-950/20 text-red-800 dark:text-red-400 text-center border-b border-zinc-200 dark:border-zinc-800">Deductions Details (₹)</th>
 
-                                                    <th rowSpan={2} className="px-4 py-4 text-right font-bold text-amber-800 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/10 border-l border-r border-zinc-200 dark:border-zinc-800">Net Pay (₹)</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left">Comment</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-left border-r border-zinc-200 dark:border-zinc-800">Remarks</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm min-w-[160px]">
+                                                    <th rowSpan={2} className="px-4 py-2 text-right font-bold text-amber-800 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/10 border-l border-r border-zinc-200 dark:border-zinc-800">Net Pay (₹)</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left">Comment</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-left border-r border-zinc-200 dark:border-zinc-800">Remarks</th>
+                                                    <th rowSpan={2} className="px-3 py-2 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm min-w-[160px]">
                                                         {(activeTab === "pending" || activeTab === "termending") && selectedEmpIds.size > 0 ? (
                                                             <button
                                                                 onClick={() => handlePaySelected(displayedRecords.filter(r => selectedEmpIds.has(r.employee_id)))}
@@ -2719,7 +2798,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                     const { inputs, isEdited, currentHRA } = getRowInputs(r.docName);
                                                     const isProcessed = processedEmployees.has(r.employee_id);
                                                     const isChecked = selectedEmpIds.has(r.employee_id);
-                                                    const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                                    const workingDays = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                                     const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
                                                     const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                                     const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
@@ -2730,10 +2809,10 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                     const netPay = grossPay - totalDed;
 
                                                     return (
-                                                        <tr key={r.docName || i} className={cn("transition-colors group", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                        <tr key={r.docName || i} className={cn("transition-colors group", isConsultancyToResearchProject(r.project_no) && "[&>td]:!bg-[#8FB58A] dark:[&>td]:!bg-[#2F5D3A]/60 [&.group:hover>td]:!bg-[#7FA87A] dark:[&.group:hover>td]:!bg-[#2F5D3A]/80 shadow-[inset_6px_0_0_0_#1F4D2B] [&>td]:!text-zinc-950 [&_.text-zinc-400]:!text-zinc-800 [&_.text-zinc-500]:!text-zinc-900 [&_.text-zinc-600]:!text-zinc-900 dark:[&>td]:!text-zinc-100 dark:[&_.text-zinc-400]:!text-zinc-200 dark:[&_.text-zinc-500]:!text-zinc-200 dark:[&_.text-zinc-600]:!text-zinc-200", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                             {/* Checkbox — shown on pending and termending tabs */}
                                                             {(activeTab === "pending" || activeTab === "termending") && (
-                                                                <td className={cn("px-3 py-2 text-center border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[44px] min-w-[44px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                                <td className={cn("px-3 py-1 text-center border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[44px] min-w-[44px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={isChecked}
@@ -2751,17 +2830,17 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             )}
 
                                                             {/* # */}
-                                                            <td className={cn("px-3 py-2 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
+                                                            <td className={cn("px-3 py-1 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
 
                                                             {/* Emp ID */}
-                                                            <td className={cn("px-3 py-2 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            <td className={cn("px-3 py-1 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <button type="button" onClick={e => { e.stopPropagation(); setHistoryFor({ id: r.employee_id, name: r.first_name }); }} title="View full salary history" className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50 hover:border-[#4A6CF7] hover:text-[#2563EB] dark:hover:text-[#A5B4FC]">
                                                                     {r.employee_id}
                                                                 </button>
                                                             </td>
 
                                                             {/* Full Name */}
-                                                            <td className={cn("px-3 py-2 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            <td className={cn("px-3 py-1 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
                                                                         <span className="text-[10px] font-bold text-[#D97757]">
@@ -2772,23 +2851,25 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                 </div>
                                                             </td>
 
-                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.email_id}</td>
-                                                            <td className="px-3 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
+                                                            <td className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.email_id}</td>
+                                                            <td className="px-3 py-1 text-xs font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
                                                                 {r.department && r.department !== "—" ? (
                                                                     <DepartmentName name={r.department} />
                                                                 ) : (
                                                                     "—"
                                                                 )}
                                                             </td>
-                                                            <td className="px-3 py-3">
+                                                            <td className="px-3 py-1.5">
                                                                 <span className="text-[10px] bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50 px-2.5 py-0.5 rounded-full whitespace-nowrap font-semibold">
                                                                     {r.designation}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
-                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
-                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
-                                                            <td className="px-3 py-2 text-xs whitespace-nowrap">
+                                                            <td className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
+                                                            <td className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
+                                                            <td className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">
+                                                                {r.project_no || "—"}
+                                                            </td>
+                                                            <td className="px-3 py-1 text-xs whitespace-nowrap">
                                                                 {(() => {
                                                                     const pNo = (r.project_no || "").trim();
                                                                     const schemeNo = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
@@ -2801,9 +2882,9 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     );
                                                                 })()}
                                                             </td>
-                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
-                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.ifsc_code || "—"}</td>
-                                                            <td className="px-3 py-2 text-xs whitespace-nowrap">
+                                                            <td className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
+                                                            <td className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.ifsc_code || "—"}</td>
+                                                            <td className="px-3 py-1 text-xs whitespace-nowrap">
                                                                 {(() => {
                                                                     const summary = tenureSummaryMap[r.employee_id];
                                                                     const monthGap: SalaryGap | null = pendingBulkCommits[r.employee_id]?.salary_gap ?? null;
@@ -2836,7 +2917,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     );
                                                                 })()}
                                                             </td>
-                                                            <td className="px-3 py-2 text-center whitespace-nowrap">
+                                                            <td className="px-3 py-1 text-center whitespace-nowrap">
                                                                 {(() => {
                                                                     if (!r.ps_hostel) return <span className="text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50 px-2 py-0.5 rounded-full">No</span>;
                                                                     const raw = String(r.ps_hostel).trim().toLowerCase();
@@ -2849,14 +2930,14 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
 
                                                             {/* Earnings values */}
                                                             {/* Basic Salary Input */}
-                                                            <td className="px-2 py-1.5 bg-emerald-50/5 dark:bg-emerald-950/5 border-l border-zinc-100 dark:border-zinc-800">
+                                                            <td className="px-2 py-0.5 bg-emerald-50/5 dark:bg-emerald-950/5 border-l border-zinc-100 dark:border-zinc-800">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.basic || ""}
                                                                     onChange={e => handleInputChange(r.docName, "basic", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.basic
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -2866,13 +2947,13 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     step="1"
                                                                 />
                                                             </td>
-                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(currentHRA)}</td>
-                                                            <td className="px-3 py-2 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+                                                            <td className="px-3 py-1 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(currentHRA)}</td>
+                                                            <td className="px-3 py-1 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
                                                                 <span className="text-[10px] font-bold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-200/50 dark:border-violet-900/40 px-2 py-0.5 rounded-full">
                                                                     {r.hra_percent}%
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-2 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+                                                            <td className="px-3 py-1 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
                                                                 <span className={cn(
                                                                     "text-xs font-bold px-2 py-0.5 rounded-full border",
                                                                     workingDays < daysInMonth
@@ -2882,16 +2963,16 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     {workingDays} / {daysInMonth}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+                                                            <td className="px-3 py-1 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
                                                                 <span className={cn(workingDays < daysInMonth && "text-amber-600 dark:text-amber-400 font-semibold")}>
                                                                     {fmt(proRataBasic)}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataHRA)}</td>
-                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataMedical)}</td>
+                                                            <td className="px-3 py-1 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataHRA)}</td>
+                                                            <td className="px-3 py-1 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataMedical)}</td>
 
                                                             {/* Arrear Input */}
-                                                            <td className="px-2 py-1.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-800">
+                                                            <td className="px-2 py-0.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-800">
                                                                 <div className="relative flex items-center">
                                                                     <input
                                                                         type="number"
@@ -2899,7 +2980,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                         onChange={e => handleInputChange(r.docName, "arrear", parseInt(e.target.value, 10) || 0)}
                                                                         onWheel={e => e.currentTarget.blur()}
                                                                         className={cn(
-                                                                            "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                            "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                             isEdited.arrear
                                                                                 ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                                 : "border-zinc-200 dark:border-zinc-700"
@@ -2912,20 +2993,20 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* Gross Pay */}
-                                                            <td className="px-3 py-2 text-right font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
+                                                            <td className="px-3 py-1 text-right font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
                                                                 {fmt(grossPay)}
                                                             </td>
 
                                                             {/* Deductions */}
                                                             {/* HRA Deduction Input */}
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.hraDeduction || ""}
                                                                     onChange={e => handleInputChange(r.docName, "hraDeduction", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.hraDeduction
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -2937,14 +3018,14 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* Medical Deduction Input */}
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.medicalDeduction || ""}
                                                                     onChange={e => handleInputChange(r.docName, "medicalDeduction", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.medicalDeduction
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -2954,7 +3035,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                     step="1"
                                                                 />
                                                             </td>
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <div className="flex items-center gap-1">
                                                                     <input
                                                                         type="text"
@@ -2973,7 +3054,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                         }}
                                                                         title="Calculated from the Assam P-Tax slab. Edit to override; clear it or type nil / NA / 0 for no P-Tax"
                                                                         className={cn(
-                                                                            "w-20 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                            "w-20 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                             isEdited.pTax
                                                                                 ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                                 : "border-zinc-200 dark:border-zinc-700"
@@ -2993,14 +3074,14 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* TA Input */}
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.ta || ""}
                                                                     onChange={e => handleInputChange(r.docName, "ta", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.ta
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -3012,14 +3093,14 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* ID Card Input */}
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.idCardCharge || ""}
                                                                     onChange={e => handleInputChange(r.docName, "idCardCharge", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.idCardCharge
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -3031,14 +3112,14 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* Electricity Input */}
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.electricityBill || ""}
                                                                     onChange={e => handleInputChange(r.docName, "electricityBill", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.electricityBill
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -3050,14 +3131,14 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* Other Deduction Input */}
-                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                            <td className="px-2 py-0.5 bg-red-50/10 dark:bg-red-950/10">
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.otherDeduction || ""}
                                                                     onChange={e => handleInputChange(r.docName, "otherDeduction", parseInt(e.target.value, 10) || 0)}
                                                                     onWheel={e => e.currentTarget.blur()}
                                                                     className={cn(
-                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        "w-24 px-2 py-0.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
                                                                         isEdited.otherDeduction
                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -3069,38 +3150,38 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* Total Deduction */}
-                                                            <td className="px-3 py-2 text-right font-semibold text-rose-600 dark:text-rose-400 bg-red-50/10 dark:bg-red-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
+                                                            <td className="px-3 py-1 text-right font-semibold text-rose-600 dark:text-rose-400 bg-red-50/10 dark:bg-red-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
                                                                 {fmt(totalDed)}
                                                             </td>
 
                                                             {/* Net Pay calculated */}
-                                                            <td className="px-4 py-3 text-right font-bold text-amber-800 dark:text-amber-400 bg-amber-50/15 dark:bg-amber-950/10 border-l border-r border-zinc-200/80 dark:border-zinc-800/80 tabular-nums whitespace-nowrap">
+                                                            <td className="px-4 py-1.5 text-right font-bold text-amber-800 dark:text-amber-400 bg-amber-50/15 dark:bg-amber-950/10 border-l border-r border-zinc-200/80 dark:border-zinc-800/80 tabular-nums whitespace-nowrap">
                                                                 {fmt(netPay)}
                                                             </td>
 
                                                             {/* Comments and Remarks */}
-                                                            <td className="px-2 py-1.5">
+                                                            <td className="px-2 py-0.5">
                                                                 <input
                                                                     type="text"
                                                                     value={inputs.comment}
                                                                     onChange={e => handleInputChange(r.docName, "comment", e.target.value)}
                                                                     maxLength={120}
                                                                     className={cn(
-                                                                        "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
+                                                                        "w-32 px-2 py-0.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
                                                                         isEdited.comment ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
                                                                     )}
                                                                     placeholder="Note..."
                                                                 />
                                                                 <CharLimitAlert value={inputs.comment} maxLength={120} className="mt-1 text-[10px]" />
                                                             </td>
-                                                            <td className="px-2 py-1.5 border-r border-zinc-100 dark:border-zinc-800">
+                                                            <td className="px-2 py-0.5 border-r border-zinc-100 dark:border-zinc-800">
                                                                 <input
                                                                     type="text"
                                                                     value={inputs.remarks}
                                                                     onChange={e => handleInputChange(r.docName, "remarks", e.target.value)}
                                                                     maxLength={120}
                                                                     className={cn(
-                                                                        "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
+                                                                        "w-32 px-2 py-0.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
                                                                         isEdited.remarks ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
                                                                     )}
                                                                     placeholder="Remarks..."
@@ -3109,7 +3190,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             </td>
 
                                                             {/* Payslip Action Button */}
-                                                            <td className="px-3 py-2 text-center bg-white group-hover:bg-blue-50/50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
+                                                            <td className="px-3 py-1 text-center bg-white group-hover:bg-blue-50/50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
                                                                 <div className="flex items-center justify-center gap-1.5">
                                                                     <button
                                                                         onClick={() => setSelectedSlipRecord(r)}
@@ -3120,7 +3201,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                         Slip
                                                                     </button>
                                                                     {isProcessed && (
-                                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold tracking-wide">
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold tracking-wide">
                                                                             <CheckCircle2 className="w-3 h-3" />
                                                                             Paid
                                                                         </span>
@@ -3172,7 +3253,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                 </tr>
                                             </tfoot>
                                         </table>
-                                    </div>
+                                    </HScrollArea>
                                 )}
                             </CardContent>
                         </Card>
@@ -3227,9 +3308,9 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                 <SalaryHistoryModal employeeId={historyFor.id} employeeName={historyFor.name} onClose={() => setHistoryFor(null)} />
             )}
 
-            {/* Salary Slip Modal Component */}
-            {selectedSlipRecord && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+            {/* Salary Slip Modal Component — portalled to <body> so printing can drop the rest of the page entirely */}
+            {selectedSlipRecord && createPortal(
+                <div id="payslip-print-root" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
                     <div className="relative my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757] print:hidden" />
                         {/* Control header bar - hidden during print */}
@@ -3258,258 +3339,193 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                         </div>
 
                         {/* Printable Area */}
-                        <div id="print-payslip-area" className="overflow-y-auto bg-white p-8 font-sans text-zinc-900 md:p-12 print:m-0 print:overflow-visible print:p-0">
+                        <div id="print-payslip-area" className="overflow-y-auto bg-white p-5 font-sans text-zinc-900 md:p-6 print:m-0 print:overflow-visible print:p-0">
                             {/* CSS Rules inside the printable element to enforce styles */}
                             <style>{`
+                                @page { size: A4 portrait; margin: 10mm; }
                                 @media print {
-                                    /* Hide all page content during print */
-                                    body * {
-                                        visibility: hidden;
+                                    /* Remove everything except the slip from the layout (display:none, not visibility,
+                                       otherwise the hidden register table still produces dozens of blank pages) */
+                                    body > *:not(#payslip-print-root) {
+                                        display: none !important;
                                     }
-                                    
-                                    /* Keep only the print payslip area and its descendants visible */
-                                    #print-payslip-area, #print-payslip-area * {
-                                        visibility: visible !important;
-                                    }
-                                    
-                                    /* Force parent layouts to be visible and un-clipped */
-                                    #root, 
-                                    .fixed, 
-                                    .relative, 
-                                    .overflow-hidden, 
-                                    .backdrop-blur-sm,
-                                    body, 
-                                    html {
-                                        visibility: visible !important;
-                                        overflow: visible !important;
-                                        position: static !important;
+                                    html, body {
                                         height: auto !important;
-                                        min-height: auto !important;
+                                        overflow: visible !important;
+                                        background: #fff !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                    }
+                                    /* Unclip the modal wrappers so the slip flows onto the page normally */
+                                    #payslip-print-root,
+                                    #payslip-print-root > div {
+                                        position: static !important;
+                                        display: block !important;
+                                        max-height: none !important;
+                                        height: auto !important;
+                                        overflow: visible !important;
                                         margin: 0 !important;
                                         padding: 0 !important;
                                         background: transparent !important;
-                                        box-shadow: none !important;
                                         border: none !important;
+                                        box-shadow: none !important;
                                         transform: none !important;
                                         animation: none !important;
                                         backdrop-filter: none !important;
                                     }
-                                    
-                                    /* Style the print container to cover the full A4 page perfectly */
                                     #print-payslip-area {
-                                        position: absolute !important;
-                                        left: 0 !important;
-                                        top: 0 !important;
+                                        position: static !important;
+                                        overflow: visible !important;
                                         width: 100% !important;
-                                        padding: 30px !important;
                                         margin: 0 !important;
-                                        background: white !important;
-                                        color: black !important;
-                                        border: none !important;
+                                        padding: 0 !important;
+                                        background: #fff !important;
+                                        color: #000 !important;
                                         -webkit-print-color-adjust: exact !important;
                                         print-color-adjust: exact !important;
+                                        break-inside: avoid;
+                                        page-break-inside: avoid;
                                     }
-                                    
                                     .dark #print-payslip-area {
-                                        background: white !important;
-                                        color: black !important;
+                                        background: #fff !important;
+                                        color: #000 !important;
                                     }
                                 }
                             `}</style>
 
-                            {/* Organization Header */}
-                            <div className="text-center space-y-2 pb-6 border-b-2 border-zinc-800">
-                                <div className="flex justify-center items-center gap-4 mb-2">
-                                    <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IITG Logo" className="w-14 h-14 object-contain" />
-                                    <div className="text-left">
-                                        <h2 className="text-xl md:text-2xl font-serif font-bold tracking-tight text-zinc-950 uppercase">Indian Institute of Technology Guwahati</h2>
-                                        <h3 className="text-sm font-semibold tracking-wide text-zinc-700 uppercase">Research & Development (R&D) Cell</h3>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 bg-zinc-100 py-1.5 px-4 rounded-full inline-block">
-                                    Salary Statement for {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
-                                </p>
-                            </div>
-
-                            {/* Metadata / Employee Details Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 py-6 text-sm border-b border-zinc-200">
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Employee Name:</span>
-                                    <span className="font-bold text-zinc-950">{selectedSlipRecord.first_name}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Employee ID:</span>
-                                    <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.employee_id}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Department:</span>
-                                    <span className="font-semibold text-zinc-900">
-                                        {selectedSlipRecord.department && selectedSlipRecord.department !== "—" ? (
-                                            <DepartmentName name={selectedSlipRecord.department} />
-                                        ) : (
-                                            "—"
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Designation / Role:</span>
-                                    <span className="font-semibold text-zinc-900">{selectedSlipRecord.designation}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Joining Date:</span>
-                                    <span className="font-medium text-zinc-900">{fmtDate(selectedSlipRecord.joining_date)}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Worked Days this Cycle:</span>
-                                    <span className="font-bold text-zinc-950">
-                                        {calcWorkingDaysForPeriod(selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth)} / {daysInMonth} Days
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Project Number:</span>
-                                    <span className="font-semibold text-zinc-900">{selectedSlipRecord.project_no || "—"}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Scheme:</span>
-                                    <span className="font-semibold text-violet-700">
-                                        {(() => {
-                                            const pNo = (selectedSlipRecord.project_no || "").trim();
-                                            return pNo && schemeMap[pNo] ? schemeMap[pNo].trim() : "—";
-                                        })()}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 py-1">
-                                    <span className="text-zinc-500 font-medium">Bank Account Number:</span>
-                                    <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.bank_account_number || "—"}</span>
-                                </div>
-                            </div>
-
-                            {/* Earnings & Deductions Double Column Table */}
                             {(() => {
-                                const { inputs, currentHRA } = getRowInputs(selectedSlipRecord.docName);
-                                const workingDays = calcWorkingDaysForPeriod(selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth);
+                                const rec = selectedSlipRecord;
+                                const { inputs, currentHRA } = getRowInputs(rec.docName);
+                                const workingDays = calcWorkingDaysForPeriod(rec.service_start_date || rec.joining_date, rec.term_completion_date, selectedYear, selectedMonth);
                                 const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
                                 const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
-                                const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
+                                const proRataMedical = Math.round((rec.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                                 const pTax = ptaxOf(inputs, grossPay);
                                 const hraDed = inputs.hraDeduction;
                                 const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;
 
+                                const earnings: [string, number][] = [
+                                    ["Pro-Rata Basic Salary", proRataBasic],
+                                    ["House Rent Allowance (HRA)", proRataHRA],
+                                    ["Medical Allowance", proRataMedical],
+                                    ["Arrear", inputs.arrear],
+                                ];
+                                const deductions: [string, number][] = [
+                                    ["Hostel Rent / Campus Accommodation", hraDed],
+                                    ["Medical Deductions", inputs.medicalDeduction],
+                                    ["Professional Tax (PTAX Assam)", pTax],
+                                    ["Travel Allowance", inputs.ta],
+                                    ["ID Card Charges", inputs.idCardCharge],
+                                    ["Library Fine", 0],
+                                    ["Electricity Bill", inputs.electricityBill],
+                                    ["Other Deductions", inputs.otherDeduction],
+                                ];
+                                const rowCount = Math.max(earnings.length, deductions.length);
+                                const info: [string, React.ReactNode][][] = [
+                                    [["Employee Name", <b key="n">{rec.first_name}</b>], ["Employee ID", <b key="i" className="font-mono">{rec.employee_id}</b>]],
+                                    [["Department", rec.department && rec.department !== "—" ? <DepartmentName name={rec.department} /> : "—"], ["Designation / Role", rec.designation || "—"]],
+                                    [["Joining Date", fmtDate(rec.joining_date)], ["Worked Days", <b key="w">{workingDays} / {daysInMonth} Days</b>]],
+                                    [["Bank Account Number", <span key="b" className="font-mono">{rec.bank_account_number || "—"}</span>], ["Payroll Month", `${MONTHS.find(m => m.value === selectedMonth)?.label} ${selectedYear}`]],
+                                ];
+
                                 return (
-                                    <div className="mt-6 space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 border border-zinc-300 rounded-xl overflow-hidden divide-y md:divide-y-0 md:divide-x divide-zinc-300">
-                                            {/* Earnings Column */}
-                                            <div className="flex flex-col h-full bg-emerald-50/5">
-                                                <div className="bg-emerald-50 py-2.5 px-4 font-bold border-b border-zinc-300 text-emerald-800 text-sm tracking-wider uppercase">
-                                                    Earnings Breakdown
-                                                </div>
-                                                <div className="p-4 flex-1 space-y-2 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Pro-Rata Basic Salary:</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(proRataBasic)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">House Rent Allowance (HRA):</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(proRataHRA)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Medical Allowance:</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(proRataMedical)}</span>
-                                                    </div>
-                                                    {inputs.arrear > 0 && (
-                                                        <div className="flex justify-between font-medium text-orange-600">
-                                                            <span>Arrear Payout adjustments:</span>
-                                                            <span className="font-bold tabular-nums">+{fmt(inputs.arrear)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="mt-auto bg-emerald-50/40 border-t border-zinc-200 p-4 py-3 flex justify-between font-bold text-emerald-800 text-sm">
-                                                    <span>Gross Earnings Total:</span>
-                                                    <span className="tabular-nums">{fmt(grossPay)}</span>
-                                                </div>
+                                    <div className="text-[12px] leading-snug">
+                                        {/* Letterhead */}
+                                        <div className="flex items-center gap-3 border-b-2 border-zinc-800 pb-2">
+                                            <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IITG Logo" className="h-12 w-12 shrink-0 object-contain" />
+                                            <div className="flex-1 text-center">
+                                                <h2 className="font-serif text-base font-bold uppercase tracking-wide text-zinc-950">Indian Institute of Technology Guwahati</h2>
+                                                <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-700">Research & Development (R&D) Cell</h3>
                                             </div>
+                                            <div className="h-12 w-12 shrink-0" aria-hidden />
+                                        </div>
 
-                                            {/* Deductions Column */}
-                                            <div className="flex flex-col h-full bg-red-50/5">
-                                                <div className="bg-red-50 py-2.5 px-4 font-bold border-b border-zinc-300 text-red-800 text-sm tracking-wider uppercase">
-                                                    Deductions & Deductibles
-                                                </div>
-                                                <div className="p-4 flex-1 space-y-2 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Hostel Rent / Campus Accommodation:</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(hraDed)}</span>
-                                                    </div>
-                                                    {inputs.medicalDeduction > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Medical Deductions:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.medicalDeduction)}</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex justify-between">
-                                                        <span className="text-zinc-600">Professional Tax (PTAX Assam):</span>
-                                                        <span className="font-semibold tabular-nums">{fmt(pTax)}</span>
-                                                    </div>
-                                                    {inputs.ta > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Travel/TA Adjustments:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.ta)}</span>
-                                                        </div>
-                                                    )}
-                                                    {inputs.idCardCharge > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">ID Card Charges:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.idCardCharge)}</span>
-                                                        </div>
-                                                    )}
-                                                    {inputs.electricityBill > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Electricity Bill:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.electricityBill)}</span>
-                                                        </div>
-                                                    )}
-                                                    {inputs.otherDeduction > 0 && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-zinc-600">Other Deductions:</span>
-                                                            <span className="font-semibold tabular-nums">{fmt(inputs.otherDeduction)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="mt-auto bg-red-50/40 border-t border-zinc-200 p-4 py-3 flex justify-between font-bold text-red-800 text-sm">
-                                                    <span>Total Deductions:</span>
-                                                    <span className="tabular-nums">{fmt(totalDed)}</span>
-                                                </div>
+                                        {/* Title */}
+                                        <div className="mt-2 grid grid-cols-3 items-center border-b border-zinc-800 pb-1.5">
+                                            <span aria-hidden />
+                                            <span className="text-center text-[13px] font-bold uppercase tracking-[0.2em]">Salary Slip</span>
+                                            <span className="text-right text-[12px] font-semibold uppercase tracking-wider">
+                                                {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
+                                            </span>
+                                        </div>
+
+                                        {/* Employee details */}
+                                        <table className="mt-2 w-full border-collapse border border-zinc-300">
+                                            <tbody>
+                                                {info.map((pair, i) => (
+                                                    <tr key={i} className="border-b border-zinc-300 last:border-b-0">
+                                                        {pair.map(([k, v]) => (
+                                                            <React.Fragment key={k}>
+                                                                <td className="w-[19%] border-r border-zinc-300 px-2 py-1 font-medium text-zinc-600">{k}</td>
+                                                                <td className="w-[31%] border-r border-zinc-300 px-2 py-1 last:border-r-0">{v}</td>
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+
+                                        {/* Earnings | Deductions side by side */}
+                                        <table className="mt-2 w-full border-collapse border border-zinc-400">
+                                            <thead>
+                                                <tr className="border-b border-zinc-400 bg-zinc-100" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+                                                    <th className="w-[32%] px-2 py-1 text-left text-[10.5px] font-bold uppercase tracking-wider">Earnings</th>
+                                                    <th className="w-[18%] border-r border-zinc-400 px-2 py-1 text-right text-[10.5px] font-bold uppercase tracking-wider">Amount (₹)</th>
+                                                    <th className="w-[32%] px-2 py-1 text-left text-[10.5px] font-bold uppercase tracking-wider">Deductions &amp; Deductibles</th>
+                                                    <th className="w-[18%] px-2 py-1 text-right text-[10.5px] font-bold uppercase tracking-wider">Amount (₹)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Array.from({ length: rowCount }).map((_, i) => (
+                                                    <tr key={i} className="border-b border-zinc-200">
+                                                        <td className="px-2 py-1">{earnings[i]?.[0] ?? "\u00a0"}</td>
+                                                        <td className="border-r border-zinc-400 px-2 py-1 text-right tabular-nums">{earnings[i] ? fmt(earnings[i][1]) : ""}</td>
+                                                        <td className="px-2 py-1">{deductions[i]?.[0] ?? "\u00a0"}</td>
+                                                        <td className="px-2 py-1 text-right tabular-nums">{deductions[i] ? fmt(deductions[i][1]) : ""}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="border-t border-zinc-500 font-bold">
+                                                    <td className="px-2 py-1.5">Gross Earnings Total</td>
+                                                    <td className="border-r border-zinc-400 px-2 py-1.5 text-right tabular-nums">{fmt(grossPay)}</td>
+                                                    <td className="px-2 py-1.5">Total Deductions</td>
+                                                    <td className="px-2 py-1.5 text-right tabular-nums">{fmt(totalDed)}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+
+                                        {/* Net pay */}
+                                        <div className="mt-2 flex items-center justify-between gap-3 border border-zinc-800 px-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Net Pay Credited to Account</p>
+                                                <p className="text-[11.5px] font-semibold italic text-zinc-700">In Words: {numToWords(netPay)}</p>
+                                            </div>
+                                            <div className="shrink-0 text-right">
+                                                <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500">Net Disbursed</span>
+                                                <span className="font-serif text-lg font-black tabular-nums tracking-tight text-zinc-950">{fmt(netPay)}</span>
                                             </div>
                                         </div>
 
-                                        {/* Payout Totals Bar */}
-                                        <div className="p-6 bg-zinc-100 rounded-xl border border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Net Pay Credited to Account</p>
-                                                <p className="text-sm font-semibold text-zinc-700 italic">In Words: {numToWords(netPay)}</p>
-                                            </div>
-                                            <div className="text-center sm:text-right shrink-0">
-                                                <span className="text-xs font-bold text-zinc-400 block uppercase">Net Disbursed</span>
-                                                <span className="text-2xl font-black font-serif text-zinc-950 tabular-nums tracking-tight">{fmt(netPay)}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Comments Box if any */}
                                         {(inputs.comment || inputs.remarks) && (
-                                            <div className="p-4 border border-dashed border-zinc-300 rounded-lg text-xs text-zinc-500 space-y-1">
+                                            <div className="mt-2 space-y-0.5 border border-dashed border-zinc-300 px-2 py-1.5 text-[11px] text-zinc-600">
                                                 {inputs.comment && <p><span className="font-bold">Comment Note:</span> {inputs.comment}</p>}
                                                 {inputs.remarks && <p><span className="font-bold">Remarks:</span> {inputs.remarks}</p>}
                                             </div>
                                         )}
 
-
+                                        <p className="mt-3 border-t border-zinc-300 pt-1.5 text-[10px] text-zinc-500">
+                                            This is a computer-generated salary statement and does not require a signature.
+                                        </p>
                                     </div>
                                 );
                             })()}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
 
             {/* ── Scheme-wise BMR Entry Modal ── */}
@@ -3558,7 +3574,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 {staffList.map((r, idx) => {
                                     const dim = getDaysInMonth(selectedYear, selectedMonth);
                                     const { inputs, currentHRA } = getRowInputs(r.docName);
-                                    const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                    const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                     const prb = calcProRataBasic(inputs.basic, wd, dim);
                                     const proRataHRA = Math.round((currentHRA / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
@@ -3609,7 +3625,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                 const dim = getDaysInMonth(selectedYear, selectedMonth);
                                 const selectedTotal = selectedBulkRecords.reduce((sum, r) => {
                                     const { inputs, currentHRA } = getRowInputs(r.docName);
-                                    const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                    const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                     const prb = calcProRataBasic(inputs.basic, wd, dim);
                                     const proRataHRA = Math.round((currentHRA / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);

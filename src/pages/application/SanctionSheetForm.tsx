@@ -17,6 +17,8 @@ import { P11PrintModal } from "@/components/P11PrintModal";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { ErrorModal } from "../../components/ErrorModal";
+import { CommentModal } from "../../components/CommentModal";
+import { useActionComment } from "@/hooks/useActionComment";
 import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- ASYNC SEARCH HELPERS ---
@@ -563,20 +565,18 @@ const SanctionSheetForm: React.FC = () => {
         }
     };
 
-    const handleWorkflowAction = async (action: string) => {
+    // Every workflow action (forward/approve/reject/put back) needs a comment, collected in a dialog first.
+    const postComment = useActionComment();
+    const [pendingWorkflowAction, setPendingWorkflowAction] = useState("");
+    const handleWorkflowAction = (action: string) => {
         if (isSubmitting || !savedDocName) return;
+        setPendingWorkflowAction(action);
+    };
 
-        let comment = "";
-        if (
-            action.toLowerCase().includes("reject") ||
-            action.toLowerCase().includes("put back")
-        ) {
-            const userComment = prompt(
-                `Please provide a reason for '${action}':`,
-            );
-            if (userComment === null) return; // Cancelled
-            comment = userComment;
-        }
+    const handleConfirmWorkflowAction = async (comment: string) => {
+        const action = pendingWorkflowAction;
+        setPendingWorkflowAction("");
+        if (isSubmitting || !savedDocName || !action) return;
 
         setIsSubmitting(true);
         try {
@@ -593,10 +593,13 @@ const SanctionSheetForm: React.FC = () => {
             const res = await performAction({
                 docname: savedDocName,
                 action: action,
-                comment: comment,
+                comment: comment.trim(),
             });
 
             if (res?.message?.status === "success") {
+                if (!(await postComment("Sanction Sheet", savedDocName, comment))) {
+                    alert("The action was completed, but the comment could not be saved.");
+                }
                 alert(`Action '${action}' completed successfully!`);
                 navigate(-1);
             } else {
@@ -799,6 +802,14 @@ const SanctionSheetForm: React.FC = () => {
                 docName={editDocName || formData.name || ''}
             />
 
+            <CommentModal
+                isOpen={!!pendingWorkflowAction}
+                onClose={() => setPendingWorkflowAction("")}
+                onSubmit={handleConfirmWorkflowAction}
+                action={pendingWorkflowAction}
+                isLoading={isSubmitting}
+                requireComment
+            />
             <ErrorModal
                 open={errorModal.open}
                 title={errorModal.title}

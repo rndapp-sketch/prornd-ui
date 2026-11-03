@@ -8,6 +8,7 @@ import {
     ChevronLeftIcon,
     ChevronRightIcon,
     ArrowUpDown,
+    NotebookPen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import LedgerNotesEditor from "@/components/LedgerNotesEditor";
 import { fetchOverheadLedger, isOverheadProjectNo, OVERHEAD_BUDGET_HEAD_ID } from "@/services/overheadLedger";
 
 // Interface for Ledger Transaction
@@ -294,6 +296,12 @@ const ProjectLedgerFull = () => {
         }).format(amount);
     };
 
+    const openNotes = () => {
+        const el = document.getElementById("ledger-notes");
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => el?.querySelector<HTMLElement>(".ProseMirror")?.focus(), 350);
+    };
+
     const formatDate = (dateString: string) => {
         if (!dateString) return "-";
         return new Date(dateString).toLocaleDateString("en-GB");
@@ -432,6 +440,15 @@ const ProjectLedgerFull = () => {
                                         </Button>
                                     </>
                                 )}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={openNotes}
+                                    className="h-10 rounded-xl flex items-center gap-1.5 whitespace-nowrap border-[#E4E4E7] dark:border-[#3F3F46] text-[12px] font-bold ml-auto"
+                                >
+                                    <NotebookPen className="h-3.5 w-3.5" />
+                                    Notes
+                                </Button>
                             </div>
                         </div>
                     </CardHeader>
@@ -608,6 +625,10 @@ const ProjectLedgerFull = () => {
                         </CardContent>
                     )}
                 </Card>
+
+                <div id="ledger-notes" className="scroll-mt-6">
+                    <LedgerNotesEditor projectName={projectName || ""} />
+                </div>
             </div>
         </div>
     );

@@ -18,6 +18,12 @@ export function useCancellationLock(doctype: string, name?: string | null) {
     };
 }
 
+/** True while a pending or approved cancellation request freezes the application (no commitments or payments). */
+export function useCancellationFrozen(doctype: string, name?: string | null) {
+    const { requests } = useCancellationLock(doctype, name);
+    return requests.some((r) => /pending|approved/i.test(r?.status || ""));
+}
+
 /** Self-contained banner: renders nothing unless the application has a cancellation request. */
 export const CancellationLockBanner: React.FC<{ doctype: string; name?: string | null }> = ({ doctype, name }) => {
     const { currentUser } = useFrappeAuth();

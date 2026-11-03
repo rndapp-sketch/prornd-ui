@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { CancellationLockBanner } from "@/components/CancellationLock";
+import { CommentModal } from "@/components/CommentModal";
+import { useActionComment } from "@/hooks/useActionComment";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from "react-router-dom";
@@ -548,38 +550,44 @@ const IndentGeneralFormDetails: React.FC = () => {
             .catch(() => setPiProjects([]));
     }, [isIgfPiStep]);
 
-    const handleForwardAction = async () => {
+    // Forward / Approve / Reject / Put Back need a comment, so each opens the comment dialog first.
+    const postComment = useActionComment();
+    const [pendingIgfAction, setPendingIgfAction] = useState<{ action: string; withProject: boolean } | null>(null);
+
+    const handleForwardAction = () => {
         if (!id || !forwardAction) return;
         if (isIgfPiStep && !selectedPiProject) {
             alert("Please select a project before approving.");
             return;
         }
-        try {
-            const payload: Record<string, any> = { docname: id, action: forwardAction, comment: "" };
-            if (isIgfPiStep) {
-                payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
-            }
-            await performWorkflowAction(payload);
-            handleRefresh();
-        } catch (err: any) {
-            alert(err?.message || "Failed to perform action.");
-        }
+        setPendingIgfAction({ action: forwardAction, withProject: isIgfPiStep });
     };
 
     // Other-PI step: run any action (Forward/Reject/Put Back); Forward carries the chosen project.
-    const handlePiAction = async (action: string) => {
+    const handlePiAction = (action: string) => {
         if (!id) return;
         const isFwd = action.toLowerCase().includes("forward") || action.toLowerCase().includes("approve");
         if (isFwd && !selectedPiProject) {
             alert("Please select a project before approving.");
             return;
         }
+        setPendingIgfAction({ action, withProject: isFwd });
+    };
+
+    const handleConfirmIgfAction = async (comment: string) => {
+        const pending = pendingIgfAction;
+        if (!id || !pending) return;
         try {
-            const payload: Record<string, any> = { docname: id, action, comment: "" };
-            if (isFwd) payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
+            const payload: Record<string, any> = { docname: id, action: pending.action, comment: comment.trim() };
+            if (pending.withProject) payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
             await performWorkflowAction(payload);
+            if (!(await postComment("Indent General Form", id, comment))) {
+                alert("The action was completed, but the comment could not be saved.");
+            }
+            setPendingIgfAction(null);
             handleRefresh();
         } catch (err: any) {
+            setPendingIgfAction(null);
             setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         }
     };
@@ -1218,6 +1226,14 @@ const IndentGeneralFormDetails: React.FC = () => {
                 </div>
             )}
 
+            <CommentModal
+                isOpen={!!pendingIgfAction}
+                onClose={() => setPendingIgfAction(null)}
+                onSubmit={handleConfirmIgfAction}
+                action={pendingIgfAction?.action ?? ""}
+                isLoading={isForwarding}
+                requireComment
+            />
             <ErrorModal
                 open={errorModal.open}
                 title={errorModal.title}

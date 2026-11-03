@@ -69,6 +69,7 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import TravelApplicantSummary from "@/components/TravelApplicantSummary";
 
 import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
+import { useActionComment } from "@/hooks/useActionComment";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
@@ -284,6 +285,7 @@ const ReimbursementWorkflowActions = ({
         setModalOpen(true);
     };
 
+    const postComment = useActionComment();
     const handleConfirmAction = async (comment: string) => {
         try {
             const payload: Record<string, any> = { docname, action: selectedAction, comment };
@@ -296,6 +298,7 @@ const ReimbursementWorkflowActions = ({
                 });
             }
             await performAction(payload);
+                if (!(await postComment("Reimbursement", docname, comment))) alert("The action was completed, but the comment could not be saved.");
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -503,9 +506,11 @@ const FundSanctionWorkflowActions = ({
         setModalOpen(true);
     };
 
+    const postComment = useActionComment();
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
+                if (!(await postComment("Fund Sanction", docname, comment))) alert("The action was completed, but the comment could not be saved.");
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -666,9 +671,11 @@ const TravelWorkflowActions = ({
         setModalOpen(true);
     };
 
+    const postComment = useActionComment();
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
+                if (!(await postComment("Travel", docname, comment))) alert("The action was completed, but the comment could not be saved.");
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -759,6 +766,7 @@ const DirectPurchaseWorkflowActions = ({
         setModalOpen(true);
     };
 
+    const postComment = useActionComment();
     const handleConfirmAction = async (comment: string) => {
         try {
             const response = await performAction({
@@ -766,6 +774,7 @@ const DirectPurchaseWorkflowActions = ({
                 action: selectedAction,
                 comment,
             });
+            if (!(await postComment("Direct Purchase", docname, comment))) alert("The action was completed, but the comment could not be saved.");
             await loadActions();
             setModalOpen(false);
             onActionComplete();
@@ -937,6 +946,7 @@ const TopUpFellowshipWorkflowActions = ({
         setActionModalOpen(true);
     };
 
+    const postComment = useActionComment();
     const handleConfirmAction = async (comment: string) => {
         try {
             const res: any = await performAction({ docname, action: selectedTufAction, comment: comment || undefined });
@@ -948,6 +958,7 @@ const TopUpFellowshipWorkflowActions = ({
                 });
                 return;
             }
+                if (!(await postComment("Top Up Fellowship", docname, comment))) alert("The action was completed, but the comment could not be saved.");
             setActionModalOpen(false);
             onActionComplete();
         } catch (err: any) {
@@ -1280,7 +1291,24 @@ const RecruitmentAdhocContractualWorkflowActions = ({
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action: selectedAction, comment });
+            const res: any = await performAction({ docname, action: selectedAction, comment });
+            if (res?.message?.status && res.message.status !== "success") {
+                alert(res.message.message || `Action "${selectedAction}" failed`);
+                return;
+            }
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Recruitment Adhoc Contractual",
+                        docname,
+                        content: comment.trim(),
+                    });
+                } catch (commentError) {
+                    console.error("add_project_comment failed", commentError);
+                    alert("The action was completed, but the comment could not be saved.");
+                }
+            }
+            clearActivityLogCache("Recruitment Adhoc Contractual", docname);
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -1474,6 +1502,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/travel/${name}`;
         case "Loan Request":
             return `/loan-request/${name}`;
+        case "UC Request":
+            return `/uc-request/${name}`;
         case "Loan Settlement":
             return `/loan-settlement/${name}`;
         case "Acc Head to Head Fund Transfer":
@@ -2539,6 +2569,22 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
         },
         doctype && name && doctype !== "Cancellation Request" ? undefined : null
     );
+    const pendingCancellationName = cancellationStatus?.message?.cancellation_requests?.find(
+        (r) => (r.status || "").toLowerCase() === "pending",
+    )?.name;
+    // Only the approver the request is currently awaiting has workflow actions on it.
+    const { data: cancellationActionsData } = useFrappeGetCall<{ message: string[] }>(
+        "rndopsapp.workflow_pipeline.get_available_workflow_actions",
+        { docname: pendingCancellationName, doctype: "Cancellation Request" },
+        pendingCancellationName ? undefined : null,
+    );
+    const canActOnCancellation = (cancellationActionsData?.message?.length ?? 0) > 0;
+    // A pending or approved cancellation request freezes the application — no new commitments.
+    const commitBlockedReason = cancellationStatus?.message?.cancellation_requests?.some((r) =>
+        /pending|approved/i.test(r.status || ""),
+    )
+        ? "This application has a cancellation request, so no new commitment can be made."
+        : undefined;
     // Fund Sanction: fetch linked Project Registration to get project_no
     const fsProjectRegName = doctype === 'Fund Sanction' && data?.project_proposal
         ? data.project_proposal
@@ -2962,6 +3008,9 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
         }
         if (doctype === "Loan Request" && name) {
             navigate(`/loan-request/${name}`, { replace: true });
+        }
+        if (doctype === "UC Request" && name) {
+            navigate(`/uc-request/${name}`, { replace: true });
         }
         if (doctype === "Loan Settlement" && name) {
             navigate(`/loan-settlement/${name}`, { replace: true });
@@ -3930,6 +3979,19 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                     <CancellationStatusBanner
                         requests={cancellationStatus?.message?.cancellation_requests}
                         currentUser={currentUser}
+                        action={
+                            pendingCancellationName && canActOnCancellation && (
+                                <button
+                                    onClick={() =>
+                                        navigate(`/pending-tasks/${encodeURIComponent("Cancellation Request")}/${pendingCancellationName}`)
+                                    }
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors border-current bg-white/60 dark:bg-black/20 hover:bg-white dark:hover:bg-black/30"
+                                >
+                                    <ExternalLinkIcon className="h-3 w-3" />
+                                    Open Cancellation Request
+                                </button>
+                            )
+                        }
                     />
                 )}
                 <PageHeader
@@ -5016,6 +5078,7 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                             {doctype === "Travel" &&
                                 data?.travel_project_title && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={data.travel_project_title}
                                         isStaff={true}
                                         docName={name}
@@ -5026,6 +5089,7 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                             {doctype === "Advance Settlement" &&
                                 data?.project_name && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={data.project_name}
                                         isStaff={true}
                                         docName={name}
@@ -5036,12 +5100,12 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                             {doctype === "Temporary Advance" &&
                                 data?.project_code && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={data.project_code}
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
                                         onStagingStatusChange={setIsCommittedForGate}
-                                        showPayment={false}
                                         billAmount={data.amount ?? data.amount_applied}
                                         defaultBudgetHead={resolvedAccountHead || data.account_head}
                                     />
@@ -5052,6 +5116,7 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                                 (data?.project_no ||
                                     data?.ta_da_project_code) && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={
                                             data.project_no ||
                                             data.ta_da_project_code
@@ -5060,7 +5125,6 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                                         docName={name}
                                         doctype={doctype}
                                         onStagingStatusChange={setIsCommittedForGate}
-                                        showPayment={false}
                                         parentAppId={data?.ta_da_travel_application || undefined}
                                         billAmount={data?.ta_da_total_claimed ?? data?.total_claimed ?? undefined}
                                         defaultBudgetHead={resolvedTadaAccountHead || undefined}
@@ -5075,6 +5139,7 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                                 "Pending Staff Approval" &&
                                 (data?.project_no || data?.project_name) && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={
                                             data.project_no || data.project_name
                                         }
@@ -5087,6 +5152,7 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                             {doctype === "Recruitment Adhoc Contractual" &&
                                 (data?.upfa_project_code || data?.project_code) && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={
                                             data.upfa_project_code || data.project_code
                                         }
@@ -5102,6 +5168,7 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
                                 data?.workflow_state === "Pending Staff Approval" &&
                                 data?.project_code && (
                                     <BudgetActionsSidebar
+                                        commitBlockedReason={commitBlockedReason}
                                         projectName={data.project_code}
                                         isStaff={true}
                                         docName={name}

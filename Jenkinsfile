@@ -334,6 +334,47 @@ pipeline {
         '''
       }
     }
+
+    // The smoke test proves the SPA loads, not that it writes to the right
+    // database. Reached directly on :8081 the app bypasses nginx, so its
+    // /bk-api upstream comes from proxyOptions.ts - which once defaulted to the
+    // Live bench, sending applications submitted on Testing into Live with no
+    // visible sign. Both checks are needed: the env assert catches a dropped
+    // variable, the fingerprint catches a refactor that stops reading it.
+    stage('Verify backend target') {
+      steps {
+        sh '''#!/bin/bash
+          set -euo pipefail
+
+          host=$(sed -n 's/^VITE_APP_BACKEND_HOST=//p' .env.production | tail -1)
+          case "$host" in
+            127.0.0.1|localhost) echo "env: VITE_APP_BACKEND_HOST=$host" ;;
+            "") echo "FATAL: VITE_APP_BACKEND_HOST is not set in .env.production"
+                echo "Set it in $ENV_FILE - unset means proxyOptions.ts picks the default."
+                exit 1 ;;
+            *)  echo "FATAL: VITE_APP_BACKEND_HOST=$host is not this host."
+                echo "Testing must talk to its own bench. Fix $ENV_FILE."
+                exit 1 ;;
+          esac
+
+          # Guest /login is byte-stable per bench (csrf_token is "None"), so it
+          # fingerprints which bench answered without needing a session.
+          through_proxy=$(curl -fsS --max-time 15 "$BASE_URL/bk-api/login" | md5sum | cut -d' ' -f1)
+          local_bench=$(curl -fsS --max-time 15 "http://127.0.0.1:8000/login" | md5sum | cut -d' ' -f1)
+
+          if [ "$through_proxy" != "$local_bench" ]; then
+            echo "FATAL: $BASE_URL/bk-api does NOT reach this host's bench."
+            echo "  through proxy : $through_proxy"
+            echo "  127.0.0.1:8000: $local_bench"
+            echo "Anything submitted on :8081 would be written to another site's database."
+            echo "Check APP_BACKEND_HOST in proxyOptions.ts and VITE_APP_BACKEND_HOST in $ENV_FILE."
+            exit 1
+          fi
+
+          echo "OK: /bk-api on :8081 resolves to this host's bench (127.0.0.1:8000)"
+        '''
+      }
+    }
   }
 
   post {
