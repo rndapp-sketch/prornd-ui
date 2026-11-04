@@ -44,7 +44,9 @@ type AllowedRole =
   | 'Permanent Employee'
   | 'All_ProRnd_User'
   | 'non-permanent'
-  | 'Student';
+  | 'Student'
+  | 'MISC_IISI'
+  | 'System Manager';
 
 interface AuthRouteWrapperProps {
   allowedRole: AllowedRole | AllowedRole[];
