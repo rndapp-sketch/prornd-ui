@@ -1502,6 +1502,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/travel/${name}`;
         case "Loan Request":
             return `/loan-request/${name}`;
+        case "UC Request":
+            return `/uc-request/${name}`;
         case "Loan Settlement":
             return `/loan-settlement/${name}`;
         case "Acc Head to Head Fund Transfer":
@@ -3006,6 +3008,9 @@ const PendingTaskDetailsInner: React.FC<{ doctype: string; name?: string }> = ({
         }
         if (doctype === "Loan Request" && name) {
             navigate(`/loan-request/${name}`, { replace: true });
+        }
+        if (doctype === "UC Request" && name) {
+            navigate(`/uc-request/${name}`, { replace: true });
         }
         if (doctype === "Loan Settlement" && name) {
             navigate(`/loan-settlement/${name}`, { replace: true });

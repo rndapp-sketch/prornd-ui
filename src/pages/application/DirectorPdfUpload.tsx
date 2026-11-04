@@ -15,13 +15,16 @@ import {
     XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI, travelAPI, disbursalOfHonorariumAPI } from "@/services/apiService";
+import { UC_REQUEST_ENABLED } from "@/config/features";
+import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI, travelAPI, disbursalOfHonorariumAPI, ucRequestAPI } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 
 type PendingDoc = {
     name: string;
-    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form" | "Travel" | "Disbursal of Honorarium";
+    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form" | "Travel" | "Disbursal of Honorarium" | "UC Request";
     _attachApi: string;
+    // Field the uploaded File is attached to (defaults to director_signed_pdf)
+    _uploadField?: string;
     interview_id?: string;
     principal_investigator?: string;
     project_number?: string;
@@ -32,7 +35,7 @@ type PendingDoc = {
     modified?: string;
 };
 
-type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form" | "Travel" | "Disbursal of Honorarium";
+type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form" | "Travel" | "Disbursal of Honorarium" | "UC Request";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -43,6 +46,7 @@ const MODULE_OPTIONS: { label: string; short: string; value: ModuleFilter }[] = 
     { label: "Indent General Form", short: "IGF", value: "Indent General Form" },
     { label: "Travel", short: "Travel", value: "Travel" },
     { label: "Disbursal of Honorarium", short: "Honorarium", value: "Disbursal of Honorarium" },
+    ...(UC_REQUEST_ENABLED ? [{ label: "UC Request (Registrar)", short: "UC", value: "UC Request" as const }] : []),
 ];
 
 const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
@@ -66,6 +70,10 @@ const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
         bg: "bg-pink-100 dark:bg-pink-900/40",
         text: "text-pink-700 dark:text-pink-300",
     },
+    "UC Request": {
+        bg: "bg-cyan-100 dark:bg-cyan-900/40",
+        text: "text-cyan-700 dark:text-cyan-300",
+    },
 };
 
 const MODULE_SHORT: Record<string, string> = {
@@ -74,6 +82,7 @@ const MODULE_SHORT: Record<string, string> = {
     "Indent General Form": "IGF",
     "Travel": "Travel",
     "Disbursal of Honorarium": "Honorarium",
+    "UC Request": "UC",
 };
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -146,17 +155,31 @@ const DirectorPdfUpload = () => {
         {},
     );
 
-    const isLoading = scrLoading || icssLoading || igfLoading || travelLoading || honorariumLoading;
+    // Audited UCs come back from the Registrar (not the Director) — same upload flow
+    const {
+        data: ucData,
+        isLoading: ucLoading,
+        error: ucError,
+        mutate: ucMutate,
+    } = useFrappeGetCall<{ message: { status: string; data: any[] } }>(
+        ucRequestAPI.getPendingDirectorUploads,
+        {},
+        // A null key skips the request while the module is switched off.
+        UC_REQUEST_ENABLED ? undefined : null,
+    );
+
+    const isLoading = scrLoading || icssLoading || igfLoading || travelLoading || honorariumLoading || ucLoading;
     // Only block the whole page if every module failed — a single module's
     // endpoint being down (e.g. Indent General Form's director-approval
     // backend isn't implemented yet) shouldn't hide data from the others.
-    const error = scrError && icssError && igfError && travelError && honorariumError;
+    const error = scrError && icssError && igfError && travelError && honorariumError && (ucError || !UC_REQUEST_ENABLED);
     const partiallyFailedModules = [
         scrError && "Selection Committee Report",
         icssError && "Indent Cum Sanction Sheet",
         igfError && "Indent General Form",
         travelError && "Travel",
         honorariumError && "Disbursal of Honorarium",
+        ucError && "UC Request",
     ].filter(Boolean) as string[];
 
     const allDocs: PendingDoc[] = useMemo(() => [
@@ -199,7 +222,17 @@ const DirectorPdfUpload = () => {
             project_number: d.project_no || d.project_number,
             upfa_department: d.applicant_department || d.upfa_department,
         })),
-    ], [icssData, scrData, igfData, travelData, honorariumData]);
+        ...(ucData?.message?.data ?? []).map((d: any) => ({
+            ...d,
+            _doctype: "UC Request" as const,
+            _attachApi: ucRequestAPI.attachDirectorPdf,
+            _uploadField: "registrar_signed_uc",
+            principal_investigator: d.principal_investigator_name,
+            project_number: d.project_no,
+            project_name: d.project_title,
+            upfa_department: d.implementation_department,
+        })),
+    ], [icssData, scrData, igfData, travelData, honorariumData, ucData]);
 
     const { call: fetchProjectTitles } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
     const [projectTitleMap, setProjectTitleMap] = useState<Record<string, string>>({});
@@ -275,6 +308,7 @@ const DirectorPdfUpload = () => {
         igfMutate();
         travelMutate();
         honorariumMutate();
+        ucMutate();
     };
 
     const handleModuleChange = (val: ModuleFilter) => {
@@ -556,7 +590,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
             fd.append("is_private", "0");
             fd.append("doctype", doc._doctype);
             fd.append("docname", doc.name);
-            fd.append("fieldname", "director_signed_pdf");
+            fd.append("fieldname", doc._uploadField || "director_signed_pdf");
 
             const csrfToken = (window as Window & { csrf_token?: string }).csrf_token;
             const headers = csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : undefined;
