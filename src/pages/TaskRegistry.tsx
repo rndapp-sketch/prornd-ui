@@ -544,6 +544,8 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
                                                         navigate(`/loan-request/${task.id}`);
+                                                    } else if (task.doctype === "UC Request") {
+                                                        navigate(`/uc-request/${task.id}`);
                                                     } else if (task.doctype === "Loan Settlement") {
                                                         navigate(`/loan-settlement/${task.id}`);
                                                     } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
@@ -552,6 +554,8 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
                                                         navigate(`/loan-request/${task.id}`);
+                                                    } else if (task.doctype === "UC Request") {
+                                                        navigate(`/uc-request/${task.id}`);
                                                     } else if (task.doctype === "Loan Settlement") {
                                                         navigate(`/loan-settlement/${task.id}`);
                                                     } else if (task.doctype === "Project Staff Extension") {
@@ -648,6 +652,8 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
                                                                 navigate(`/loan-request/${task.id}`);
+                                                            } else if (task.doctype === "UC Request") {
+                                                                navigate(`/uc-request/${task.id}`);
                                                             } else if (task.doctype === "Loan Settlement") {
                                                                 navigate(`/loan-settlement/${task.id}`);
                                                             } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
@@ -656,6 +662,8 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
                                                                 navigate(`/loan-request/${task.id}`);
+                                                            } else if (task.doctype === "UC Request") {
+                                                                navigate(`/uc-request/${task.id}`);
                                                             } else if (task.doctype === "Loan Settlement") {
                                                                 navigate(`/loan-settlement/${task.id}`);
                                                             } else if (task.doctype === "Project Staff Extension") {
@@ -795,6 +803,7 @@ const TaskRegistry: React.FC = () => {
                                     else if (t.doctype === 'Travel') navigate(`/travel/${t.docname}`);
                                     else if (t.doctype === 'Miscellaneous Commit') navigate(`/miscellaneous-commit/${t.docname}`);
                                     else if (t.doctype === 'Loan Request') navigate(`/loan-request/${t.docname}`);
+                                    else if (t.doctype === 'UC Request') navigate(`/uc-request/${t.docname}`);
                                     else if (t.doctype === 'Loan Settlement') navigate(`/loan-settlement/${t.docname}`);
                                     else navigate(`/task-registry/${t.doctype}/${t.docname}`);
                                 }}

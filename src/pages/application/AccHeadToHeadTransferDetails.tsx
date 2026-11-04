@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
@@ -193,7 +194,7 @@ const AccHeadToHeadTransferDetails: React.FC = () => {
     useEffect(() => { load(); }, [load, refreshKey]);
 
     useEffect(() => {
-        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', { credentials: 'include' })
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`, { credentials: 'include' })
             .then(r => r.json())
             .then(result => {
                 if (result?.data)

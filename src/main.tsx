@@ -99,6 +99,9 @@ import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsul
 import LoanRequestForm from './pages/application/LoanRequestForm.tsx';
 import LoanRequestDetails from './pages/application/LoanRequestDetails.tsx';
 import LoanSettlementDetails from './pages/application/LoanSettlementDetails.tsx';
+import UCRequestForm from './pages/application/UCRequestForm.tsx';
+import UCRequestDetails from './pages/application/UCRequestDetails.tsx';
+import { UC_REQUEST_ENABLED } from './config/features';
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
@@ -146,6 +149,9 @@ import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 import FormApplication from './pages/FormApplication.tsx';
 import { ProjectSearch } from './pages/ProjectSearch.tsx';
+import ConsultancyInvoice from './pages/ConsultancyInvoice.tsx';
+import ConsultancyInvoiceDetails from './pages/ConsultancyInvoiceDetails.tsx';
+import KafkaTrace from './pages/KafkaTrace.tsx';
 import { ProjectLedgerExport } from './pages/ProjectLedgerExport.tsx';
 import NotFound from './pages/NotFound.tsx';
 
@@ -443,6 +449,18 @@ const router = createBrowserRouter(
                 {
                     path: "project-search",
                     element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectSearch /></AuthRouteWrapper>),
+                },
+                {
+                    path: "consultancy-invoice",
+                    element: (<AuthRouteWrapper allowedRole="MISC_IISI"><ConsultancyInvoice /></AuthRouteWrapper>),
+                },
+                {
+                    path: "consultancy-invoice/:projectNo/:fundRef",
+                    element: (<AuthRouteWrapper allowedRole="MISC_IISI"><ConsultancyInvoiceDetails /></AuthRouteWrapper>),
+                },
+                {
+                    path: "kafka-trace",
+                    element: (<AuthRouteWrapper allowedRole="System Manager"><KafkaTrace /></AuthRouteWrapper>),
                 },
                 {
                     path: "project-ledger-export",
@@ -760,6 +778,24 @@ const router = createBrowserRouter(
                         </AuthRouteWrapper>
                     )
                 },
+                ...(UC_REQUEST_ENABLED ? [
+                {
+                    path: "uc-request",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <UCRequestForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "uc-request/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <UCRequestDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                ] : []),
                 {
                     path: "loan-settlement/:id",
                     element: (

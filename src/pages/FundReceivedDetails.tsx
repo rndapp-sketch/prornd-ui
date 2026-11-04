@@ -818,7 +818,9 @@ const FundReceivedDetails = () => {
     const canProcessLoanSettlements = isRndMiscellaneous || isRndStaff;
 
     // Tab state — deposit slip tab appears once a linked slip is found
-    const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">("fund");
+    const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">(
+        new URLSearchParams(location.search).get("tab") === "deposit_slip" ? "deposit_slip" : "fund",
+    );
     const [linkedDepositSlip, setLinkedDepositSlip] = useState<{ name: string; doctype: string } | null>(null);
     const [slipRefreshKey, setSlipRefreshKey] = useState(0);
 
