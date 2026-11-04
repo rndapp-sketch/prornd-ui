@@ -1,7 +1,8 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall, useSWR } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import {
     Save, Send, UserIcon, FolderOpen, X, FileTextIcon,
@@ -9,7 +10,8 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { accHeadToHeadTransferAPI } from '@/services/apiService';
+import { accHeadToHeadTransferAPI, loanSettlementAPI } from '@/services/apiService';
+import { isOverheadProjectNo, fetchOverheadLedger, OVERHEAD_BUDGET_HEAD_ID } from '@/services/overheadLedger';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DepartmentName } from '@/components/DepartmentName';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
@@ -33,11 +35,59 @@ interface FormDataResponse {
     };
 }
 
-interface AccountHeadRow {
-    account_head: string;
-    sanctioned_amount: number;
-    received_amount: number;
+/** A project's budget head with its balances as the Accounts ledger reports them. */
+interface HeadBalance {
+    docname: string;
+    label: string;
+    ledgerId: number | null;
+    received: number;
+    committed: number;
+    paid: number;
+    /** Loan taken against this head on loans the Accounts service still lists as open. */
+    loan: number;
+    /** Latest commitable balance — what is left after commitments. null: ledger unreadable. */
+    available: number | null;
 }
+
+/** get_transfer_head_sanction_summary row: one head against the approved Fund Sanction. */
+interface HeadSanction {
+    sanctioned: number;
+    received: number;
+    transferred_in: number;
+    transferred_out: number;
+    pending_in: number;
+    /** sanctioned − (received + transferred_in − transferred_out + pending_in) */
+    room: number;
+}
+
+interface LedgerRow {
+    transactionId?: number;
+    transactionDate?: string;
+    recordTime?: string;
+    fundReceivedAmount?: number | null;
+    commitAmount?: number | null;
+    paymentAmount?: number | null;
+    commitableBalance?: number | null;
+}
+
+/**
+ * One head's ledger, summed. Available is the ledger's own running commitable balance
+ * on its latest entry rather than something recomputed here, so it reflects whatever
+ * the Accounts service counts (receipts, commitments, decommits) and nothing it doesn't.
+ */
+const summariseLedger = (rows: LedgerRow[]) => {
+    const sorted = [...rows].sort((a, b) => {
+        const ta = new Date(a.recordTime || a.transactionDate || 0).getTime();
+        const tb = new Date(b.recordTime || b.transactionDate || 0).getTime();
+        return ta === tb ? (a.transactionId ?? 0) - (b.transactionId ?? 0) : ta - tb;
+    });
+    return {
+        received: rows.reduce((s, r) => s + (r.fundReceivedAmount || 0), 0),
+        committed: rows.reduce((s, r) => s + (r.commitAmount || 0), 0),
+        paid: rows.reduce((s, r) => s + (r.paymentAmount || 0), 0),
+        available: sorted.length ? sorted[sorted.length - 1].commitableBalance ?? 0 : 0,
+    };
+};
 
 // --- FILE UPLOAD HELPER ---
 // The backend stores h2h_supporting_document as a plain file URL, so any File
@@ -46,7 +96,7 @@ const uploadFileToFrappe = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file, file.name);
     fd.append('is_private', '0');
-    const response = await fetch('/api/method/upload_file', {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
         method: 'POST',
         body: fd,
         headers: { 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
@@ -73,7 +123,7 @@ async function searchProjects(query: string): Promise<LinkOption[]> {
             ['project_title', 'like', `%${query}%`],
         ];
     }
-    const res = await fetch('/api/method/frappe.client.get_list', {
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -164,7 +214,6 @@ const AccHeadToHeadTransferForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
-    const [accountHeads, setAccountHeads] = useState<AccountHeadRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -182,7 +231,6 @@ const AccHeadToHeadTransferForm: React.FC = () => {
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: saveForm } = useFrappePostCall<{ message: any }>(accHeadToHeadTransferAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(accHeadToHeadTransferAPI.submit);
-    const { call: fetchAccountHeads } = useFrappePostCall<{ message: any }>(accHeadToHeadTransferAPI.getProjectAccountHeads);
     const { call: fetchAmountInWords } = useFrappePostCall<{ message: string }>(accHeadToHeadTransferAPI.getAmountInWords);
 
     useEffect(() => {
@@ -229,7 +277,6 @@ const AccHeadToHeadTransferForm: React.FC = () => {
 
         if (fieldname === 'h2h_proj_code') {
             if (!value) {
-                setAccountHeads([]);
                 setFormData(prev => ({ ...prev, h2h_proj_num: '', h2h_proj_title: '', h2h_pi_webmail: '' }));
                 return;
             }
@@ -261,23 +308,97 @@ const AccHeadToHeadTransferForm: React.FC = () => {
         }
     }, [handleChange, fetchDocument]);
 
-    // Account heads for the selected project (sanctioned vs received).
-    useEffect(() => {
-        if (!formData.h2h_proj_code) {
-            setAccountHeads([]);
-            return;
-        }
-        let cancelled = false;
-        (async () => {
-            try {
-                const res = await fetchAccountHeads({ project_code: formData.h2h_proj_code });
-                if (!cancelled) setAccountHeads(res?.message?.account_heads || []);
-            } catch {
-                if (!cancelled) setAccountHeads([]);
+    // --- head balances, from the Accounts service ---
+    // The project's heads (docname, label and ledger id in one row, so the same head
+    // never shows twice), each head's ledger, and any open loans drawn against them.
+    const projectNo: string = formData.h2h_proj_num || '';
+
+    const { data: projectHeadsResult } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        'rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project',
+        { project_no: projectNo },
+        projectNo ? `project-budget-heads-${projectNo}` : null,
+    );
+    const projectHeads = useMemo(() => projectHeadsResult?.message ?? [], [projectHeadsResult]);
+
+    const { data: openLoansResult } = useFrappeGetCall<{
+        message: { data: { budget_heads?: { account_head_id: number | null; account_head: string | null; loan_amount: number }[] }[] };
+    }>(
+        loanSettlementAPI.getActiveLoansForProject,
+        { project_name: projectNo },
+        projectNo ? `active-loans-${projectNo}` : null,
+        { revalidateOnFocus: false, revalidateOnReconnect: false },
+    );
+
+    const {
+        data: ledgerByHead,
+        isValidating: ledgerLoading,
+        mutate: reloadLedger,
+    } = useSWR(
+        projectNo && projectHeads.length ? ['h2h-head-ledger', projectNo, projectHeads.map((h) => h.name).join(',')] : null,
+        async () => {
+            // A head whose ledger can't be read is recorded as null, never as 0 — an
+            // unknown balance must not look like an empty one.
+            const out: Record<string, ReturnType<typeof summariseLedger> | null> = {};
+            if (isOverheadProjectNo(projectNo)) {
+                try {
+                    const summary = summariseLedger((await fetchOverheadLedger(projectNo)) as LedgerRow[]);
+                    projectHeads.forEach((h) => {
+                        out[h.name] = Number(h.id) === Number(OVERHEAD_BUDGET_HEAD_ID) ? summary : null;
+                    });
+                } catch {
+                    projectHeads.forEach((h) => { out[h.name] = null; });
+                }
+                return out;
             }
-        })();
-        return () => { cancelled = true; };
-    }, [formData.h2h_proj_code]);
+            await Promise.all(projectHeads.map(async (h) => {
+                if (h.id == null) { out[h.name] = null; return; }
+                try {
+                    const res = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${encodeURIComponent(String(h.id))}`);
+                    const data = res.ok ? await res.json() : null;
+                    out[h.name] = Array.isArray(data) ? summariseLedger(data) : null;
+                } catch {
+                    out[h.name] = null;
+                }
+            }));
+            return out;
+        },
+        { revalidateOnFocus: false },
+    );
+
+    const headBalances: HeadBalance[] = useMemo(() => {
+        const loanByHead: Record<string, number> = {};
+        (openLoansResult?.message?.data ?? []).forEach((loan) =>
+            (loan.budget_heads ?? []).forEach((bh) => {
+                const key = bh.account_head_id != null ? `id:${bh.account_head_id}` : `name:${bh.account_head}`;
+                loanByHead[key] = (loanByHead[key] || 0) + (bh.loan_amount || 0);
+            }),
+        );
+        return projectHeads.map((h) => {
+            const ledger = ledgerByHead?.[h.name];
+            return {
+                docname: h.name,
+                label: h.budget_head || h.name,
+                ledgerId: h.id,
+                received: ledger?.received ?? 0,
+                committed: ledger?.committed ?? 0,
+                paid: ledger?.paid ?? 0,
+                loan: (h.id != null ? loanByHead[`id:${h.id}`] : 0) || loanByHead[`name:${h.name}`] || 0,
+                available: ledgerByHead ? ledger?.available ?? null : null,
+            };
+        });
+    }, [projectHeads, ledgerByHead, openLoansResult]);
+
+    // Dropdown values may be the Budget Head docname, its label or its ledger id.
+    const findHead = useCallback(
+        (value: string) =>
+            value
+                ? headBalances.find((h) => h.docname === value || h.label === value || String(h.ledgerId) === String(value))
+                : undefined,
+        [headBalances],
+    );
+    const fromHead = findHead(formData.h2h_transfer_from);
 
     // Amount in words, debounced so typing doesn't hammer the backend.
     useEffect(() => {
@@ -328,6 +449,51 @@ const AccHeadToHeadTransferForm: React.FC = () => {
         return null;
     }, [formData]);
 
+    // Per head, against the approved Fund Sanction: what is sanctioned, and how much of
+    // it is already taken by receipts and transfers (pending ones into the head included).
+    const { data: sanctionSummaryResult } = useFrappeGetCall<{ message: Record<string, HeadSanction> }>(
+        accHeadToHeadTransferAPI.getHeadSanctionSummary,
+        { project_code: formData.h2h_proj_code, docname: savedDocName || '' },
+        formData.h2h_proj_code ? `h2h-head-sanction-${formData.h2h_proj_code}-${savedDocName || ''}` : null,
+        { revalidateOnFocus: false },
+    );
+    const sanctionByHead = sanctionSummaryResult?.message;
+    const toHead = findHead(formData.h2h_transfer_to);
+    const toSanction = toHead ? sanctionByHead?.[toHead.docname] : undefined;
+
+    // Two limits, both blocking Submit (a draft may still be saved); the backend enforces
+    // the same at Submit and again at approval:
+    //  1. the From head can only give what it has left after commitments;
+    //  2. the To head can never end up holding more than it was sanctioned.
+    const transferLimitError = useMemo(() => {
+        if (!projectNo) return null;
+        const amount = Number(formData.h2h_amount) || 0;
+
+        if (formData.h2h_transfer_from) {
+            const name = fromHead?.label || formData.h2h_transfer_from;
+            if (!ledgerByHead) return ledgerLoading ? `Checking the available balance of ${name}…` : null;
+            if (!fromHead) return `${name} has no funds on this project to transfer.`;
+            if (fromHead.available == null)
+                return `Couldn't read the available balance of ${name} from the Accounts service. Try again shortly.`;
+            if (fromHead.available <= 0) return `${name} has no available balance to transfer.`;
+            if (amount > fromHead.available + 0.009)
+                return `Amount exceeds the available balance of ${name} (${inr(fromHead.available)}).`;
+        }
+
+        if (formData.h2h_transfer_to && sanctionByHead) {
+            const name = toHead?.label || formData.h2h_transfer_to;
+            if (!toSanction || toSanction.sanctioned <= 0)
+                return `${name} has no approved sanction on this project, so nothing can be transferred into it.`;
+            if (amount > toSanction.room + 0.009) {
+                const held = toSanction.received + toSanction.transferred_in - toSanction.transferred_out;
+                return `${name} can receive at most ${inr(Math.max(toSanction.room, 0))}: sanctioned ${inr(toSanction.sanctioned)}, ` +
+                    `already received ${inr(held)}` +
+                    (toSanction.pending_in > 0 ? `, pending transfers in ${inr(toSanction.pending_in)}` : '') + '.';
+            }
+        }
+        return null;
+    }, [formData.h2h_transfer_from, formData.h2h_transfer_to, formData.h2h_amount, projectNo, fromHead, ledgerByHead, ledgerLoading, sanctionByHead, toHead, toSanction]);
+
     const buildPayload = useCallback(async () => {
         const payload: Record<string, any> = {
             h2h_app_webmail: formData.h2h_app_webmail,
@@ -370,8 +536,8 @@ const AccHeadToHeadTransferForm: React.FC = () => {
     };
 
     const handleSubmit = async () => {
-        if (validationError) {
-            setErrorModal({ open: true, title: 'Cannot Submit', message: validationError });
+        if (validationError || transferLimitError) {
+            setErrorModal({ open: true, title: 'Cannot Submit', message: (validationError || transferLimitError)! });
             return;
         }
         setIsSubmitting(true);
@@ -414,10 +580,22 @@ const AccHeadToHeadTransferForm: React.FC = () => {
     const scopedLinkOptions = useMemo(() => {
         const base = { ...linkOptions };
         const all = linkOptions.h2h_transfer_from || [];
-        base.h2h_transfer_from = all.filter(o => o.value !== formData.h2h_transfer_to);
-        base.h2h_transfer_to = all.filter(o => o.value !== formData.h2h_transfer_from);
+        // Once balances are known, only heads with money left can be transferred from.
+        // The current choice stays listed so a saved draft still shows what it holds.
+        base.h2h_transfer_from = all.filter(o =>
+            o.value !== formData.h2h_transfer_to &&
+            (!ledgerByHead || o.value === formData.h2h_transfer_from || (findHead(o.value)?.available ?? 0) > 0));
+        // Only the project's own heads can receive, and only those with an approved
+        // sanction — anything else would be refused by the sanction check anyway.
+        base.h2h_transfer_to = all.filter(o => {
+            if (o.value === formData.h2h_transfer_from) return false;
+            if (o.value === formData.h2h_transfer_to) return true;
+            const head = findHead(o.value);
+            if (!head) return !headBalances.length;
+            return !sanctionByHead || (sanctionByHead[head.docname]?.sanctioned ?? 0) > 0;
+        });
         return base;
-    }, [linkOptions, formData.h2h_transfer_from, formData.h2h_transfer_to]);
+    }, [linkOptions, formData.h2h_transfer_from, formData.h2h_transfer_to, ledgerByHead, findHead, headBalances.length, sanctionByHead]);
 
     const noOp = useCallback(() => { }, []);
 
@@ -466,7 +644,7 @@ const AccHeadToHeadTransferForm: React.FC = () => {
                     </FrappeButton>
                     <FrappeButton
                         onClick={handleSubmit}
-                        disabled={isSaving || isSubmitting}
+                        disabled={isSaving || isSubmitting || !!transferLimitError}
                         className="bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm"
                     >
                         <Send className="w-4 h-4" />
@@ -539,27 +717,101 @@ const AccHeadToHeadTransferForm: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Project account heads — sanctioned vs received */}
-                        {accountHeads.length > 0 && (
+                        {/* What the From head can give, and why the transfer is held back. */}
+                        {fromHead && fromHead.available != null && (
+                            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                                <span className="text-zinc-600 dark:text-zinc-400">
+                                    Available in <strong className="text-zinc-900 dark:text-zinc-100">{fromHead.label}</strong>:{' '}
+                                    <strong className="text-[#D97757]">{inr(fromHead.available)}</strong>
+                                </span>
+                                {fromHead.available > 0 && Number(formData.h2h_amount) !== fromHead.available && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('h2h_amount', String(fromHead.available))}
+                                        className="text-xs font-semibold text-[#D97757] hover:underline"
+                                    >
+                                        Use full amount
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        {toHead && toSanction && toSanction.sanctioned > 0 && (
+                            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                <strong className="text-zinc-900 dark:text-zinc-100">{toHead.label}</strong> can still receive{' '}
+                                <strong className="text-[#D97757]">{inr(Math.max(toSanction.room, 0))}</strong>{' '}
+                                <span className="text-xs">(sanctioned {inr(toSanction.sanctioned)})</span>
+                            </p>
+                        )}
+                        {transferLimitError && (
+                            <div className="mt-3 flex items-start gap-2 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                                <AlertCircle className="w-4 h-4 mt-0.5 text-red-600 dark:text-red-400 shrink-0" />
+                                <p className="flex-1 text-sm text-red-700 dark:text-red-300">{transferLimitError}</p>
+                                {fromHead?.available == null && ledgerByHead && (
+                                    <button
+                                        type="button"
+                                        onClick={() => reloadLedger()}
+                                        className="text-xs font-semibold text-red-700 dark:text-red-300 hover:underline"
+                                    >
+                                        Retry
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Project account heads — balances as the Accounts ledger reports them */}
+                        {headBalances.length > 0 && (
                             <div className="mt-5 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
                                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                     <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                         <tr>
-                                            <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Account Head</th>
-                                            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Sanctioned</th>
-                                            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Received</th>
+                                            {['Account Head', 'Sanctioned', 'Received', ...(headBalances.some(h => h.loan > 0) ? ['Loan (open)'] : []), 'Committed', 'Paid', 'Available', 'Room to receive'].map((h, i) => (
+                                                <th
+                                                    key={h}
+                                                    className={cn(
+                                                        'px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400',
+                                                        i === 0 ? 'text-left' : 'text-right',
+                                                    )}
+                                                >
+                                                    {h}
+                                                </th>
+                                            ))}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        {accountHeads.map((h) => (
-                                            <tr key={h.account_head} className="bg-white dark:bg-zinc-900">
-                                                <td className="px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100">{h.account_head}</td>
-                                                <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">{inr(h.sanctioned_amount)}</td>
-                                                <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">{inr(h.received_amount)}</td>
-                                            </tr>
-                                        ))}
+                                        {headBalances.map((h) => {
+                                            const isFrom = fromHead?.docname === h.docname;
+                                            return (
+                                                <tr key={h.docname} className={cn('bg-white dark:bg-zinc-900', isFrom && 'bg-[#FFF7F4] dark:bg-[#D97757]/10')}>
+                                                    <td className="px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100">{h.label}</td>
+                                                    <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">
+                                                        {sanctionByHead ? inr(sanctionByHead[h.docname]?.sanctioned ?? 0) : '—'}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">{inr(h.received)}</td>
+                                                    {headBalances.some(x => x.loan > 0) && (
+                                                        <td className="px-4 py-2.5 text-sm text-right text-amber-700 dark:text-amber-400">{h.loan > 0 ? inr(h.loan) : '—'}</td>
+                                                    )}
+                                                    <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">{inr(h.committed)}</td>
+                                                    <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">{inr(h.paid)}</td>
+                                                    <td className="px-4 py-2.5 text-sm text-right font-semibold text-zinc-900 dark:text-zinc-100">
+                                                        {h.available == null
+                                                            ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{ledgerLoading ? 'Loading…' : 'Unavailable'}</span>
+                                                            : inr(h.available)}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-sm text-right text-zinc-600 dark:text-zinc-400">
+                                                        {sanctionByHead?.[h.docname]
+                                                            ? inr(Math.max(sanctionByHead[h.docname].room, 0))
+                                                            : '—'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
+                                <p className="px-4 py-2 text-[11px] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800">
+                                    Received, Committed, Paid and Available are from the Accounts ledger. Available is the balance left after commitments; only that much can be transferred out of a head.
+                                    {' '}Sanctioned is from the approved Fund Sanction; Room to receive is how much more a head can take before it exceeds its sanction (transfers still awaiting approval count against it).
+                                    {headBalances.some(h => h.loan > 0) && ' Loan (open) is loan money drawn against the head that has not yet been settled.'}
+                                </p>
                             </div>
                         )}
                     </GroupCard>
