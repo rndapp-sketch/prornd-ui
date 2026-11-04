@@ -418,6 +418,11 @@ export function AppSidebar() {
             path: "/project-search",
         },
         {
+            label: "Invoice",
+            icon: Receipt,
+            path: "/consultancy-invoice",
+        },
+        {
             label: "Kafka Trace",
             icon: Activity,
             path: "/kafka-trace",
@@ -439,6 +444,9 @@ export function AppSidebar() {
         }
         if (item.label === "Kafka Trace") {
             return roles?.includes("System Manager") ?? false;
+        }
+        if (item.label === "Invoice") {
+            return roles?.includes("MISC_IISI") ?? false;
         }
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD

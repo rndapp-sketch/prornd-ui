@@ -45,6 +45,7 @@ type AllowedRole =
   | 'All_ProRnd_User'
   | 'non-permanent'
   | 'Student'
+  | 'MISC_IISI'
   | 'System Manager';
 
 interface AuthRouteWrapperProps {
