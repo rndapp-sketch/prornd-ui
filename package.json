@@ -4,9 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/ensure-proxy-options.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/ensure-proxy-options.mjs",
     "build": "vite build",
     "lint": "eslint .",
+    "prepreview": "node scripts/ensure-proxy-options.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
