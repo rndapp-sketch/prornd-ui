@@ -36,6 +36,7 @@ import {
     GraduationCap,
     IdCard,
     Receipt,
+    Activity,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -417,6 +418,11 @@ export function AppSidebar() {
             path: "/project-search",
         },
         {
+            label: "Kafka Trace",
+            icon: Activity,
+            path: "/kafka-trace",
+        },
+        {
             label: "Stakeholder Registration",
             icon: FileText,
             path: "/universal-registration",
@@ -430,6 +436,9 @@ export function AppSidebar() {
         }
         if (item.label === "Project Search") {
             return roles?.includes("staff, RnD") ?? false;
+        }
+        if (item.label === "Kafka Trace") {
+            return roles?.includes("System Manager") ?? false;
         }
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD
