@@ -227,6 +227,11 @@ pipeline {
           # PATH must include nvm's bin: npm is a node script (#!/usr/bin/env node)
           # and vite shells out to node. A non-login SSH session has neither.
           $SSH "export PATH=$NODE_BIN:\\$PATH; cd '$UI_DIR' && '$NPM' ci" 2>&1 | tail -12
+          # npm 7+ rewrites yarn.lock whenever one exists, even under `npm ci`.
+          # Left alone, that modified yarn.lock trips the "uncommitted tracked
+          # changes" preflight on the NEXT deploy, which then refuses to run.
+          $SSH "cd '$UI_DIR' && git checkout -- yarn.lock"
+          echo "yarn.lock restored after npm ci"
         '''
       }
     }
