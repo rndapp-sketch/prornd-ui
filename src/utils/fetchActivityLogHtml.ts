@@ -71,9 +71,14 @@ async function resolveDesignation(email: string): Promise<string> {
 
 /**
  * Returns a full "Activity Log" section (title + table), or "" if the
- * document has no activity — safe to drop straight into a {{PLACEHOLDER}}.
+ * document has no activity (after the optional `onlyTypes` filter, e.g.
+ * ["comment", "creation"] to leave out edit entries) — safe to drop straight into a {{PLACEHOLDER}}.
  */
-export async function fetchActivityLogHtml(doctype: string, docname: string): Promise<string> {
+export async function fetchActivityLogHtml(
+    doctype: string,
+    docname: string,
+    onlyTypes?: string[],
+): Promise<string> {
     if (!docname) return "";
     try {
         const params = new URLSearchParams({ doctype, docname });
@@ -94,6 +99,7 @@ export async function fetchActivityLogHtml(doctype: string, docname: string): Pr
         // they belong to a different document and are kept off printed copies.
         const sorted = [...entries]
             .filter((e) => e.type !== "cancellation")
+            .filter((e) => !onlyTypes || onlyTypes.includes(e.type))
             .filter((e) => e.user !== "Administrator" && e.user_email !== "Administrator")
             .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
