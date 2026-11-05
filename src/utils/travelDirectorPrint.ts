@@ -81,6 +81,63 @@ export function buildSclBalanceRow(sclBalance?: SclBalanceData | null): string {
     </tr>`;
 }
 
+const isEmptyPrintValue = (text: string): boolean => {
+    const t = text.trim();
+    // zero amounts are blank estimate lines
+    return t === "" || t === "-" || t === "Not attached" || /^₹\s*0\.00$/.test(t);
+};
+
+/**
+ * Drops every label/value pair whose value is empty, then any row, table and
+ * section heading left with nothing under it (and empty remarks blocks), so
+ * the plain print only shows fields the applicant actually filled in.
+ */
+function pruneEmptyFields(html: string): string {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    // the workflow state is internal status, not part of the plain print
+    doc.querySelectorAll(".status-badge").forEach((el) => el.remove());
+    // the plain print has no signature boxes
+    doc.querySelectorAll(".signature-row").forEach((el) => el.remove());
+
+    doc.querySelectorAll("table.info-table").forEach((table) => {
+        table.querySelectorAll("tr").forEach((tr) => {
+            const cells = Array.from(tr.children) as HTMLElement[];
+            for (let i = 0; i + 1 < cells.length; i += 2) {
+                const label = cells[i];
+                const value = cells[i + 1];
+                if (!label.classList.contains("label")) continue;
+                if (isEmptyPrintValue(value.textContent || "")) {
+                    label.remove();
+                    value.remove();
+                }
+            }
+            const left = Array.from(tr.children) as HTMLElement[];
+            if (left.length === 0) {
+                tr.remove();
+            } else if (left.length === 2) {
+                // a lone pair should span the full row width
+                left[1].setAttribute("colspan", "3");
+            }
+        });
+        if (!table.querySelector("tr")) {
+            const prev = table.previousElementSibling;
+            if (prev?.classList.contains("section-title")) prev.remove();
+            table.remove();
+        }
+    });
+
+    doc.querySelectorAll(".remarks").forEach((el) => {
+        if (isEmptyPrintValue(el.textContent || "")) {
+            const prev = el.previousElementSibling;
+            if (prev?.classList.contains("section-title")) prev.remove();
+            el.remove();
+        }
+    });
+
+    return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+}
+
 /**
  * Builds the printable "review for Director approval" HTML for a Travel
  * application — a full review of every field on the applicant's form, which
@@ -95,8 +152,19 @@ export function generateTravelDirectorReviewHtml(
     activityLogHtml = "",
     sclBalanceRow = "",
     resolvedProjectTitle = "",
+    variant: "director" | "general" = "director",
 ): string {
-    return travelDirectorTemplate
+    const isDirector = variant === "director";
+    const docTitle = isDirector
+        ? "Travel Application — Review for Director Approval"
+        : "Travel Application";
+    const signatureBoxes = isDirector
+        ? `<div class="signature-box">Dean, R&amp;D</div>
+                <div class="signature-box">Director<span class="sig-note">(Signature &amp; Seal)</span></div>`
+        : "";
+    const html = travelDirectorTemplate
+        .replace(/\{\{DOC_TITLE\}\}/g, docTitle)
+        .replace("{{SIGNATURE_BOXES}}", () => signatureBoxes)
         // Function replacer — all raw HTML fetched/built from elsewhere (doctype
         // HTML-fieldtype content / activity log comments / SCL balance row) and
         // may contain "$" characters, which String.replace would otherwise
@@ -157,4 +225,5 @@ export function generateTravelDirectorReviewHtml(
         .replace("{{CLASSES_ARRANGEMENT}}", esc(data.travel_classes_arrangement))
         .replace("{{ADDITIONAL_COMMENT}}", esc(data.travel_comment_if_any))
         .replace("{{DECLARATION_ACCEPTED}}", yesNo(data.travel_declaration_accepted));
+    return isDirector ? html : pruneEmptyFields(html);
 }
