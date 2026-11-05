@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Travel — Director Approval Review</title>
+    <title>{{DOC_TITLE}}</title>
 
     <style>
         * {
@@ -53,13 +53,13 @@
             align-items: center;
             justify-content: center;
             gap: 15px;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             border-bottom: 2px solid #000;
-            padding-bottom: 12px;
+            padding-bottom: 8px;
         }
 
         .logo-container img {
-            height: 65px;
+            height: 55px;
             width: auto;
         }
 
@@ -83,17 +83,17 @@
             text-align: center;
             font-weight: bold;
             text-decoration: underline;
-            margin: 15px 0 20px 0;
-            font-size: 18px;
+            margin: 8px 0 10px 0;
+            font-size: 17px;
             text-transform: uppercase;
         }
 
         .top-info {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
-            margin-bottom: 15px;
-            line-height: 1.4;
+            font-size: 13px;
+            margin-bottom: 8px;
+            line-height: 1.3;
         }
 
         .status-badge {
@@ -109,15 +109,15 @@
         .info-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
-            margin-bottom: 15px;
+            font-size: 12.5px;
+            margin-bottom: 8px;
         }
 
         .info-table td {
             border: 1px solid #000;
-            padding: 6px 10px;
+            padding: 3px 8px;
             vertical-align: top;
-            line-height: 1.4;
+            line-height: 1.3;
         }
 
         .info-table td.label {
@@ -130,30 +130,29 @@
             font-size: 14px;
             font-weight: bold;
             text-decoration: underline;
-            margin: 15px 0 8px 0;
+            margin: 10px 0 4px 0;
             text-transform: uppercase;
         }
 
         .remarks {
             font-size: 13px;
-            line-height: 1.5;
+            line-height: 1.4;
             border: 1px solid #000;
-            padding: 10px;
+            padding: 5px 8px;
             background-color: #fff;
-            min-height: 60px;
             white-space: pre-wrap;
         }
 
         .declaration-text {
             font-size: 12.5px;
-            line-height: 1.6;
+            line-height: 1.4;
             border: 1px solid #000;
-            padding: 10px;
-            margin-bottom: 15px;
+            padding: 6px 8px;
+            margin-bottom: 8px;
         }
 
         .declaration-text p {
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
         }
 
         .declaration-text p:last-child {
@@ -164,13 +163,13 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
 
         .activity-table th,
         .activity-table td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 3px 8px;
             text-align: left;
             vertical-align: top;
         }
@@ -205,7 +204,7 @@
             display: flex;
             justify-content: space-between;
             gap: 10px;
-            margin-top: 100px;
+            margin-top: 60px;
             font-size: 12px;
         }
 
@@ -213,8 +212,8 @@
             text-align: center;
             flex: 1;
             border-top: 1px solid #000;
-            padding-top: 6px;
-            min-height: 55px;
+            padding-top: 4px;
+            min-height: 30px;
         }
 
         .signature-box .sig-note {
@@ -227,7 +226,7 @@
 
         @page {
             size: A4;
-            margin: 0;
+            margin: 14mm 0 16mm 0;
         }
 
         @media print {
@@ -281,15 +280,62 @@
             .content {
                 padding: 0 14mm;
             }
+
+            .section-title {
+                break-after: avoid;
+                page-break-after: avoid;
+            }
+
+            .remarks,
+            .signature-row {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
         }
 
         .print-footer {
             display: none;
         }
+
+        .screen-toolbar {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+        }
+
+        .screen-toolbar button {
+            font: 600 13px Arial, sans-serif;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #d4d4d8;
+            background: #fff;
+            color: #3f3f46;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        }
+
+        .screen-toolbar button.primary {
+            background: #D97757;
+            border-color: #D97757;
+            color: #fff;
+        }
+
+        @media print {
+            .screen-toolbar {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <div class="screen-toolbar">
+        <button type="button" class="primary" onclick="window.print()">Print</button>
+        <button type="button" onclick="window.close()">Close</button>
+    </div>
     <div class="page">
 
 
@@ -324,7 +370,7 @@
             </div>
 
             <!-- TITLE -->
-            <div class="title">Travel Application — Review for Director Approval</div>
+            <div class="title">{{DOC_TITLE}}</div>
 
             <!-- APPLICANT DETAILS -->
             <div class="section-title">Applicant Details</div>
@@ -533,8 +579,7 @@
 
             <!-- SIGNATURES -->
             <div class="signature-row">
-                <div class="signature-box">Dean, R&amp;D</div>
-                <div class="signature-box">Director<span class="sig-note">(Signature &amp; Seal)</span></div>
+{{SIGNATURE_BOXES}}
             </div>
         </div>
     </div>
