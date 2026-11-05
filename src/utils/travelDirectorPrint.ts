@@ -96,7 +96,8 @@ function pruneEmptyFields(html: string): string {
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     // the workflow state is internal status, not part of the plain print
-    doc.querySelectorAll(".status-badge").forEach((el) => el.remove());
+    // (remove its wrapper too, so the Date moves to the right edge)
+    doc.querySelectorAll(".status-badge").forEach((el) => (el.parentElement ?? el).remove());
     // the plain print has no signature boxes
     doc.querySelectorAll(".signature-row").forEach((el) => el.remove());
 
