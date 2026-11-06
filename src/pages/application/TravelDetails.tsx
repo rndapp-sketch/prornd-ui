@@ -1097,13 +1097,12 @@ const TravelDetails: React.FC = () => {
                         )}
 
                         {/* Record Payment */}
-                        {!cancellationFrozen && showCommitSection && (
+                        {!cancellationFrozen && showCommitSection && isCommitted && (
                             <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                     Record Payment
                                 </h3>
-                                {isCommitted ? (
-                                    <div className="space-y-4">
+                                <div className="space-y-4">
                                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
                                             <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
                                                 Linked Commitment
@@ -1146,19 +1145,6 @@ const TravelDetails: React.FC = () => {
                                             {isPaying ? "Processing..." : "Submit Payment"}
                                         </FrappeButton>
                                     </div>
-                                ) : (
-                                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
-                                        <div className="mx-auto w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3">
-                                            <LedgerIcon className="w-5 h-5 text-zinc-400" />
-                                        </div>
-                                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            Commitment Required
-                                        </p>
-                                        <p className="text-xs text-zinc-500 mt-1">
-                                            Make a commitment above before recording payment.
-                                        </p>
-                                    </div>
-                                )}
                             </div>
                         )}
                     </aside>

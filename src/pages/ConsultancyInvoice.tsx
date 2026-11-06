@@ -4,7 +4,7 @@ import { Search, Receipt, Loader2, CheckCircle2, XCircle, Plus } from "lucide-re
 import { PageHeader } from "@/components/common/PageHeader";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { fetchApprovedFunds, rowsFromProject, fetchGeneratedPage, GENERATED_PAGE_SIZE, type InvoiceRow, type GeneratedInvoice } from "@/utils/consultancyInvoiceApi";
+import { fetchApprovedFunds, searchApprovedFunds, rowsFromProject, fetchGeneratedPage, GENERATED_PAGE_SIZE, type InvoiceRow, type GeneratedInvoice } from "@/utils/consultancyInvoiceApi";
 
 // Pages scanned in one load while looking for projects that still have pending funds.
 const MAX_SKIPS = 10;
@@ -65,6 +65,15 @@ const ConsultancyInvoice: React.FC = () => {
             setLoading(true);
             setError("");
             try {
+                if (search) {
+                    const found = await searchApprovedFunds(search);
+                    const hits = (await Promise.all(found.map(rowsFromProject))).flat();
+                    if (cancelled) return;
+                    setRows(hits);
+                    setPageInfo({ total: found.length, nextId: null, prevId: null });
+                    setPageDebug("");
+                    return;
+                }
                 // Keep following the cursor in the direction of travel past pages with nothing pending.
                 let id = cursor;
                 let moved = 0;
@@ -117,7 +126,7 @@ const ConsultancyInvoice: React.FC = () => {
                     <input
                         value={rawSearch}
                         onChange={(e) => setRawSearch(e.target.value)}
-                        placeholder="Filter by project no."
+                        placeholder="Search project no., title, PI email or fund…"
                         className={cn(inputCls, "pl-9")}
                     />
                 </div>
@@ -231,8 +240,8 @@ const ConsultancyInvoice: React.FC = () => {
                 </div>}
                 {tab === "pending" && (
                     <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[12px] text-[#71717A]">
-                        <span>Approved consultancy projects: {pageInfo.total}</span>
-                        <div className="flex items-center gap-2">
+                        <span>{search ? `Matching projects: ${pageInfo.total}` : `Approved consultancy projects: ${pageInfo.total}`}</span>
+                        <div className={cn("flex items-center gap-2", search && "hidden")}>
                             <button onClick={() => goPage(-1)} disabled={!pageInfo.prevId || loading} className="px-3 py-1 font-bold rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] disabled:opacity-40">Previous</button>
                             <span className="font-bold">Page {pageNo} / {pendPages}</span>
                             <button onClick={() => goPage(1)} disabled={!pageInfo.nextId || loading} className="px-3 py-1 font-bold rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] disabled:opacity-40">Next</button>
