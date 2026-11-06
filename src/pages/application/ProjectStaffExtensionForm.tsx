@@ -20,10 +20,10 @@ import {
   UserCheck, TrendingUp, Printer, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { printExtensionOrder } from "@/utils/extensionOrderPrint";
+import { openIssuedOrder } from "@/utils/extensionOrderPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
-import { parseISO, subMonths, isBefore, startOfDay, isValid, format, differenceInMonths, addDays } from "date-fns";
+import { parseISO, subMonths, isBefore, startOfDay, isValid, format, differenceInCalendarDays } from "date-fns";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -527,31 +527,43 @@ const ProjectStaffExtensionForm: React.FC = () => {
     ? !isBefore(startOfDay(new Date()), startOfDay(applicationWindowOpenDate))
     : true;
 
-  // Duration (whole months, start and end inclusive) of the latest tenure — the row
-  // with the newest completion date. In edit mode `basic` is the viewer, so its
-  // tenures are only trusted when the viewer is the applicant (own draft).
+  // Months served across ALL tenure terms (each term in whole months, start and end
+  // inclusive). Every full block of 11 months is one completed engagement; the leftover
+  // months are the current term, which may be extended up to 11. A leftover of 0 means
+  // the last engagement is complete → re-engagement for up to 11 months. In edit mode
+  // `basic` is the viewer, so its tenures are only trusted when the viewer is the
+  // applicant (own draft).
   const eligibilityTenures =
     applicantSource?.tenures ??
     applicantTenures ??
     (loadedExtension?.owner && loadedExtension.owner === currentUser ? basic?.tenures : undefined) ??
     [];
-  const latestTenure = eligibilityTenures
+  const termMonthsList = eligibilityTenures
     .filter((t) => t.joining_date && t.term_completion_date)
-    .sort((a, b) => (b.term_completion_date as string).localeCompare(a.term_completion_date as string))[0];
-  const latestTermStart = latestTenure ? parseISO(latestTenure.joining_date as string) : null;
-  const latestTermEnd = latestTenure ? parseISO(latestTenure.term_completion_date as string) : null;
-  const latestTermMonths =
-    latestTermStart && latestTermEnd && isValid(latestTermStart) && isValid(latestTermEnd)
-      ? differenceInMonths(addDays(latestTermEnd, 1), latestTermStart)
-      : null;
-  const isReEngagement = latestTermMonths !== null && latestTermMonths >= MAX_TERM_MONTHS;
-  // Unknown term or re-engagement → no term-based cap beyond the 11-month maximum.
+    .map((t) => {
+      const start = parseISO(t.joining_date as string);
+      const end = parseISO(t.term_completion_date as string);
+      // Same as the backend (get_service_context / extension order): round(days / 30.437)
+      // per term, so a 29-day term counts as 1 month instead of truncating to 0.
+      return isValid(start) && isValid(end)
+        ? Math.max(0, Math.round((differenceInCalendarDays(end, start) + 1) / 30.437))
+        : null;
+    })
+    .filter((m): m is number => m !== null);
+  const termCount = termMonthsList.length;
+  const totalTermMonths = termCount > 0 ? termMonthsList.reduce((a, b) => a + b, 0) : null;
+  // Months already served in the current 11-month engagement.
+  const currentCycleMonths = totalTermMonths === null ? null : totalTermMonths % MAX_TERM_MONTHS;
+  const isReEngagement = totalTermMonths !== null && totalTermMonths > 0 && currentCycleMonths === 0;
+  // Unknown history or re-engagement → no term-based cap beyond the 11-month maximum.
   const termRemainingMonths =
-    latestTermMonths === null || isReEngagement
+    currentCycleMonths === null || isReEngagement
       ? MAX_TERM_MONTHS
-      : MAX_TERM_MONTHS - latestTermMonths;
+      : MAX_TERM_MONTHS - currentCycleMonths;
 
-  const monthsWorkedNum = Number.parseFloat(noOfMonthsWorked) || 0;
+  // Total service across all terms when the tenure history is known (matches the backend's
+  // get_service_context); otherwise the applicant-entered months worked.
+  const monthsWorkedNum = totalTermMonths ?? (Number.parseFloat(noOfMonthsWorked) || 0);
   const serviceRemainingMonths = Math.max(
     0,
     Math.floor(MAX_TOTAL_SERVICE_MONTHS - monthsWorkedNum),
@@ -561,8 +573,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const maxExtensionReason =
     serviceRemainingMonths <= termRemainingMonths
       ? `total service cannot exceed ${MAX_TOTAL_SERVICE_MONTHS} months; ${monthsWorkedNum} already worked`
-      : `latest term of ${latestTermMonths} month(s) + extension cannot exceed ${MAX_TERM_MONTHS} months`;
-  const reEngagementMessage = `Your latest term was ${latestTermMonths} month(s), which already meets the ${MAX_TERM_MONTHS}-month term limit. This request will be processed as a re-engagement, not an extension.`;
+      : `${currentCycleMonths} month(s) already served in the current ${MAX_TERM_MONTHS}-month term; a term cannot exceed ${MAX_TERM_MONTHS} months`;
+  const reEngagementMessage = `You have completed ${totalTermMonths} month(s) across ${termCount} term(s), so this will be a re-engagement.`;
   // The period selects only offer 1–11; cap the allowed range to that.
   // Options are capped only by the service limit, not the term limit — a period that
   // breaks the 11-month term rule is rejected on save/submit with a message instead.
@@ -899,39 +911,22 @@ const ProjectStaffExtensionForm: React.FC = () => {
         ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
         : [];
 
-  const { call: fetchValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
-  const [printing, setPrinting] = useState(false);
+  // The order as R&D Staff issued it — available once it has been printed (Completed).
+  const { data: issuedOrderResp } = useFrappeGetCall<{
+    message: { issued: boolean; order_type: string; order_no: string; order_html: string };
+  }>(
+    extensionAPI.getIssuedExtensionOrder,
+    { docname: docName },
+    docName && (workflowState === "Approved" || workflowState === "Completed") ? undefined : null,
+    { revalidateOnFocus: false },
+  );
+  const issuedOrder = issuedOrderResp?.message?.issued ? issuedOrderResp.message : null;
+  const issuedOrderLabel = issuedOrder?.order_type === "Re-engagement" ? "View Re-engagement Order" : "View Extension Order";
 
-  const handlePrintOrder = async () => {
-    setPrinting(true);
-    try {
-      let piName = "";
-      if (projectNo) {
-        const pr = await fetchValue({ doctype: "Project Registration", filters: { project_no: projectNo }, fieldname: "principal_investigator" }).catch(() => null);
-        const piUser = pr?.message?.principal_investigator;
-        if (piUser) {
-          const u = await fetchValue({ doctype: "User", filters: piUser, fieldname: "full_name" }).catch(() => null);
-          piName = u?.message?.full_name || piUser;
-        }
-      }
-      const ext = loadedExtension;
-      const increment = ext?.increment_by_staff || ext?.increment_by_pi || 0;
-      const ok = printExtensionOrder({
-        ref: `${projectNo || ""}/ ${docName || ""}`,
-        issueDate: format(new Date(), "yyyy-MM-dd"),
-        staffName: fullName,
-        designation: ext?.ex_designation || applicantSource?.ps_designation || basic?.ps_designation || "",
-        projectTitle,
-        piName,
-        department: applicantDepartment,
-        fromDate: ext?.ex_final_new_joining_date || ext?.ex_computed_new_joining_date || "",
-        toDate: ext?.ex_final_new_completion_date || ext?.ex_computed_new_completion_date || "",
-        increment,
-      });
-      if (!ok) setToast({ type: "error", msg: "Pop-up blocked. Allow pop-ups to print the order." });
-    } finally {
-      setPrinting(false);
-    }
+  const handleViewIssuedOrder = () => {
+    if (!issuedOrder) return;
+    const ok = openIssuedOrder(issuedOrder.order_html, `${issuedOrder.order_type} Order - ${fullName}`);
+    if (!ok) setToast({ type: "error", msg: "Pop-up blocked. Allow pop-ups to view the order." });
   };
 
   // Approved is terminal for the form: its only remaining step (Print Ext.Order → Completed)
@@ -1257,15 +1252,14 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   Generate Ext Order
                 </button>
               )}
-              {isApprovedOrCompleted && docName && !(workflowState === "Approved" && isRnDStaff) && (
+              {issuedOrder && (
                 <button
                   type="button"
-                  onClick={handlePrintOrder}
-                  disabled={printing}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 text-xs font-bold uppercase tracking-wide text-[#4A6CF7] hover:bg-[#4A6CF7]/10 disabled:opacity-60"
+                  onClick={handleViewIssuedOrder}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 text-xs font-bold uppercase tracking-wide text-[#4A6CF7] hover:bg-[#4A6CF7]/10"
                 >
-                  {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                  Print Office Order
+                  <FileText className="h-4 w-4" />
+                  {issuedOrderLabel}
                 </button>
               )}
               {isRnDStaff && projectNo && (
@@ -1548,9 +1542,14 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       <div className="flex items-start gap-2.5 px-4 py-3 mb-4 rounded-lg text-sm border bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
                         <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                         <span>
-                          You have worked <strong>{monthsWorkedNum}</strong> month(s)
-                          {latestTermMonths !== null && (
-                            <> and your latest term is <strong>{latestTermMonths}</strong> month(s)</>
+                          {totalTermMonths !== null ? (
+                            <>
+                              You have completed <strong>{totalTermMonths}</strong> month(s) across{" "}
+                              <strong>{termCount}</strong> term(s), of which <strong>{currentCycleMonths}</strong> month(s)
+                              fall in the current {MAX_TERM_MONTHS}-month term
+                            </>
+                          ) : (
+                            <>You have worked <strong>{monthsWorkedNum}</strong> month(s)</>
                           )}
                           . The maximum extension you may apply for is{" "}
                           <strong>{maxExtensionAllowed}</strong> month(s) ({maxExtensionReason}).

@@ -1024,7 +1024,10 @@ export default function ProInvForm() {
             window.open(getFileUrl(attachmentUrl), "_blank");
             return;
         }
-        const htmlContent = renderStored(generateHtml());
+        // Same rule as handlePrint: the structured editor isn't populated for a
+        // submitted/approved invoice, so render the stored HTML.
+        const useStored = showRenderedHtml && !!reviewHtml;
+        const htmlContent = renderStored(useStored ? reviewHtml : generateHtml());
         const iframe = document.createElement("iframe");
         iframe.style.cssText =
             "position:fixed;left:-99999px;top:0;width:800px;height:1100px;border:0;visibility:hidden;";
@@ -1056,7 +1059,7 @@ export default function ProInvForm() {
             const contentHeight = (canvas.height * contentWidth) / canvas.width;
 
             pdf.addImage(imgData, "PNG", margin, margin, contentWidth, contentHeight);
-            pdf.save(`Proforma-Invoice-${invoiceNo.replace(/\//g, "-")}.pdf`);
+            pdf.save(`Proforma-Invoice-${(useStored && docName ? docName : invoiceNo).replace(/\//g, "-")}.pdf`);
         } catch (err) {
             alert("Could not generate PDF. Please try again.");
             if (document.body.contains(iframe)) {
