@@ -81,6 +81,42 @@ export const fetchApprovedFunds = async (opts: { projectNo?: string; paginationI
     return frappeJson(`${INVOICE_API}.get_approved_consultancy_funds?${qs}`);
 };
 
+const postJson = (method: string, body: object) =>
+    frappeJson(`${FRAPPE_BASE_URL}/api/method/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrf() },
+        body: JSON.stringify(body),
+    });
+
+const SEARCH_LIMIT = 20;
+
+// Free-form search: matches project no., project name/title, PI webmail, or a Fund Received
+// docname / reference number. Each hit is re-read through the approved-funds endpoint, so only
+// approved Consultancy projects that have a Fund Received come back, with their deposit slips.
+export const searchApprovedFunds = async (text: string): Promise<ApprovedFundsProject[]> => {
+    const like = `%${text}%`;
+    const [projects, funds] = await Promise.all([
+        postJson("frappe.client.get_list", {
+            doctype: "Project Registration",
+            fields: ["name"],
+            filters: [["project_type", "=", "Consultancy"], ["workflow_state", "=", "Approved"], ["docstatus", "=", 1]],
+            or_filters: [["name", "like", like], ["project_no", "like", like], ["project_title", "like", like], ["pi_webmail", "like", like]],
+            order_by: "creation desc",
+            limit_page_length: SEARCH_LIMIT,
+        }) as Promise<{ name: string }[]>,
+        postJson("frappe.client.get_list", {
+            doctype: "Fund Received",
+            fields: ["prjreg_title"],
+            filters: [["docstatus", "<", 2]],
+            or_filters: [["name", "like", like], ["fund_received_ref_number", "like", like]],
+            limit_page_length: SEARCH_LIMIT,
+        }).catch(() => []) as Promise<{ prjreg_title: string }[]>,
+    ]);
+    const names = [...new Set([...(projects ?? []).map((p) => p.name), ...(funds ?? []).map((f) => f.prjreg_title).filter(Boolean)])].slice(0, SEARCH_LIMIT);
+    const pages = await Promise.all(names.map((n) => fetchApprovedFunds({ projectNo: n, pageSize: 1 }).catch(() => null)));
+    return pages.flatMap((pg) => pg?.data ?? []);
+};
+
 // Turns a project's funds into invoice rows, looking up whether each already has an invoice.
 export const rowsFromProject = (project: ApprovedFundsProject): Promise<InvoiceRow[]> =>
     Promise.all(
@@ -176,24 +212,34 @@ export const fetchGeneratedPage = async (
     page: number,
     projectNo: string,
 ): Promise<{ items: GeneratedInvoice[]; total: number }> => {
-    const filters = projectNo ? [["project_no", "like", `%${projectNo}%`]] : [];
-    const post = (method: string, body: object) =>
-        frappeJson(`${FRAPPE_BASE_URL}/api/method/${method}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrf() },
-            body: JSON.stringify(body),
-        });
-    const [docs, total] = await Promise.all([
-        post("frappe.client.get_list", {
+    const post = postJson;
+    let docs: Record<string, unknown>[];
+    let total: number;
+    if (projectNo) {
+        // Free-form text: or_filters cannot be counted server-side, so take the matches (capped)
+        // and page them here. Only the visible page then loads its invoice numbers.
+        const like = `%${projectNo}%`;
+        const all = (await post("frappe.client.get_list", {
             doctype: "Consultancy Invoice",
             fields: ["*"],
-            filters,
+            or_filters: [["name", "like", like], ["project_no", "like", like], ["fund_received_ref", "like", like]],
             order_by: "creation desc",
-            limit_start: page * GENERATED_PAGE_SIZE,
-            limit_page_length: GENERATED_PAGE_SIZE,
-        }) as Promise<Record<string, unknown>[]>,
-        post("frappe.client.get_count", { doctype: "Consultancy Invoice", filters }) as Promise<number>,
-    ]);
+            limit_page_length: 100,
+        })) as Record<string, unknown>[];
+        total = all.length;
+        docs = all.slice(page * GENERATED_PAGE_SIZE, (page + 1) * GENERATED_PAGE_SIZE);
+    } else {
+        [docs, total] = await Promise.all([
+            post("frappe.client.get_list", {
+                doctype: "Consultancy Invoice",
+                fields: ["*"],
+                order_by: "creation desc",
+                limit_start: page * GENERATED_PAGE_SIZE,
+                limit_page_length: GENERATED_PAGE_SIZE,
+            }) as Promise<Record<string, unknown>[]>,
+            post("frappe.client.get_count", { doctype: "Consultancy Invoice" }) as Promise<number>,
+        ]);
+    }
     const str = (v: unknown) => (typeof v === "string" ? v : "");
     const items = await Promise.all((docs ?? []).map(async (d) => ({
         name: str(d.name),
