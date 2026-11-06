@@ -86,6 +86,11 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 // --- MAIN COMPONENT ---
 const RECOMMENDATION_FIELD = 'the_purchase_committe_recommends_purchase_of_the_items_from_ms';
+// Exactly one of these declarations applies: the committee one when the parent Direct Purchase
+// needs a Purchase Committee (total estimate above ₹2,00,000), the other when it does not.
+const COMMITTEE_DECLARATION_FIELD = 'declaration';
+const NO_COMMITTEE_DECLARATION_FIELD = 'declaration_satisfied';
+const PURCHASE_COMMITTEE_THRESHOLD = 200000;
 
 const P11Form: React.FC = () => {
     const navigate = useNavigate();
@@ -419,6 +424,15 @@ const P11Form: React.FC = () => {
             setErrorModal({ open: true, title: "Missing Information", message: "Purchase Committee Recommendation is mandatory." });
             return;
         }
+        const declarationField = fields.find(f => f.fieldname === activeDeclarationField);
+        if (declarationField && !Number(formData[activeDeclarationField])) {
+            setErrorModal({
+                open: true,
+                title: "Declaration Required",
+                message: `Please tick the declaration: "${declarationField.label || activeDeclarationField}".`,
+            });
+            return;
+        }
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -494,9 +508,24 @@ const P11Form: React.FC = () => {
     };
 
     // --- Apply depends_on logic to filter visible fields ---
+    const committeeRequired = useMemo(() => {
+        if (!dpDoc) return false;
+        return (Number(dpDoc.total_estimate) || 0) > PURCHASE_COMMITTEE_THRESHOLD;
+    }, [dpDoc]);
+    const activeDeclarationField = committeeRequired ? COMMITTEE_DECLARATION_FIELD : NO_COMMITTEE_DECLARATION_FIELD;
+    const inactiveDeclarationField = committeeRequired ? NO_COMMITTEE_DECLARATION_FIELD : COMMITTEE_DECLARATION_FIELD;
+
     const visibleFields = useMemo(() => {
         return fields.map(field => {
             const f = { ...field };
+            if (f.fieldname === inactiveDeclarationField) {
+                f.hidden = 1;
+                f.mandatory = 0;
+            } else if (f.fieldname === activeDeclarationField) {
+                f.hidden = 0;
+                f.mandatory = 1;
+                return f;
+            }
             if (f.depends_on) {
                 const evalStr = String(f.depends_on).replace(/;$/, '');
                 try {
@@ -511,7 +540,7 @@ const P11Form: React.FC = () => {
             }
             return f;
         });
-    }, [fields, formData]);
+    }, [fields, formData, activeDeclarationField, inactiveDeclarationField]);
 
     // --- RENDER LOGIC ---
     if (loading) {
