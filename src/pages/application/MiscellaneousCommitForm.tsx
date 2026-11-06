@@ -13,6 +13,8 @@ import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { DecommitCommitmentPicker, type PickedCommitment } from '@/components/DecommitCommitmentPicker';
 import { validateDecommitAmount } from '@/utils/decommitCalc';
+import { isFieldMandatory, isFieldVisible } from '@/utils/evalExpression';
+import { CommentModal } from '@/components/CommentModal';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -227,13 +229,15 @@ const MiscellaneousCommitForm: React.FC = () => {
     const handlePick = useCallback((p: PickedCommitment | null) => {
         if (!p) {
             setPicked(null);
-            setFormData(prev => ({ ...prev, linked_application: '', commit_amount: '' }));
+            setFormData(prev => ({ ...prev, linked_application: '', commit_amount: '', ref_details: '' }));
             return;
         }
         setPicked({ key: `commit:${p.row.transactionId}`, max: p.summary.maxDecommit });
         setFormData(prev => ({
             ...prev,
             linked_application: p.row.frapAppId || prev.linked_application || '',
+            // TID of the commitment being released — the staged commit payload's ref_details.
+            ref_details: String(p.row.transactionId ?? ''),
             commit_amount: p.summary.maxDecommit,
         }));
     }, []);
@@ -254,6 +258,8 @@ const MiscellaneousCommitForm: React.FC = () => {
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: saveForm } = useFrappePostCall<{ message: any }>(miscellaneousCommitAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(miscellaneousCommitAPI.submit);
+    const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
+    const [submitModalOpen, setSubmitModalOpen] = useState(false);
 
     useEffect(() => {
         if (!dataLoaded) fetchFormData(editDocName ? { doc_name: editDocName } : {});
@@ -359,7 +365,27 @@ const MiscellaneousCommitForm: React.FC = () => {
         })();
     }, [formData.project_number, linkOptions.project_number]);
 
+    // Labels of visible mandatory fields that are still empty (Section/Column breaks have no value).
+    const missingMandatory = (): string[] =>
+        [...groupA, ...groupB]
+            .filter(f => !/Break$/.test(f.fieldtype) && isFieldVisible(f, formData) && isFieldMandatory(f, formData))
+            .filter(f => {
+                const v = formData[f.fieldname];
+                return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+            })
+            .map(f => f.label || f.fieldname);
+
+    const mandatoryError = (): string | null => {
+        const missing = missingMandatory();
+        return missing.length ? `Please fill the mandatory field${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}.` : null;
+    };
+
     const handleSave = async () => {
+        const mErr = mandatoryError();
+        if (mErr) {
+            setErrorModal({ open: true, title: 'Mandatory Fields Missing', message: mErr });
+            return;
+        }
         const dErr = decommitError();
         if (dErr) {
             setErrorModal({ open: true, title: 'Cannot Save', message: dErr });
@@ -373,7 +399,8 @@ const MiscellaneousCommitForm: React.FC = () => {
             if (res?.message?.status === 'success') {
                 const docname = res.message.docname || savedDocName;
                 if (docname && !savedDocName) setSavedDocName(docname);
-                alert('Draft saved successfully!');
+                // Submit stays locked until a draft exists; offer it straight away.
+                setSubmitModalOpen(true);
             } else {
                 throw new Error(res?.message?.message || 'Save failed');
             }
@@ -384,9 +411,24 @@ const MiscellaneousCommitForm: React.FC = () => {
         }
     };
 
-    const handleSubmit = async () => {
+    const openSubmitModal = () => {
+        const mErr = mandatoryError();
+        if (mErr) {
+            setErrorModal({ open: true, title: 'Mandatory Fields Missing', message: mErr });
+            return;
+        }
         const dErr = decommitError();
         if (dErr) {
+            setErrorModal({ open: true, title: 'Cannot Submit', message: dErr });
+            return;
+        }
+        setSubmitModalOpen(true);
+    };
+
+    const handleSubmit = async (comment: string) => {
+        const dErr = decommitError();
+        if (dErr) {
+            setSubmitModalOpen(false);
             setErrorModal({ open: true, title: 'Cannot Submit', message: dErr });
             return;
         }
@@ -402,12 +444,21 @@ const MiscellaneousCommitForm: React.FC = () => {
             if (docname && !savedDocName) setSavedDocName(docname);
             const submitRes = await submitDocument({ docname });
             if (submitRes?.message?.status === 'success') {
+                if (comment.trim()) {
+                    try {
+                        await addComment({ doctype: 'Miscellaneous Commit', docname, content: comment.trim() });
+                    } catch {
+                        // comment failure is non-fatal
+                    }
+                }
+                setSubmitModalOpen(false);
                 alert('Miscellaneous Commit submitted successfully!');
                 navigate(`/miscellaneous-commit/${docname}`);
             } else {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
+            setSubmitModalOpen(false);
             setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
@@ -441,7 +492,7 @@ const MiscellaneousCommitForm: React.FC = () => {
     const [amountNotice, setAmountNotice] = useState<string | null>(null);
     useEffect(() => {
         setAmountNotice(null);
-    }, [picked?.key]);
+    }, [picked?.key, isDecommit]);
     const handleFormChange = useCallback((fieldname: string, value: any) => {
         if (fieldname === 'commit_amount' && isDecommit) {
             if (!picked) {
@@ -506,8 +557,8 @@ const MiscellaneousCommitForm: React.FC = () => {
                         {isSaving ? 'Saving...' : 'Save Draft'}
                     </FrappeButton>
                     <FrappeButton
-                        onClick={handleSubmit}
-                        disabled={isSaving || isSubmitting}
+                        onClick={openSubmitModal}
+                        disabled={isSaving || isSubmitting || !savedDocName}
                         className="bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm"
                     >
                         <Send className="w-4 h-4" />
@@ -538,6 +589,11 @@ const MiscellaneousCommitForm: React.FC = () => {
                     {/* GROUP B — Commit Details */}
                     <GroupCard icon={IndianRupeeIcon} label={isDecommit ? "De-Commit Details" : "Commit Details"} badge="B">
                         <DynamicFormRenderer fields={groupB} {...commonRendererProps} />
+                        {amountNotice && (
+                            <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                                {amountNotice}
+                            </p>
+                        )}
                     </GroupCard>
 
                     {/* GROUP C — pick the commitment to release (De-Commit only) */}
@@ -549,11 +605,6 @@ const MiscellaneousCommitForm: React.FC = () => {
                                 selectedKey={picked?.key ?? ''}
                                 onSelect={handlePick}
                             />
-                            {amountNotice && (
-                                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-                                    {amountNotice}
-                                </p>
-                            )}
                             {picked && (
                                 <p className="mt-3 text-xs text-zinc-500">
                                     Amount is prefilled with the decommitable balance of ₹{picked.max.toLocaleString('en-IN')}. You can lower it, but not exceed it.
@@ -593,6 +644,14 @@ const MiscellaneousCommitForm: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <CommentModal
+                isOpen={submitModalOpen}
+                onClose={() => setSubmitModalOpen(false)}
+                onSubmit={handleSubmit}
+                action="Submit"
+                isLoading={isSubmitting}
+            />
 
             <ErrorModal
                 open={errorModal.open}
