@@ -603,11 +603,15 @@ const TravelDetails: React.FC = () => {
 
     // --- DIRECTOR APPROVAL (International travel) ---
     // See docs/travel-director-approval-implementation.md
-    const openDirectorReviewPrintWindow = async () => {
+    const openDirectorReviewPrintWindow = async (variant: "director" | "general" = "director") => {
         const [resolvedDepartment, declarationFields, activityLogHtml] = await Promise.all([
             resolveDepartmentLabel(formData.department_travel),
             fetchDeclarationFields("Travel"),
-            fetchActivityLogHtml("Travel", docName || ""),
+            fetchActivityLogHtml(
+                "Travel",
+                docName || "",
+                variant === "general" ? ["comment", "creation"] : undefined,
+            ),
         ]);
         // travel_leave_balance_html isn't a declaration — it's the applicant's
         // SCL balance card, which prints as its own compact table row (built
@@ -626,6 +630,7 @@ const TravelDetails: React.FC = () => {
             activityLogHtml,
             sclBalanceRow,
             resolvedProjectTitle,
+            variant,
         );
         const printWindow = window.open("", "_blank");
         if (printWindow) {
@@ -640,7 +645,7 @@ const TravelDetails: React.FC = () => {
     // requirement — this moves workflow_state to "Pending Director Approval".
     const handlePrintAndSendToDirector = async () => {
         if (!docName) return;
-        openDirectorReviewPrintWindow();
+        openDirectorReviewPrintWindow("director");
         try {
             const res = await performTravelAction({ docname: docName, action: "Send for Director Approval" });
             if (res?.message?.status && res.message.status !== "success") {
@@ -655,7 +660,7 @@ const TravelDetails: React.FC = () => {
     // Any time after that: reprint only, no API call — covers a lost/forgotten
     // hard copy without re-triggering the status flip.
     const handleDownloadDirectorReview = () => {
-        openDirectorReviewPrintWindow();
+        openDirectorReviewPrintWindow("director");
     };
 
     const handleDirectorPdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -760,6 +765,16 @@ const TravelDetails: React.FC = () => {
                                 {isSubmitting ? "Submitting..." : "Submit Application"}
                             </button>
                         </>
+                    )}
+                    {docName && (
+                        <button
+                            onClick={() => openDirectorReviewPrintWindow("general")}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                            title="Print / PDF"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print
+                        </button>
                     )}
                     {showSettleButton && docName && (
                         <button
