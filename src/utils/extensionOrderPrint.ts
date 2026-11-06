@@ -3,19 +3,6 @@
 // new term is a multiple of 11 (decided by the backend — get_extension_order).
 // Pure HTML/CSS so it can be written into a print window / iframe without React.
 
-export interface ExtensionOrderData {
-  ref: string;
-  issueDate: string; // YYYY-MM-DD
-  staffName: string;
-  designation: string;
-  projectTitle: string;
-  piName: string;
-  department: string;
-  fromDate: string; // YYYY-MM-DD
-  toDate: string; // YYYY-MM-DD
-  increment: string | number;
-}
-
 export type ExtensionOrderType = "Extension" | "Re-engagement";
 
 /** Shape returned by the backend's get_extension_order().context */
@@ -152,29 +139,21 @@ export function buildExtensionOrderPage(ctx: ExtensionOrderContext, issueDate: s
   ${orderFooterHtml}`;
 }
 
-/** Legacy one-shot order used by the extension form's own "Print Order" button. */
-export function buildExtensionOrderHtml(d: ExtensionOrderData): string {
-  const inc = Number(d.increment) || 0;
-  const page = `${orderHeaderHtml(d.ref, d.issueDate)}
-  <h1><span>EXTENSION OFFICE ORDER</span></h1>
-  <p>This is for information of all concerned that the tenure of appointment of Mr./Ms./Dr. <b>${esc(d.staffName)}</b>, ${esc(d.designation)}, in the R&amp;D Project "<b>${esc(d.projectTitle)}</b>" under the supervision of Dr./Prof. <b>${esc(d.piName)}</b>, Dept. of ${esc(d.department)}, has been extended/renewed w.e.f. <b>${esc(fmtOrderDate(d.fromDate))}</b> to <b>${esc(fmtOrderDate(d.toDate))}</b> with an increment of Rs ${esc(inc)} PM.</p>
-  <p>The other terms and conditions of the appointment will remain same.</p>
-  ${orderFooterHtml}`;
-  const toolbarCss = `
+const VIEWER_TOOLBAR_CSS = `
   .toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; gap: 10px; padding: 10px 20px; background: #1a2b5f; font-family: Arial, sans-serif; }
   .toolbar button { cursor: pointer; border: 0; border-radius: 6px; padding: 8px 18px; font-size: 14px; font-weight: 600; }
   .toolbar .print { background: #fff; color: #1a2b5f; }
   .toolbar .close { background: transparent; color: #fff; border: 1px solid #fff; }
   @media print { .toolbar { display: none !important; } }`;
-  const toolbar = `<div class="toolbar"><button class="print" onclick="window.print()">Print</button><button class="close" onclick="window.close()">Close</button></div>`;
-  return buildOrderDocument(page, `Extension Office Order - ${d.staffName}`, toolbarCss, toolbar);
-}
+const VIEWER_TOOLBAR = `<div class="toolbar"><button class="print" onclick="window.print()">Print</button><button class="close" onclick="window.close()">Close</button></div>`;
 
-export function printExtensionOrder(d: ExtensionOrderData) {
+/** Opens the order exactly as R&D Staff issued it (saved `.page` HTML) in a new window
+ *  with Print / Close. Returns false when the pop-up was blocked. */
+export function openIssuedOrder(pageHtml: string, title: string) {
   const w = window.open("", "_blank");
   if (!w) return false;
   w.document.open();
-  w.document.write(buildExtensionOrderHtml(d));
+  w.document.write(buildOrderDocument(pageHtml, title, VIEWER_TOOLBAR_CSS, VIEWER_TOOLBAR));
   w.document.close();
   return true;
 }
