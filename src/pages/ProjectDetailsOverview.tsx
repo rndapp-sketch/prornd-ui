@@ -4014,6 +4014,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         {};
     const actualBalance = projectData?.availableCommitAmount ?? 0;
     const commitableBalance = projectData?.availablePaymentAmount ?? 0;
+    // Sanction edit lock: a fund counts as received if a Fund Received record exists
+    // or the project already carries a balance (the same test the rest of this page
+    // uses), and the Edit button stays hidden while the fund lookup is still loading.
+    const sanctionEditLocked =
+        hasFundReceived || commitableBalance > 0 || actualBalance > 0 || isFundLoading;
 
     // Personal Development Fund project: a personal overhead fund surfaced as a project.
 
@@ -6571,7 +6576,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             )}
                                                                         {(isDraft || isSanctionOwner) && (
                                                                             <div className="flex-shrink-0 flex items-center gap-2">
-                                                                                {isSanctionOwner && !isEditingSB && !hasFundReceived && (
+                                                                                {isSanctionOwner && !isEditingSB && !sanctionEditLocked && (
                                                                                     <Button
                                                                                         size="sm"
                                                                                         variant="outline"
@@ -6612,10 +6617,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                         )}
                                                                     </div>
                                                                     {isSanctionOwner && !isEditingSB && (
-                                                                        <p className={`text-xs font-medium text-right ml-auto w-fit max-w-md rounded-md px-3 py-2 mb-2 border ${hasFundReceived
+                                                                        <p className={`text-xs font-medium text-right ml-auto w-fit max-w-md rounded-md px-3 py-2 mb-2 border ${sanctionEditLocked
                                                                             ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
                                                                             : "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"}`}>
-                                                                            {hasFundReceived
+                                                                            {sanctionEditLocked
                                                                                 ? "Editing is disabled because a fund has already been received against this sanction."
                                                                                 : "Editable until a fund is received. Once a fund is added, editing is locked."}
                                                                         </p>
