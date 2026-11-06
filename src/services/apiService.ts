@@ -86,6 +86,7 @@ export const extensionAPI = {
     updateApplicantTenures: `${API_BASE}.project_staff_extension.project_staff_extension.update_applicant_tenures`,
     getExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.get_extension_order`,
     saveExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.save_extension_order`,
+    getIssuedExtensionOrder: `${API_BASE}.project_staff_extension.project_staff_extension.get_issued_extension_order`,
 };
 
 // Temporary Advance API endpoints
