@@ -55,7 +55,7 @@ const ExtensionOrderEditor: React.FC = () => {
   const { docname = "" } = useParams<{ docname: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { data, error, isLoading, mutate } = useFrappeGetCall<{ message: ExtensionOrderResponse }>(
+  const { data, error, isLoading, isValidating, mutate } = useFrappeGetCall<{ message: ExtensionOrderResponse }>(
     extensionAPI.getExtensionOrder,
     { docname },
     docname ? undefined : null,
@@ -83,16 +83,17 @@ const ExtensionOrderEditor: React.FC = () => {
   const generate = (ctx: ExtensionOrderContext, type: ExtensionOrderType) =>
     buildExtensionOrderPage({ ...ctx, ref: fullOrderNo || ctx.ref, order_type: type }, format(new Date(), "yyyy-MM-dd"));
 
-  // Seed once: the staff's last saved copy if any, else the generated order.
+  // Seed once: the staff's last saved copy if any, else the generated order. Waits for the
+  // refetch on open so a cached response can't seed an older number and letter.
   useEffect(() => {
-    if (!order || orderType) return;
+    if (!order || orderType || isValidating) return;
     setOrderType(order.context.order_type);
     const saved = order.order_no || "";
     const prefix = order.context.project_no ? `${order.context.project_no}/` : "";
     setOrderNo(prefix && saved.startsWith(prefix) ? saved.slice(prefix.length) : saved);
     setPageHtml(order.order_html || generate(order.context, order.context.order_type));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order]);
+  }, [order, isValidating]);
 
   const editablePage = () => iframeRef.current?.contentDocument?.querySelector<HTMLElement>(".page") ?? null;
   const currentHtml = () => editablePage()?.innerHTML ?? pageHtml;
@@ -140,6 +141,7 @@ const ExtensionOrderEditor: React.FC = () => {
     setBusy("save");
     try {
       await persist(false);
+      await mutate();
       showNotice("success", "Order saved.");
     } catch (err) {
       showNotice("error", getErrorText(err, "Could not save the order."));

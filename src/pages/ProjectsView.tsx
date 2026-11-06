@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import ProInvButton from "@/components/ProInvButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -1418,8 +1419,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                               <>
                                 {(p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved") &&
                                   normalizeProjectType((p as any).project_type) === "Consultancy" && (
-                                  <Button
-                                    variant="outline"
+                                  <ProInvButton
+                                    projectKey={p.project_no || p.name}
                                     size="sm"
                                     className="h-8 px-2 text-xs font-bold border-zinc-300 text-zinc-700 hover:text-[#D97757] hover:border-[#D97757] dark:text-zinc-300 dark:border-zinc-700"
                                     onClick={(e) => {
@@ -1428,7 +1429,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                     }}
                                   >
                                     Pro Inv
-                                  </Button>
+                                  </ProInvButton>
                                 )}
                                 <Button
                                   variant="ghost"

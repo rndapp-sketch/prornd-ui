@@ -77,6 +77,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import ProInvButton from "@/components/ProInvButton";
 import {
     Table,
     TableBody,
@@ -4619,14 +4620,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") &&
                                         normalizeProjectType(data?.project_type) === "Consultancy" && (
-                                        <FrappeButton
+                                        <ProInvButton
+                                            projectKey={data?.project_no || projectName || ""}
                                             onClick={() => navigate(`/project-details-overview/${projectName}/proforma-invoice`)}
-                                            variant="outline"
                                             aria-label="Proforma Invoice"
-                                            className="h-8 px-3 text-[12px] flex items-center gap-1.5"
+                                            className="h-8 px-3 text-[12px] flex items-center gap-1.5 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                         >
                                             <FileTextIcon className="h-3.5 w-3.5" /> Pro Inv
-                                        </FrappeButton>
+                                        </ProInvButton>
                                     )}
                                     <WorkflowActions
                                         docname={projectName!}
