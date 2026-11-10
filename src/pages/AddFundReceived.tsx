@@ -2787,7 +2787,8 @@ const AddFundReceived: React.FC = () => {
                                                 Sanction Letter No
                                             </p>
                                             <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                                                {selectedSanction.sanction_letter_no ||
+                                                {selectedSanction.sanctioned_letter_no ||
+                                                    selectedSanction.sanction_letter_no ||
                                                     "-"}
                                             </p>
                                         </div>
@@ -2796,7 +2797,8 @@ const AddFundReceived: React.FC = () => {
                                                 Sanction Date
                                             </p>
                                             <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                                                {selectedSanction.sanction_date ||
+                                                {selectedSanction.sanctioned_letter_date ||
+                                                    selectedSanction.sanction_date ||
                                                     "-"}
                                             </p>
                                         </div>

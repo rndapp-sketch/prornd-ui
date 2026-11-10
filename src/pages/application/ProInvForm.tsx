@@ -1,4 +1,4 @@
-import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { FRAPPE_BASE_URL, toSameOriginFileUrl } from "@/utils/frappeUrl";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ToWords } from "to-words";
@@ -620,7 +620,8 @@ export default function ProInvForm() {
     // signature image + approver line once approved, otherwise a "pending" note.
     const signatureBlockHtml = () => {
         if (isApproved && approverSignature) {
-            const src = getFileUrl(approverSignature);
+            // Stored value can be "/private/files//HOS_Sign.png" — collapse the double slash.
+            const src = getFileUrl(approverSignature).replace(/([^:])\/{2,}/g, "$1/");
             return `<img src="${src}" class="signature-img" alt="Authorised Signatory" />`
                 + `<div style="margin-top:4px;font-weight:normal;color:#374151;font-size:10px;">Approved by ${approverName || "Head of Section"}${approverDate ? ` on ${formatDisplayDate(approverDate)}` : ""}</div>`;
         }
@@ -1030,14 +1031,55 @@ export default function ProInvForm() {
         const htmlContent = renderStored(useStored ? reviewHtml : generateHtml());
         const iframe = document.createElement("iframe");
         iframe.style.cssText =
-            "position:fixed;left:-99999px;top:0;width:800px;height:1100px;border:0;visibility:hidden;";
+            "position:fixed;left:-99999px;top:0;width:800px;height:1100px;border:0;background:#fff;";
         document.body.appendChild(iframe);
         const iDoc = iframe.contentDocument!;
         iDoc.open();
         iDoc.write(htmlContent);
         iDoc.close();
 
-        await new Promise((r) => setTimeout(r, 800));
+        // Inline every image (logo, signature) as a data URL so html2canvas can
+        // draw it — cross-origin images are otherwise dropped from the PDF.
+        console.info("Proforma PDF signature:", {
+            status,
+            approverSignature,
+            resolvedUrl: approverSignature ? getFileUrl(approverSignature) : null,
+            signatureInHtml: !!iDoc.querySelector(".signature-img"),
+        });
+        const toDataUrl = async (url: string) => {
+            const resp = await fetch(url, { credentials: "include" });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            return new Promise<string>((res, rej) => {
+                const fr = new FileReader();
+                fr.onload = () => res(fr.result as string);
+                fr.onerror = rej;
+                fr.readAsDataURL(blob);
+            });
+        };
+        await Promise.all(
+            Array.from(iDoc.images).map(async (img) => {
+                const setSrc = (src: string) =>
+                    new Promise<void>((res) => {
+                        img.onload = () => res();
+                        img.onerror = () => res();
+                        img.src = src;
+                    });
+                try {
+                    await setSrc(await toDataUrl(toSameOriginFileUrl(img.src).replace(/([^:])\/{2,}/g, "$1/")));
+                } catch (err) {
+                    console.warn("Proforma PDF: image failed to load", img.src, err);
+                    // The header logo also ships with the app — fall back to that copy.
+                    if (img.classList.contains("header-logo")) {
+                        try {
+                            await setSrc(await toDataUrl(`${import.meta.env.BASE_URL}iitg_logos/iitg-logo.svg`));
+                        } catch { /* leave as-is */ }
+                    }
+                }
+            })
+        );
+        await new Promise((r) => setTimeout(r, 300));
+        iframe.style.height = `${Math.max(1100, iDoc.documentElement.scrollHeight)}px`;
 
         try {
             const page = iDoc.querySelector(".invoice-container") as HTMLElement || iDoc.body;
@@ -1457,7 +1499,7 @@ export default function ProInvForm() {
                         <div className="text-[#1f4096] text-xs space-y-1 mt-8 max-w-[350px]">
                             <div className="h-16 flex items-end">
                                 {isApproved && approverSignature ? (
-                                    <img src={getFileUrl(approverSignature)} alt="Authorised Signatory" className="h-14 object-contain" />
+                                    <img src={getFileUrl(approverSignature).replace(/([^:])\/{2,}/g, "$1/")} alt="Authorised Signatory" className="h-14 object-contain" />
                                 ) : (
                                     <span className="italic text-zinc-400 dark:text-zinc-500 text-[11px] leading-snug">
                                         (Signature will be affixed here after approval by the Head of Section, R&amp;D)
