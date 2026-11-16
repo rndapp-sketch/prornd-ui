@@ -36,6 +36,12 @@ export const IcssSection = ({ title, icon, children }: { title: string; icon?: R
     </section>
 );
 
+// Backend labels that read badly are replaced by fieldname
+const REGISTRY_LABEL_OVERRIDES: Record<string, string> = {
+    the_purchase_committe_recommends_purchase_of_the_items_from_ms: "Purchase Committee Recommendation",
+    quotation_recieved_for_purchase_of_the_items_from_ms: "Quotation Received From",
+};
+
 export const registryEmpty = (v: any) => v === null || v === undefined || v === '';
 
 export const registryCell = (v: any, ft?: string, options?: LinkOption[]): React.ReactNode => {
@@ -154,7 +160,7 @@ export const RegistryFormView = ({ kicker, name, workflowState, fields, values, 
                                     {plain.map(f => {
                                         const v = values[f.fieldname];
                                         const long = f.fieldtype === 'Text' || f.fieldtype === 'Small Text' || f.fieldtype === 'Long Text' || (typeof v === 'string' && v.length > 70);
-                                        return <IcssField key={f.fieldname} label={f.label || f.fieldname} value={registryCell(v, f.fieldtype, optionsFor(f))} wide={long} />;
+                                        return <IcssField key={f.fieldname} label={REGISTRY_LABEL_OVERRIDES[f.fieldname] || f.label || f.fieldname} value={registryCell(v, f.fieldtype, optionsFor(f))} wide={long} />;
                                     })}
                                 </div>
                             )}

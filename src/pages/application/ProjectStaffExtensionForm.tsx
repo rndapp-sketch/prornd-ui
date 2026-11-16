@@ -1230,6 +1230,168 @@ const ProjectStaffExtensionForm: React.FC = () => {
     );
   }
 
+      const headerActionRow = !isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
+        const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
+          (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
+        );
+        const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable || putBack.hasPutBack;
+
+        const categoriseAction = (action: string) => {
+          const a = action.toLowerCase();
+          if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+          if (a.includes("reject") || a.includes("cancel")) return "reject";
+          return "neutral";
+        };
+        const actionItemStyle = (action: string) => {
+          const cat = categoriseAction(action);
+          if (cat === "forward") return "text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15";
+          if (cat === "reject") return "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20";
+          return "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700";
+        };
+        const workflowGroups = [
+          workflowActions.filter((a) => categoriseAction(a) === "forward"),
+          workflowActions.filter((a) => categoriseAction(a) === "neutral"),
+          workflowActions.filter((a) => categoriseAction(a) === "reject"),
+        ].filter((g) => g.length > 0);
+
+        return (
+          <div className="flex flex-wrap items-center justify-start gap-2">
+            {/* Edit — switch from read-only to edit mode while in Draft */}
+            {isEditable && !isEditing && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                disabled={isBusy}
+                className={cn(
+                  "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
+                  "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                )}
+              >
+                Edit
+              </button>
+            )}
+
+            {/* Save Draft — only while actively editing */}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isBusy}
+                className={cn(
+                  "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
+                  "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
+                  "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                )}
+              >
+                {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save Draft
+              </button>
+            )}
+
+            {hasWorkflowMenuItems && (
+              <div className="relative">
+                <button
+                  ref={actionsMenuBtnRef}
+                  type="button"
+                  onClick={toggleActionsMenu}
+                  disabled={isBusy}
+                  className={cn(
+                    "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                    actionsMenuOpen
+                      ? "bg-[#4A6CF7] text-white border border-[#3b5cf6]"
+                      : "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#4A6CF7] border border-[#4A6CF7]/40 hover:bg-[#4A6CF7] hover:text-white dark:hover:bg-[#4A6CF7]/30",
+                  )}
+                >
+                  {isBusy ? "Processing…" : "Actions"}
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", actionsMenuOpen && "rotate-180")} />
+                </button>
+
+                {actionsMenuOpen && createPortal(
+                  <div
+                    ref={actionsMenuPortalRef}
+                    style={{ position: "absolute", top: actionsMenuPos.top, bottom: actionsMenuPos.bottom, left: actionsMenuPos.left, zIndex: 9999 }}
+                    className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                  >
+                    <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                        Workflow Actions
+                      </span>
+                    </div>
+                    {workflowGroups.map((group, gi) => (
+                      <React.Fragment key={gi}>
+                        {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                        {group.map((action) => (
+                          <button
+                            key={action}
+                            type="button"
+                            onClick={() => openActionModal(action)}
+                            className={cn(
+                              "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
+                              actionItemStyle(action),
+                            )}
+                          >
+                            {actionIcon(action)}
+                            {action}
+                          </button>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                    {fallbackSubmitAvailable && (
+                      <button
+                        type="button"
+                        onClick={() => openActionModal("Submit", false)}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
+                      >
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        Submit
+                      </button>
+                    )}
+                    {putBack.menu(() => setActionsMenuOpen(false), workflowActions.length > 0 || fallbackSubmitAvailable)}
+                  </div>,
+                  document.body,
+                )}
+              </div>
+            )}
+
+            {!canEdit && !canEditPIFields && !canEditStaffFields && !hasWorkflowMenuItems && !isEditable && (
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                No actions available for your role in this state.
+              </p>
+            )}
+
+            {commitRequired && (
+              <span
+                title="A commitment must be submitted before forwarding this application."
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Commitment required before forwarding
+              </span>
+            )}
+            {hasUnsavedEvaluationChanges && (
+              <span
+                title='Please click "Save Changes" before forwarding.'
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Save changes before forwarding
+              </span>
+            )}
+            {workflowState === "Draft" && !docName && (
+              <span
+                title="Please Save as draft before submitting."
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Save as draft before submitting
+              </span>
+            )}
+          </div>
+        );
+      })();
+
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
@@ -1268,6 +1430,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   data={loadedExtension || { ex_proj_no: projectNo }}
                 />
               )}
+              {headerActionRow}
           </PageHeader>
 
           {putBack.modal}
@@ -2053,170 +2216,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 </aside>
               )}
             </div>
-              <div className="mt-6 mb-10 pt-5 border-t border-zinc-200 dark:border-zinc-700">
-                {/* Action Row — Save Draft + Workflow actions dropdown, at the bottom of the form */}
-                {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
-                  const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
-                    (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
-                  );
-                  const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable || putBack.hasPutBack;
-
-                  const categoriseAction = (action: string) => {
-                    const a = action.toLowerCase();
-                    if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
-                    if (a.includes("reject") || a.includes("cancel")) return "reject";
-                    return "neutral";
-                  };
-                  const actionItemStyle = (action: string) => {
-                    const cat = categoriseAction(action);
-                    if (cat === "forward") return "text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15";
-                    if (cat === "reject") return "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20";
-                    return "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700";
-                  };
-                  const workflowGroups = [
-                    workflowActions.filter((a) => categoriseAction(a) === "forward"),
-                    workflowActions.filter((a) => categoriseAction(a) === "neutral"),
-                    workflowActions.filter((a) => categoriseAction(a) === "reject"),
-                  ].filter((g) => g.length > 0);
-
-                  return (
-                    <div className="flex flex-wrap items-center justify-start gap-2">
-                      {/* Edit — switch from read-only to edit mode while in Draft */}
-                      {isEditable && !isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(true)}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
-                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          Edit
-                        </button>
-                      )}
-
-                      {/* Save Draft — only while actively editing */}
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
-                            "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                            "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                          Save Draft
-                        </button>
-                      )}
-
-                      {hasWorkflowMenuItems && (
-                        <div className="relative">
-                          <button
-                            ref={actionsMenuBtnRef}
-                            type="button"
-                            onClick={toggleActionsMenu}
-                            disabled={isBusy}
-                            className={cn(
-                              "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
-                              actionsMenuOpen
-                                ? "bg-[#4A6CF7] text-white border border-[#3b5cf6]"
-                                : "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#4A6CF7] border border-[#4A6CF7]/40 hover:bg-[#4A6CF7] hover:text-white dark:hover:bg-[#4A6CF7]/30",
-                            )}
-                          >
-                            {isBusy ? "Processing…" : "Actions"}
-                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", actionsMenuOpen && "rotate-180")} />
-                          </button>
-
-                          {actionsMenuOpen && createPortal(
-                            <div
-                              ref={actionsMenuPortalRef}
-                              style={{ position: "absolute", top: actionsMenuPos.top, bottom: actionsMenuPos.bottom, left: actionsMenuPos.left, zIndex: 9999 }}
-                              className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
-                            >
-                              <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
-                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                                  Workflow Actions
-                                </span>
-                              </div>
-                              {workflowGroups.map((group, gi) => (
-                                <React.Fragment key={gi}>
-                                  {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
-                                  {group.map((action) => (
-                                    <button
-                                      key={action}
-                                      type="button"
-                                      onClick={() => openActionModal(action)}
-                                      className={cn(
-                                        "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
-                                        actionItemStyle(action),
-                                      )}
-                                    >
-                                      {actionIcon(action)}
-                                      {action}
-                                    </button>
-                                  ))}
-                                </React.Fragment>
-                              ))}
-                              {fallbackSubmitAvailable && (
-                                <button
-                                  type="button"
-                                  onClick={() => openActionModal("Submit", false)}
-                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
-                                >
-                                  <CheckCircle className="h-3.5 w-3.5" />
-                                  Submit
-                                </button>
-                              )}
-                              {putBack.menu(() => setActionsMenuOpen(false), workflowActions.length > 0 || fallbackSubmitAvailable)}
-                            </div>,
-                            document.body,
-                          )}
-                        </div>
-                      )}
-
-                      {!canEdit && !canEditPIFields && !canEditStaffFields && !hasWorkflowMenuItems && !isEditable && (
-                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                          No actions available for your role in this state.
-                        </p>
-                      )}
-
-                      {commitRequired && (
-                        <span
-                          title="A commitment must be submitted before forwarding this application."
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-                        >
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          Commitment required before forwarding
-                        </span>
-                      )}
-                      {hasUnsavedEvaluationChanges && (
-                        <span
-                          title='Please click "Save Changes" before forwarding.'
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-                        >
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          Save changes before forwarding
-                        </span>
-                      )}
-                      {workflowState === "Draft" && !docName && (
-                        <span
-                          title="Please Save as draft before submitting."
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-                        >
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          Save as draft before submitting
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
             </>
           )}
         </div>
