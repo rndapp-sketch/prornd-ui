@@ -1878,8 +1878,12 @@ const DP_EXCLUDED = [
     "parentfield",
 ];
 
+const DP_LABEL_OVERRIDES: Record<string, string> = {
+    the_purchase_committe_recommends_purchase_of_the_items_from_ms: "Purchase Committee Recommendation",
+    quotation_recieved_for_purchase_of_the_items_from_ms: "Quotation Received From",
+};
 const dpFormatFieldName = (key: string) =>
-    key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    DP_LABEL_OVERRIDES[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
 const dpIsAmountField = (key: string) =>
     /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);
