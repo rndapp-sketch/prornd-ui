@@ -756,7 +756,7 @@ const P11Form: React.FC = () => {
             <P11PrintModal
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
-                htmlContent={isPrintModalOpen ? generateP11Html({ ...formData, is_foreign: dpDoc?.is_foreign, quoted_price_currency: dpDoc?.quoted_price_currency }, { editableRecommendation: canEditVendor }) : ''}
+                htmlContent={isPrintModalOpen ? generateP11Html({ ...formData, is_foreign: dpDoc?.is_foreign, quoted_price_currency: dpDoc?.quoted_price_currency || dpDoc?.currency }, { editableRecommendation: canEditVendor }) : ''}
                 docName={editDocName || submitPrompt?.docname || formData.name || ''}
             />
             <CommentModal

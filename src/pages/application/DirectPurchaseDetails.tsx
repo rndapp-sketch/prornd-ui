@@ -58,6 +58,7 @@ import { generateP11Html } from "@/utils/p11Print";
 import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
 import { generateDpHtml } from "@/utils/dpPrint";
 import { generatePOHtml } from "@/utils/DpPoPrint";
+import { withCurrencyLabel } from "@/utils/dpCurrency";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
@@ -882,6 +883,276 @@ const useCheckLabels = (doctype?: string): Record<string, string> => {
     return labels;
 };
 
+// --- SANCTION SHEET VIEW ---
+// The Sanction Sheet stores most money as text ("2805.86 (EUR)", "₹143", "58,46,023.37"), so the
+// generic viewer showed a mix of raw strings and symbols. This reads the number and any marker
+// out of each value and lays the sheet out in the order it is read: funds, reference, supplier,
+// items, cost summary, terms, declaration.
+const parseMoneyValue = (
+    raw: unknown,
+    fallbackCode: string,
+): { amount: number; code: string; note: string } | null => {
+    if (raw === null || raw === undefined || raw === "") return null;
+    if (typeof raw === "number") return { amount: raw, code: fallbackCode, note: "" };
+    const text = String(raw).trim();
+    const num = text.match(/-?[\d,]*\.?\d+/);
+    if (!num) return null;
+    const amount = parseFloat(num[0].replace(/,/g, ""));
+    if (Number.isNaN(amount)) return null;
+    let code = fallbackCode;
+    if (text.includes("₹")) code = "INR";
+    else {
+        const m = text.match(/\(([A-Z]{3})\)/);
+        if (m) code = m[1];
+    }
+    let note = text.slice((num.index ?? 0) + num[0].length).trim();
+    if (/^\(?[A-Z]{3}\)?$/.test(note)) note = "";
+    note = note.replace(/^\(/, "");
+    if ((note.match(/\)/g) || []).length > (note.match(/\(/g) || []).length) note = note.replace(/\)\s*$/, "");
+    return { amount, code, note: note.trim() };
+};
+
+const formatAmount = (amount: number, code: string): string => {
+    const isInr = code === "INR";
+    try {
+        return amount.toLocaleString(isInr ? "en-IN" : "en-US", {
+            style: "currency",
+            currency: code,
+            minimumFractionDigits: isInr && Number.isInteger(amount) ? 0 : 2,
+            maximumFractionDigits: 2,
+        });
+    } catch {
+        return `${code} ${amount.toLocaleString()}`;
+    }
+};
+
+const SS_ITEM_COLUMNS: [string, string][] = [
+    ["item_name", "Item"],
+    ["item_make", "Make"],
+    ["item_model", "Model"],
+    ["item_description", "Description"],
+    ["item_quantity", "Qty"],
+    ["item_unit_price", "Unit Price"],
+    ["item_discount", "Discount"],
+    ["item_gst", "GST"],
+    ["dp_total_price", "Total"],
+];
+const SS_MONEY_COLUMNS = ["item_unit_price", "item_discount", "item_gst", "dp_total_price"];
+
+const SanctionSheetView = ({
+    data,
+    currencyCode,
+    doctype,
+}: {
+    data: Record<string, unknown>;
+    currencyCode: string;
+    doctype: string;
+}) => {
+    const has = (v: unknown) => v !== null && v !== undefined && v !== "";
+    const used = new Set<string>(EXCLUDED_FIELDS);
+    const pick = (re: RegExp): string | undefined => {
+        const key = Object.keys(data).find(
+            (k) => !used.has(k) && re.test(k) && !Array.isArray(data[k]),
+        );
+        if (key) used.add(key);
+        return key;
+    };
+
+    // Project funds are always rupees; the cost summary uses the sheet's own currency
+    const fundKeys = [
+        pick(/funds_allocated/),
+        pick(/balance_available/),
+        pick(/actual_expenditure/),
+    ];
+    const fundLabels = ["Funds Allocated", "Balance Available", "Actual Expenditure"];
+
+    const textRow = (re: RegExp, label: string, render?: (v: unknown) => React.ReactNode): [string, React.ReactNode] | null => {
+        const k = pick(re);
+        if (!k || !has(data[k])) return null;
+        return [label, render ? render(data[k]) : String(data[k])];
+    };
+    const reference = [
+        textRow(/file_number|^project_no$/, "File / Project No"),
+        textRow(/^app_id$/, "Application ID"),
+        textRow(/^p11_no$|p_?11_(no|number)/, "P-11 Number"),
+        textRow(/applicant_name/, "Applicant"),
+        textRow(/department_for_purchase/, "Department", (v) => <DepartmentName name={String(v)} />),
+        textRow(/account_head/, "Account Head", (v) => <BudgetHeadName id={String(v)} />),
+        textRow(/year_period_of_sanction/, "Year / Period"),
+        textRow(/funding_agency/, "Funding Agency"),
+    ].filter(Boolean) as [string, React.ReactNode][];
+
+    const firmsKey = pick(/name_of_firms/);
+
+    const costDefs: [RegExp, string, boolean?][] = [
+        [/total_es_basic_value|basic_value/, "Total Estimated Basic Value"],
+        [/pack_forward|packing_and_forwarding/, "Packing & Forwarding"],
+        [/freight/, "Freight"],
+        [/other_charges/, "Other Charges"],
+        [/grand_total/, "Grand Total", true],
+    ];
+    const costs = costDefs
+        .map(([re, label, strong]) => {
+            const k = pick(re);
+            if (!k) return null;
+            const m = parseMoneyValue(data[k], currencyCode);
+            return m ? { label, strong: !!strong, ...m } : null;
+        })
+        .filter(Boolean) as { label: string; strong: boolean; amount: number; code: string; note: string }[];
+
+    const terms = [
+        textRow(/warranty/, "Warranty"),
+        textRow(/delivery/, "Delivery"),
+        textRow(/^ss_payment$|payment/, "Payment"),
+        textRow(/additional_terms/, "Additional Terms & Conditions"),
+    ].filter(Boolean) as [string, React.ReactNode][];
+
+    // The "Declaration: Yes" chip only repeats what the declarations block below says
+    pick(/check_the_below_declaration/);
+
+    const tableKey = Object.keys(data).find((k) => Array.isArray(data[k]) && data[k].length > 0);
+    const rows = (tableKey ? data[tableKey] : []) as Record<string, unknown>[];
+    const extraCols = rows.length
+        ? Object.keys(rows[0]).filter(
+              (c) => !c.startsWith("_") && !EXCLUDED_FIELDS.includes(c) && !SS_ITEM_COLUMNS.some(([k]) => k === c),
+          )
+        : [];
+    const itemCols: [string, string][] = [
+        ...SS_ITEM_COLUMNS.filter(([k]) => rows.some((r) => k in r)),
+        ...extraCols.map((c): [string, string] => [c, formatFieldName(c)]),
+    ];
+    const rowTotal = rows.reduce((sum, r) => sum + (parseFloat(String(r.dp_total_price)) || 0), 0);
+
+    const leftovers = Object.entries(data).filter(
+        ([k, v]) => !used.has(k) && !Array.isArray(v) && has(v) && !isFilePath(v) && !k.startsWith("_"),
+    );
+
+    const Card = ({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) => (
+        <div className={cn("flex min-w-0 flex-col gap-1.5 rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3.5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]", wide && "sm:col-span-2 xl:col-span-3")}>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] dark:text-blue-300">{label}</span>
+            <div className="break-words text-[13px] font-semibold leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">{children}</div>
+        </div>
+    );
+
+    return (
+        <div className="min-w-0 space-y-6">
+            {fundKeys.some((k) => k && has(data[k])) && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {fundKeys.map((k, i) => {
+                        if (!k || !has(data[k])) return null;
+                        const m = parseMoneyValue(data[k], "INR");
+                        return (
+                            <div key={k} className="stat-card stat-card-blue min-w-0 rounded-xl border border-[#E4E4E7] bg-white px-4 py-3 shadow-sm dark:border-[#3F3F46] dark:bg-zinc-800/50">
+                                <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{fundLabels[i]}</p>
+                                <p className="break-words text-[17px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    {m ? formatAmount(m.amount, "INR") : String(data[k])}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {reference.length > 0 && (
+                <div>
+                    <HighlightHeading icon={<LayoutGridIcon />} title="Reference" tone="details" />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {reference.map(([label, value]) => <Card key={label} label={label}>{value}</Card>)}
+                    </div>
+                </div>
+            )}
+
+            {firmsKey && has(data[firmsKey]) && (
+                <div>
+                    <HighlightHeading icon={<FileTextIcon />} title="Supplier" tone="sanction" />
+                    <Card label="Name & Address of Firm" wide>{String(data[firmsKey])}</Card>
+                </div>
+            )}
+
+            {rows.length > 0 && (
+                <div>
+                    <HighlightHeading icon={<ClipboardListIcon />} title={`Items (${currencyCode})`} tone="sanction" />
+                    <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] shadow-sm dark:border-[#3F3F46]">
+                        <table className="w-full text-[11px]">
+                            <thead>
+                                <tr className="border-b border-[#E4E4E7] bg-[#EEF2FF] dark:border-[#3F3F46] dark:bg-[#1E3A8A]/20">
+                                    <th className="w-9 px-2.5 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#27272A] dark:text-[#E4E4E7]">#</th>
+                                    {itemCols.map(([k, label]) => (
+                                        <th key={k} className={cn("px-2.5 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#27272A] dark:text-[#E4E4E7]", SS_MONEY_COLUMNS.includes(k) || k === "item_quantity" ? "text-right" : "text-left", k === "item_description" && "min-w-[260px]")}>
+                                            {label}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((r, i) => (
+                                    <tr key={i} className={cn("border-b border-[#E4E4E7] last:border-0 dark:border-[#3F3F46]", i % 2 === 1 && "bg-[#FAFAF9]/60 dark:bg-zinc-800/20")}>
+                                        <td className="px-2.5 py-2 align-top font-mono text-[10px] text-[#27272A] dark:text-[#E4E4E7]">{i + 1}</td>
+                                        {itemCols.map(([k]) => {
+                                            const v = r[k];
+                                            const money = SS_MONEY_COLUMNS.includes(k) && has(v) && !Number.isNaN(Number(v));
+                                            return (
+                                                <td key={k} className={cn("px-2.5 py-2 align-top text-[#09090B] dark:text-white", (money || k === "item_quantity") ? "whitespace-nowrap text-right tabular-nums" : "break-words", k === "item_name" && "font-semibold")}>
+                                                    {money ? formatAmount(Number(v), currencyCode) : has(v) ? String(v) : "—"}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                                {itemCols.some(([k]) => k === "dp_total_price") && (
+                                    <tr className="border-t-2 border-[#E4E4E7] bg-zinc-50 font-semibold dark:border-[#3F3F46] dark:bg-zinc-800/60">
+                                        <td colSpan={itemCols.findIndex(([k]) => k === "dp_total_price") + 1} className="px-2.5 py-2 text-right text-[10px] font-extrabold uppercase tracking-wider text-[#27272A] dark:text-[#E4E4E7]">Items Total</td>
+                                        <td className="whitespace-nowrap px-2.5 py-2 text-right tabular-nums text-[#D97757]">{formatAmount(rowTotal, currencyCode)}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {costs.length > 0 && (
+                <div>
+                    <HighlightHeading icon={<ReceiptIcon />} title="Cost Summary" tone="po" />
+                    <div className="overflow-hidden rounded-xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-zinc-900/40">
+                        {costs.map((c) => (
+                            <div key={c.label} className={cn("flex items-start justify-between gap-4 border-b border-[#E4E4E7] px-4 py-2.5 last:border-0 dark:border-[#3F3F46]", c.strong && "bg-[#FAFAF9] dark:bg-zinc-800/60")}>
+                                <div className="min-w-0">
+                                    <p className={cn("text-[12px]", c.strong ? "font-extrabold text-[#3F3F46] dark:text-white" : "font-semibold text-[#52525B] dark:text-[#A1A1AA]")}>{c.label}</p>
+                                    {c.note && <p className="mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{c.note}</p>}
+                                </div>
+                                <p className={cn("shrink-0 tabular-nums", c.strong ? "text-[16px] font-extrabold text-[#D97757]" : "text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]")}>
+                                    {formatAmount(c.amount, c.code)}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {terms.length > 0 && (
+                <div>
+                    <HighlightHeading icon={<FileTextIcon />} title="Terms" tone="details" />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {terms.map(([label, value]) => <Card key={label} label={label} wide={label.startsWith("Additional")}>{value}</Card>)}
+                    </div>
+                </div>
+            )}
+
+            {leftovers.length > 0 && (
+                <div>
+                    <HighlightHeading icon={<LayoutGridIcon />} title="Other Details" tone="details" />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {leftovers.map(([k, v]) => <Card key={k} label={formatFieldName(k)}>{String(v)}</Card>)}
+                    </div>
+                </div>
+            )}
+
+            <DeclarationFields doctype={doctype} />
+        </div>
+    );
+};
+
 const DocumentViewer = ({
     data,
     doctype,
@@ -905,8 +1176,17 @@ const DocumentViewer = ({
     const isDomestic = ["0", "no", "false"].includes(foreignFlag);
     const currencyCode = isDomestic
         ? "INR"
-        : getCurrencyCode(data.currency ?? data.quoted_price_currency ?? parentData?.quoted_price_currency);
+        : getCurrencyCode(data.currency ?? data.quoted_price_currency ?? parentData?.quoted_price_currency ?? parentData?.currency);
     const formatINR = (val: any) => formatMoney(val, currencyCode);
+    // Labels such as "…Total Price In Rs" name the currency; show the document's own
+    const fieldLabel = (key: string) => {
+        const label = formatFieldName(key);
+        return currencyCode === "INR" ? label : withCurrencyLabel(label, currencyCode) ?? label;
+    };
+
+    if (doctype === "sanction_sheet") {
+        return <SanctionSheetView data={data} currencyCode={currencyCode} doctype={doctype} />;
+    }
 
     const allScalar = Object.entries(data).filter(([key, value]) => {
         if (hiddenFields.has(key)) return false;
@@ -1016,7 +1296,7 @@ const DocumentViewer = ({
                             className="stat-card stat-card-blue rounded-xl border border-[#E4E4E7] bg-white px-4 py-3 shadow-sm dark:border-[#3F3F46] dark:bg-zinc-800/50 min-w-0"
                         >
                             <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                {formatFieldName(key)}
+                                {fieldLabel(key)}
                             </p>
                             <p className="text-[17px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight break-words">
                                 {!isNaN(Number(value))
@@ -1044,7 +1324,7 @@ const DocumentViewer = ({
                             >
                                 <div className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
                                     <span className="truncate">
-                                        {formatFieldName(key)}
+                                        {fieldLabel(key)}
                                     </span>
                                 </div>
                                 <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
@@ -1076,7 +1356,7 @@ const DocumentViewer = ({
                         {fileFields.map(([key, value]) => (
                             <div key={key} className="flex items-center gap-3">
                                 <span className="text-xs text-[#71717A] dark:text-[#A1A1AA] w-36 shrink-0 font-medium uppercase tracking-wider">
-                                    {formatFieldName(key)}
+                                    {fieldLabel(key)}
                                 </span>
                                 {renderValue(key, value)}
                             </div>
@@ -1107,7 +1387,7 @@ const DocumentViewer = ({
                     <div key={key}>
                         <HighlightHeading
                             icon={<FileTextIcon />}
-                            title={formatFieldName(key)}
+                            title={fieldLabel(key)}
                             tone="sanction"
                         />
                         <div className="overflow-hidden rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
@@ -1122,7 +1402,7 @@ const DocumentViewer = ({
                                                 key={col}
                                                 className="px-2.5 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] break-words"
                                             >
-                                                {formatFieldName(col)}
+                                                {fieldLabel(col)}
                                             </th>
                                         ))}
                                     </tr>
@@ -1200,6 +1480,8 @@ const DirectPurchaseActionButtonsBase = ({
     commitRequired = false,
     sanctionRequired = false,
     onSanctionMissing,
+    poCommitRequired = false,
+    onPoCommitMissing,
     highlight = false,
     onActionsLoaded,
     autoTrigger,
@@ -1217,6 +1499,9 @@ const DirectPurchaseActionButtonsBase = ({
     commitRequired?: boolean;
     sanctionRequired?: boolean;
     onSanctionMissing?: () => void;
+    // "Generate PO" waits for the Additional PO Commitment (PO tab)
+    poCommitRequired?: boolean;
+    onPoCommitMissing?: () => void;
     highlight?: boolean;
     onActionsLoaded?: (actions: string[]) => void;
     // When set and `autoTrigger.action` is currently available, runs that action
@@ -1388,6 +1673,10 @@ const DirectPurchaseActionButtonsBase = ({
             onSanctionMissing?.();
             return;
         }
+        if (poCommitRequired && isBlocked(action)) {
+            onPoCommitMissing?.();
+            return;
+        }
         setSelectedAction(action);
         setShowCommentModal(true);
     };
@@ -1397,7 +1686,8 @@ const DirectPurchaseActionButtonsBase = ({
 
     // Put Back / Reject stay enabled; only forwarding-type actions wait on commitment/sanction.
     const isBlocked = (action: string) =>
-        (commitRequired || sanctionRequired) && !/put\s*back|reject/i.test(action);
+        ((commitRequired || sanctionRequired) && !/put\s*back|reject/i.test(action)) ||
+        (poCommitRequired && /generate\s*po/i.test(action));
 
     // Put Back belongs to whoever can act on the current state. A user with no workflow
     // actions here (e.g. the PI while it sits with R&D staff verification) must not get it.
@@ -1437,6 +1727,10 @@ const DirectPurchaseActionButtonsBase = ({
                                 <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                                     A commitment must be submitted before forwarding this application.
                                 </div>
+                            ) : poCommitRequired ? (
+                                <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                    Submit the Additional PO Commitment first — go to the <strong>PO</strong> tab.
+                                </div>
                             ) : null}
                             {visibleActions.map((action) => {
                                 const blocked = isBlocked(action) || (action === "Submit P-11" && !p11DocName);
@@ -1449,6 +1743,7 @@ const DirectPurchaseActionButtonsBase = ({
                                         title={
                                             blocked && sanctionRequired ? "Create the Sanction Sheet first"
                                                 : blocked && commitRequired ? "Submit a commitment first"
+                                                    : blocked && poCommitRequired ? "Submit the Additional PO Commitment first"
                                                     : undefined
                                         }
                                         className={cn(
@@ -2040,7 +2335,7 @@ const LinkedDocTab = ({
                         onClose={handleSanctionPrintModalClose}
                         htmlContent={
                             isPrintModalOpen
-                                ? generateSanctionSheetHtml({ ...docData, is_foreign: parentData?.is_foreign, quoted_price_currency: parentData?.quoted_price_currency })
+                                ? generateSanctionSheetHtml({ ...docData, is_foreign: parentData?.is_foreign, quoted_price_currency: parentData?.quoted_price_currency || parentData?.currency })
                                 : ""
                         }
                         docName={docName}
@@ -2858,9 +3153,9 @@ const DirectPurchaseDetails: React.FC = () => {
     // The sanction sheet / PO share the Direct Purchase's currency, so carry its fields along
     const poSanctionWithCurrency = React.useMemo(
         () => poSanctionData
-            ? { ...poSanctionData, is_foreign: data?.is_foreign, quoted_price_currency: data?.quoted_price_currency }
+            ? { ...poSanctionData, is_foreign: data?.is_foreign, quoted_price_currency: data?.quoted_price_currency || data?.currency }
             : null,
-        [poSanctionData, data?.is_foreign, data?.quoted_price_currency],
+        [poSanctionData, data?.is_foreign, data?.quoted_price_currency, data?.currency],
     );
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
     const [dpPoDocname, setDpPoDocname] = useState<string | null>(null);
@@ -2986,6 +3281,9 @@ const DirectPurchaseDetails: React.FC = () => {
     }, [directPurchaseProject, fetchProjectByNo]);
 
     const [poRefDetailsId, setPoRefDetailsId] = useState<string | null>(null);
+    // Additional PO Commitment: seen in the staging records on load, or submitted from the PO tab
+    const [hasPoCommitStaging, setHasPoCommitStaging] = useState(false);
+    const [isPoCommittedForGate, setIsPoCommittedForGate] = useState<boolean | null>(null);
 
     // Fetch the first commit's staging record, then call ref_details_id with its payload values
     useEffect(() => {
@@ -3008,6 +3306,7 @@ const DirectPurchaseDetails: React.FC = () => {
                         return (typeof raw === "string" ? JSON.parse(raw) : raw)?.trigger_state === "POGenerated";
                     } catch { return false; }
                 };
+                if (!cancelled) setHasPoCommitStaging(((stagingJson?.data ?? []) as unknown[]).some(isPoCommit));
                 const record = (stagingJson?.data ?? []).find((r: any) => !isPoCommit(r));
                 if (!record) return;
 
@@ -3121,11 +3420,49 @@ const DirectPurchaseDetails: React.FC = () => {
         fetchBudgetHeads();
     }, []);
 
-    // budgetHeads for CommitPayment comes from the direct fetch (more reliable)
-    // Fall back to ledger hook heads if local list is still loading
-    const budgetHeads = budgetHeadList.length > 0
-        ? budgetHeadList.map((h) => h.name)
-        : budgetHeadsFromLedger;
+    // Budget Heads sanctioned/received for this project — the same endpoint the other forms use.
+    const { data: projectHeadsResult, isLoading: isProjectHeadsLoading } = useFrappeGetCall<{
+        message: { name: string; id: number | string | null; budget_head: string }[];
+    }>(
+        "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project",
+        { project_no: projectTitle },
+        projectTitle ? `dp-project-budget-heads-${projectTitle}` : null,
+    );
+    const projectHeadOptions = React.useMemo(
+        () => (projectHeadsResult?.message || []).map((h) => ({ label: h.budget_head || h.name, id: h.id })),
+        [projectHeadsResult],
+    );
+
+    // The head chosen on the Direct Purchase form (stored as the Budget Head docname), as the
+    // label the commit dropdowns use — preselected on the Additional PO Commitment.
+    const dpAccountHeadLabel = React.useMemo(() => {
+        const ah = String(data?.account_head ?? "").trim();
+        if (!ah) return "";
+        const hit = (projectHeadsResult?.message || []).find(
+            (h) => h.name === ah || h.budget_head === ah,
+        );
+        return hit ? hit.budget_head || hit.name : ah;
+    }, [data?.account_head, projectHeadsResult]);
+
+    // CommitPayment dropdown: only this project's heads. Falls back to the full master list
+    // only when the project has none; empty while the project's heads are still loading so the
+    // wrong head is never pre-selected.
+    const budgetHeads = projectHeadOptions.length > 0
+        ? projectHeadOptions.map((h) => h.label)
+        : isProjectHeadsLoading && projectTitle
+            ? []
+            : budgetHeadList.length > 0
+                ? budgetHeadList.map((h) => h.name)
+                : budgetHeadsFromLedger;
+
+    // Head label -> ledger account head id; the ledger API only accepts the numeric id
+    const budgetHeadIds = React.useMemo(() => {
+        const ids: Record<string, string | number> = Object.fromEntries(budgetHeadList.map((h) => [h.name, h.id]));
+        projectHeadOptions.forEach((h) => {
+            if (h.id !== null && h.id !== undefined) ids[h.label] = h.id;
+        });
+        return ids;
+    }, [budgetHeadList, projectHeadOptions]);
 
     const linkedCommitment = budgetData.find(
         (e) =>
@@ -3139,6 +3476,13 @@ const DirectPurchaseDetails: React.FC = () => {
             data?.workflow_state === "Pending Staff Verification") &&
         isStaffRnD &&
         isCommittedForGate === false;
+
+    // "Generate PO" is only possible once the Additional PO Commitment has been submitted
+    const poCommitRequired =
+        data?.workflow_state === "Sanction Approved" &&
+        isStaffRnD &&
+        !hasPoCommitStaging &&
+        isPoCommittedForGate !== true;
 
     const sanctionRequired =
         data?.workflow_state === "RDP-11 Verified" &&
@@ -3328,6 +3672,29 @@ const DirectPurchaseDetails: React.FC = () => {
 
         fetchSSAndDpPo();
     }, [activeTab, id, data?.workflow_state, poSanctionData]);
+
+    // Open the tab the workflow is currently waiting on: Approved / P-11 Submitted → P-11 Form,
+    // P-11 Verified / Sanction Created / Print Taken → Sanction Sheet, Sanction Approved / PO Generated
+    // → Purchase Order, PO Sent / Completed → PO Commit Adjustment. Runs on load and again whenever
+    // the state moves; an explicit ?tab= in the URL wins on the first load.
+    const lastTabStateRef = useRef<string | null>(null);
+    useEffect(() => {
+        const state = data?.workflow_state;
+        if (!state) return;
+        const isFirst = lastTabStateRef.current === null;
+        // The settlement tab is staff-only and roles load after the document, so they are part of the key
+        const key = ["PO Sent", "Completed"].includes(state) ? `${state}|${isStaffRnD}` : state;
+        if (lastTabStateRef.current === key) return;
+        lastTabStateRef.current = key;
+        if (isFirst && searchParams.get("tab")) return;
+
+        let tab: TabId = "details";
+        if (["Approved", "Pending Staff Verification"].includes(state)) tab = "p11";
+        else if (["RDP-11 Verified", "Sanction Sheet Generated", "Sanction Sheet Printed"].includes(state)) tab = "sanction";
+        else if (["Sanction Approved", "POGenerated"].includes(state)) tab = "po";
+        else if (["PO Sent", "Completed"].includes(state)) tab = isStaffRnD ? "settlement" : "po";
+        setActiveTab(tab);
+    }, [data?.workflow_state, isStaffRnD, searchParams]);
 
 
 
@@ -3607,6 +3974,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                 commitRequired={commitRequired}
                                 sanctionRequired={sanctionRequired}
                                 onSanctionMissing={() => setActiveTab("sanction")}
+                                poCommitRequired={poCommitRequired}
+                                onPoCommitMissing={() => setActiveTab("po")}
                                 highlight={highlightAction}
                                 onActionsLoaded={setDpActions}
                                 autoTrigger={dpAutoTrigger}
@@ -4111,6 +4480,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 excludeStagingTriggerState="POGenerated"
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
+                                                budgetHeadIds={budgetHeadIds}
                                                 actualBalance={actualBalance}
                                                 commitableBalance={commitableBalance}
                                                 onCommitSuccess={() => loadData()}
@@ -4126,11 +4496,14 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 defaultParticular={poSanctionData?.po_number ? `PO ${poSanctionData.po_number}` : ""}
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
+                                                budgetHeadIds={budgetHeadIds}
                                                 actualBalance={actualBalance}
                                                 commitableBalance={commitableBalance}
+                                                defaultBudgetHead={dpAccountHeadLabel}
                                                 title="Additional PO Commitment"
                                                 description="Submit a linked commitment for this Purchase Order, referencing the existing commitment's transaction ID."
                                                 forcedRefDetails={poRefDetailsId ?? undefined}
+                                                onStagingStatusChange={setIsPoCommittedForGate}
                                                 onCommitSuccess={() => loadData()}
                                             />
                                         </div>

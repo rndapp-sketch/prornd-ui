@@ -33,9 +33,19 @@ interface PaymentRecord {
     // staff can't re-initiate a second payment on a commit whose status hasn't
     // caught up yet (see commitPaymentInfo below).
     transaction_commit_number?: number | null;
+    // Which service the payment came from. Project and overhead commit ids are separate
+    // sequences that collide, so a commit number is only meaningful together with this.
+    source?: FundSource;
     remaining_amount?: number;
     commit_status?: string;
 }
+
+type FundSource = 'project' | 'overhead';
+
+// Commit numbers are only unique within one source (project ledger vs overhead tables),
+// so every commit <-> payment lookup is keyed on source + number.
+const commitKey = (source: FundSource | undefined, num: number | null | undefined): string | null =>
+    num == null ? null : `${source ?? 'project'}:${num}`;
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -180,7 +190,8 @@ const Payments: React.FC = () => {
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             )
                 .then(r => r.json())
-                .then(payload => (payload?.message?.data ?? []) as CommitRecord[])
+                .then(payload => ((payload?.message?.data ?? []) as CommitRecord[])
+                    .map(c => ({ ...c, source: 'overhead' as const })))
                 .catch(() => [] as CommitRecord[]);
 
             const [results, overhead] = await Promise.all([
@@ -188,7 +199,10 @@ const Payments: React.FC = () => {
                 overheadCommits,
             ]);
             // Flatten results and sort by date descending (latest first)
-            const allCommits = [...results.flat(), ...overhead];
+            const allCommits = [
+                ...results.flat().map(c => ({ ...c, source: 'project' as const })),
+                ...overhead,
+            ];
             allCommits.sort((a, b) => {
                 const dateA = a.commitDate ? new Date(a.commitDate).getTime() : 0;
                 const dateB = b.commitDate ? new Date(b.commitDate).getTime() : 0;
@@ -302,14 +316,18 @@ const Payments: React.FC = () => {
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             )
                 .then(r => r.json())
-                .then(payload => (payload?.message?.data ?? []) as any[])
+                .then(payload => ((payload?.message?.data ?? []) as any[])
+                    .map(p => ({ ...p, __source: 'overhead' as const })))
                 .catch(() => [] as any[]);
 
             const [projectPayments, overhead] = await Promise.all([
                 ledgerService.getAllPayments(),
                 overheadPayments,
             ]);
-            const data = [...(Array.isArray(projectPayments) ? projectPayments : []), ...overhead];
+            const data = [
+                ...(Array.isArray(projectPayments) ? projectPayments : []).map(p => ({ ...p, __source: 'project' as const })),
+                ...overhead,
+            ];
             if (data && Array.isArray(data)) {
                 const loadedPayments: PaymentRecord[] = data.map((p: any) => ({
                     name: String(p.transactionPaymentNumber),
@@ -325,6 +343,7 @@ const Payments: React.FC = () => {
                     modified: p.paymentDate,
                     doctype: String(p.moduleId || ''), // store raw moduleId; resolved later via useMemo
                     transaction_commit_number: p.transactionCommitNumber ?? null,
+                    source: p.__source as FundSource,
                     remaining_amount: p.remainingAmount,
                     commit_status: p.commitStatus,
                 }));
@@ -343,7 +362,7 @@ const Payments: React.FC = () => {
     }, []);
 
     // Commit ids paid during this session, before Accounts has echoed the payment back.
-    const [justPaidCommitIds, setJustPaidCommitIds] = useState<Set<number>>(new Set());
+    const [justPaidCommitIds, setJustPaidCommitIds] = useState<Set<string>>(new Set());
 
     // Map commit id -> its most recent payment info. The ledger's commit `status`
     // (COMMITTED/PARTIALLY_PAID/...) frequently doesn't get updated the moment a
@@ -354,11 +373,11 @@ const Payments: React.FC = () => {
     // `payments` is sorted desc by date, so the first entry seen per commit id
     // is the most recent one.
     const commitPaymentInfo = React.useMemo(() => {
-        const map = new Map<number, PaymentRecord>();
+        const map = new Map<string, PaymentRecord>();
         payments.forEach(p => {
-            const commitId = p.transaction_commit_number;
-            if (commitId != null && !map.has(commitId)) {
-                map.set(commitId, p);
+            const key = commitKey(p.source, p.transaction_commit_number);
+            if (key != null && !map.has(key)) {
+                map.set(key, p);
             }
         });
         // A payment just made in this session may not be readable back yet: both payment
@@ -367,12 +386,14 @@ const Payments: React.FC = () => {
         // until that round trip lands — which is what made it look like nothing happened
         // until the page was reloaded. Record it locally so the row flips the moment the
         // modal closes; the real payment replaces this as soon as it comes back.
-        justPaidCommitIds.forEach(commitId => {
-            if (!map.has(commitId)) {
-                map.set(commitId, {
+        justPaidCommitIds.forEach(key => {
+            if (!map.has(key)) {
+                const [source, num] = key.split(':');
+                map.set(key, {
                     name: 'pending…',
                     payment_status: 'PENDING',
-                    transaction_commit_number: commitId,
+                    source: source as FundSource,
+                    transaction_commit_number: Number(num),
                 } as PaymentRecord);
             }
         });
@@ -640,8 +661,9 @@ const Payments: React.FC = () => {
     // earlier payment by definition, so that alone must not block the next instalment — only a
     // payment still in flight (PENDING, including one just made this session) does.
     const blockingPayment = (commit: CommitRecord): PaymentRecord | undefined => {
-        if (commit.transactionCommitNumber == null) return undefined;
-        const latest = commitPaymentInfo.get(commit.transactionCommitNumber);
+        const key = commitKey(commit.source, commit.transactionCommitNumber);
+        if (key == null) return undefined;
+        const latest = commitPaymentInfo.get(key);
         if (!latest) return undefined;
         if (commit.status === 'PARTIALLY_PAID' && String(latest.payment_status).toUpperCase() !== 'PENDING') {
             return undefined;
@@ -651,10 +673,10 @@ const Payments: React.FC = () => {
 
     // Earlier payments against the commit being paid, oldest first.
     const previousPayments = React.useMemo(() => {
-        const id = selectedCommit?.transactionCommitNumber;
-        if (id == null) return [];
+        const key = commitKey(selectedCommit?.source, selectedCommit?.transactionCommitNumber);
+        if (key == null) return [];
         return payments
-            .filter(p => p.transaction_commit_number === id)
+            .filter(p => commitKey(p.source, p.transaction_commit_number) === key)
             .sort((a, b) => new Date(a.payment_date || 0).getTime() - new Date(b.payment_date || 0).getTime());
     }, [payments, selectedCommit]);
 
@@ -1549,9 +1571,9 @@ const Payments: React.FC = () => {
                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
                                 previousPaid={previousPaidTotal}
                                 onSuccess={() => {
-                                    const paidCommitId = selectedCommit?.transactionCommitNumber;
-                                    if (paidCommitId != null) {
-                                        setJustPaidCommitIds(prev => new Set(prev).add(paidCommitId));
+                                    const paidKey = commitKey(selectedCommit?.source, selectedCommit?.transactionCommitNumber);
+                                    if (paidKey != null) {
+                                        setJustPaidCommitIds(prev => new Set(prev).add(paidKey));
                                     }
                                     setPaymentModalOpen(false);
                                     fetchPendingCommits();
