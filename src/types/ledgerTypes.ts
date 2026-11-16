@@ -11,6 +11,8 @@ export interface CommitRecord {
     billAmount: number | null;
     moduleId: string | null;
     frapAppId: string | null;
+    /** Set client-side when merging project and overhead commits; their ids collide. */
+    source?: 'project' | 'overhead';
 }
 
 export interface LedgerPaymentRecord {
