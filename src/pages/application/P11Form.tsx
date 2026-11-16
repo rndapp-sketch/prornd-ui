@@ -85,7 +85,10 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 );
 
 // --- MAIN COMPONENT ---
-const RECOMMENDATION_FIELD = 'the_purchase_committe_recommends_purchase_of_the_items_from_ms';
+// P-11 and Direct Purchase don't share a fieldname for this, so match by meaning
+const RECOMMENDATION_HINT = '(provide vendor name, address, email and contact No)';
+const isRecommendationField = (f: { fieldname: string; label?: string | null }) =>
+    /committ?ee?_?\s?recommend/i.test(`${f.fieldname} ${f.label ?? ''}`);
 // Exactly one of these declarations applies: the committee one when the parent Direct Purchase
 // needs a Purchase Committee (total estimate above ₹2,00,000), the other when it does not.
 const COMMITTEE_DECLARATION_FIELD = 'declaration';
@@ -207,7 +210,13 @@ const P11Form: React.FC = () => {
             if (formDataResult?.message && !dataLoaded) {
                 const { fields: apiFields, prefill_data, link_options, client_scripts } = formDataResult.message;
                 let loadedFields: FormField[] = (apiFields || []).map((f: FormField) =>
-                    f.fieldname === RECOMMENDATION_FIELD ? { ...f, mandatory: 1 } : f);
+                    ({
+                    ...f,
+                    rawLabel: true,
+                    ...(isRecommendationField(f)
+                        ? { mandatory: 1, label: `${f.label || ''} ${RECOMMENDATION_HINT}`.trim() }
+                        : {}),
+                }));
                 setLinkOptions(link_options || {});
 
                 if (client_scripts && Array.isArray(client_scripts)) {
@@ -258,12 +267,14 @@ const P11Form: React.FC = () => {
 
                 // Currency is dictated by the parent Direct Purchase's quoted price currency
                 const dpRef = appId || initialData.app_id;
+                let dpDocLoaded: { project_no?: string; project_name?: string } | null = null;
                 if (dpRef) {
                     try {
                         const dp = await fetchExistingDoc({ doctype: 'Direct Purchase', name: dpRef });
                         initialData = { ...initialData };
                         loadedFields = applyDpCurrency(loadedFields, initialData, dp?.message);
                         setDpDoc(dp?.message || null);
+                        dpDocLoaded = dp?.message || null;
                     } catch (err) {
                     }
                 }
@@ -279,6 +290,10 @@ const P11Form: React.FC = () => {
                 // Prefill project_no and app_id if provided in URL
                 if (projectNo && !initialData.project_no) {
                     initialData.project_no = projectNo;
+                }
+                // Opened without ?project_no= — take it from the parent Direct Purchase
+                if (!initialData.project_no && dpDocLoaded) {
+                    initialData.project_no = dpDocLoaded.project_no || dpDocLoaded.project_name || '';
                 }
                 if (appId && !initialData.app_id) {
                     initialData.app_id = appId;
@@ -420,8 +435,9 @@ const P11Form: React.FC = () => {
     // --- Workflows & Saving ---
     const handleSave = async () => {
         if (isSubmitting) return;
-        if (!String(formData[RECOMMENDATION_FIELD] ?? '').trim()) {
-            setErrorModal({ open: true, title: "Missing Information", message: "Purchase Committee Recommendation is mandatory." });
+        const recField = fields.find(isRecommendationField);
+        if (recField && !String(formData[recField.fieldname] ?? '').trim()) {
+            setErrorModal({ open: true, title: "Missing Information", message: `${(recField.label || "Purchase Committee Recommendation").replace(RECOMMENDATION_HINT, "").trim()} is mandatory.` });
             return;
         }
         const declarationField = fields.find(f => f.fieldname === activeDeclarationField);

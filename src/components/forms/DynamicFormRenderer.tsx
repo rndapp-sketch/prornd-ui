@@ -28,6 +28,8 @@ export interface FormField {
   mandatory?: boolean | number;
   read_only?: boolean | number;
   hidden?: boolean | number;
+  /** Show `label` exactly as the DocType defines it (no title-casing or renamed overrides). */
+  rawLabel?: boolean;
   options?: string | null;
   description?: string | null;
   default?: any;
@@ -141,7 +143,13 @@ const FIELD_LABEL_OVERRIDES: Record<string, string> = {
   packing_and_forwarding: "Packing And Forwarding",
 };
 
-const formatFieldLabel = (field: Pick<FormField, "fieldname" | "label">) => {
+// The P-11 names this field differently from Direct Purchase, so match by meaning, not exact key
+const isPurchaseCommitteeRecommendation = (field: Pick<FormField, "fieldname" | "label">) =>
+  /committ?ee?_?\s?recommend/i.test(`${field.fieldname} ${field.label ?? ""}`);
+
+const formatFieldLabel = (field: Pick<FormField, "fieldname" | "label" | "rawLabel">) => {
+  if (field.rawLabel && field.label) return field.label;
+  if (isPurchaseCommitteeRecommendation(field)) return "Purchase Committee Recommendation";
   const raw = FIELD_LABEL_OVERRIDES[field.fieldname] || field.label || field.fieldname;
   if (FIELD_LABEL_OVERRIDES[field.fieldname]) return raw;
 
@@ -156,7 +164,7 @@ const FieldLabel = ({
   field,
   isMandatory,
 }: {
-  field: Pick<FormField, "fieldname" | "label">;
+  field: Pick<FormField, "fieldname" | "label" | "rawLabel">;
   isMandatory?: boolean;
 }) => (
   <label

@@ -79,6 +79,8 @@ const DP_FIELD_LABELS: Record<string, string> = {
     ss_delivery: 'Delivery',
     ss_payment: 'Payment',
     ss_file_number: 'File Number',
+    the_purchase_committe_recommends_purchase_of_the_items_from_ms: 'Purchase Committee Recommendation',
+    quotation_recieved_for_purchase_of_the_items_from_ms: 'Quotation Received From',
 };
 const dpFmt = (key: string) => DP_FIELD_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 const dpIsAmt = (key: string) => /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);

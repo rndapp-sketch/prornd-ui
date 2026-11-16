@@ -205,6 +205,7 @@ export function generateP11Html(
     .replace(
       "{{RECOMMENDATION_FROM}}",
       formData.the_purchase_committe_recommends_purchase_of_the_items_from_ms ||
+      formData[Object.keys(formData).find((k) => /committ?ee?_?recommend/i.test(k)) ?? ""] ||
       "",
     )
     .replace("{{ITEM_ROWS}}", itemRows)
