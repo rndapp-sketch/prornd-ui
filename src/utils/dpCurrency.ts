@@ -9,11 +9,11 @@ export const getDpCurrency = (
     const answer = String(doc.is_foreign ?? '').trim().toLowerCase();
     // Only an explicit "No" forces INR; a currency picked while the flag is unreadable still counts.
     const foreign = answer ? ['1', 'yes', 'true'].includes(answer) : true;
-    // The field is quoted_price_currency; tolerate a differently named currency field too
-    const key = 'quoted_price_currency' in doc
-        ? 'quoted_price_currency'
-        : Object.keys(doc).find(k => /currency/i.test(k) && typeof doc[k] === 'string');
-    const picked = foreign && key ? String(doc[key] || '').trim() : '';
+    // The currency lives in quoted_price_currency, or a differently named field (e.g. "currency").
+    // A field that exists but is empty must not hide a filled one, so take the first non-empty value.
+    const keys = ['quoted_price_currency', 'currency', ...Object.keys(doc).filter(k => /currency/i.test(k))];
+    const filledKey = keys.find(k => typeof doc[k] === 'string' && doc[k].trim() !== '');
+    const picked = foreign && filledKey ? String(doc[filledKey]).trim() : '';
 
     // The stored value may be a code ("USD"), "USD — US Dollar", or a currency name ("US Dollar").
     const texts = [picked, options.find(o => o.value === picked)?.label || ''].filter(Boolean);
@@ -67,8 +67,9 @@ export function applyDpCurrency(
     dp?: Record<string, any> | null,
 ): FormField[] {
     if (!dp) return fields;
-    const currency = getDpCurrency(dp).code === 'INR' ? INR : dp.quoted_price_currency || INR;
     const { code } = getDpCurrency(dp);
+    const dpPicked = [dp.quoted_price_currency, dp.currency].find(v => typeof v === 'string' && v.trim() !== '');
+    const currency = code === 'INR' ? INR : dpPicked || code;
     // Money fields carry the currency in their label; child-table columns too
     const relabel = (label: string | null | undefined, fieldtype: string) => {
         const l = withCurrencyLabel(label, code);

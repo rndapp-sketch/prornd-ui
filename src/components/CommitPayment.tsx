@@ -453,9 +453,16 @@ const SyncProgress: React.FC<{
                 const data = await res.json();
                 rows = Array.isArray(data) ? data : [];
             }
+            // A commit that revises an earlier one (refDetails = the earlier TID) can be booked in the
+            // ledger as the difference against it: the staged 1,99,833 against a 3,72,000 commit shows
+            // up as -1,72,167. So the staged amount or that difference both count as the same entry.
+            const parent = refDetails ? rows.find((r) => String(r.transactionId ?? "").trim() === refDetails) : undefined;
+            const parentAmount = parent ? Number(parent.commitAmount ?? NaN) : NaN;
+            const revisionDelta = Number.isNaN(parentAmount) ? null : Math.round(signedAmount - parentAmount);
             const match = rows.find((r) => {
                 const cancelled = String(r.status ?? "").toUpperCase().includes("CANCEL");
-                const sameAmount = Math.round(Number(r.commitAmount ?? 0)) === Math.round(signedAmount);
+                const amount = Math.round(Number(r.commitAmount ?? 0));
+                const sameAmount = amount === Math.round(signedAmount) || (revisionDelta !== null && amount === revisionDelta);
                 const sameApp = (frapAppId && r.frapAppId === frapAppId) || (refDetails && String(r.refDetails ?? "").trim() === refDetails);
                 return !cancelled && sameAmount && sameApp;
             });
