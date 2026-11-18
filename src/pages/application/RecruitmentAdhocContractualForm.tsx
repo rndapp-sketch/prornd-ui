@@ -1,3 +1,4 @@
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useCancellationFrozen } from "@/components/CancellationLock";
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -11,7 +12,7 @@ import {
     recruitmentAdhocContractualAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
-import { Loader2, ArrowLeft, Save, Send, CheckCircle2, MessageSquare, X, Printer } from "lucide-react";
+import { Loader2, ArrowLeft, Save, Send, CheckCircle2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -176,7 +177,6 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [allAccountHeadOptions, setAllAccountHeadOptions] = useState<LinkOption[]>([]);
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isActivityOpen, setIsActivityOpen] = useState(false);
     const [isPrintOpen, setIsPrintOpen] = useState(false);
     const activityLogContainerRef = useRef<HTMLDivElement>(null);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
@@ -194,11 +194,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     // Comment modal state
     const [commentModalOpen, setCommentModalOpen] = useState(false);
     const [pendingAction, setPendingAction] = useState<string>("");
-    const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
     // Add comment state
-    const [newComment, setNewComment] = useState("");
-    const [isPostingComment, setIsPostingComment] = useState(false);
 
     // Commit / Payment state
     // commitHead/commitAmount moved to CommitPayment; kept for Record Payment section
@@ -1227,7 +1224,6 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 alert(`Action "${pendingAction}" completed successfully`);
                 setWorkflowState(response.message.workflow_state);
                 clearActivityLogCache("Recruitment Adhoc Contractual", docNameToUse);
-                setActivityRefreshKey((k) => k + 1);
                 fetchFormConfiguration();
                 fetchWorkflowActions(docNameToUse);
             } else {
@@ -1243,25 +1239,6 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         } finally {
             setIsActionLoading(false);
             setPendingAction("");
-        }
-    };
-
-    const handleAddComment = async () => {
-        if (!newComment.trim() || !currentDocName) return;
-        setIsPostingComment(true);
-        try {
-            await addCommentCall({
-                doctype: "Recruitment Adhoc Contractual",
-                docname: currentDocName,
-                content: newComment.trim(),
-            });
-            setNewComment("");
-            clearActivityLogCache("Recruitment Adhoc Contractual", currentDocName);
-            setActivityRefreshKey((k) => k + 1);
-        } catch {
-            alert("Error: Could not post comment.");
-        } finally {
-            setIsPostingComment(false);
         }
     };
 
@@ -1616,73 +1593,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 </div>
 
                 {currentDocName && (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => setIsActivityOpen(true)}
-                            className="fixed bottom-6 right-6 z-40 inline-flex h-12 items-center gap-2 rounded-full border border-[#C7D2FE] bg-[#2563EB] px-4 text-[12px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#1D4ED8] focus:outline-none focus:ring-4 focus:ring-[#4A6CF7]/20 dark:border-[#4A6CF7]/40"
-                            aria-label="Open Activity Log"
-                        >
-                            <MessageSquare className="h-4 w-4" />
-                            Activity Log
-                        </button>
-
-                        {isActivityOpen && (
-                            <div className="fixed inset-0 z-50 flex justify-end">
-                                <div
-                                    className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
-                                    onClick={() => setIsActivityOpen(false)}
-                                />
-                                <div className="relative h-full w-full max-w-[420px] overflow-y-auto border-l border-[#E4E4E7] bg-white p-5 shadow-2xl dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                    <div className="mb-4 flex items-center justify-between gap-4">
-                                        <div>
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
-                                                Application
-                                            </p>
-                                            <h2 className="text-lg font-extrabold text-[#27272A] dark:text-[#F4F4F5]">
-                                                Activity Log
-                                            </h2>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsActivityOpen(false)}
-                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#27272A] dark:border-[#3F3F46] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#F4F4F5]"
-                                            aria-label="Close Activity Log"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                    <div className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                                            Add a Comment
-                                        </label>
-                                        <textarea
-                                            placeholder="Type your comment... (Ctrl+Enter to submit)"
-                                            value={newComment}
-                                            onChange={(e) => setNewComment(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleAddComment();
-                                            }}
-                                            disabled={isPostingComment}
-                                            rows={3}
-                                            className="w-full resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] text-sm"
-                                        />
-                                        <div className="flex items-center justify-between mt-2">
-                                            <span className="text-xs text-zinc-400">{newComment.length}/1000</span>
-                                            <button
-                                                onClick={handleAddComment}
-                                                disabled={isPostingComment || !newComment.trim()}
-                                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#D97757] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                            >
-                                                {isPostingComment ? "Posting..." : "Post Comment"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <ActivityLog key={activityRefreshKey} doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
-                                </div>
-                            </div>
-                        )}
-                    </>
+                    <FloatingActivityLogButton doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
                 )}
 
                 <CommentModal

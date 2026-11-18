@@ -269,6 +269,28 @@ const TopUpFellowshipForm: React.FC = () => {
         [monthlyCap],
     );
 
+    // Number of calendar months covered by Period From → Period To (inclusive).
+    // e.g. 01-Jan → 31-Mar = 3. Falls back to 1 when either date is missing/invalid.
+    const monthsForRow = (row: any): number => {
+        const a = row?.period_from ? new Date(row.period_from) : null;
+        const b = row?.period_to ? new Date(row.period_to) : null;
+        if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime()) || b < a) return 1;
+        return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + 1;
+    };
+    // Inclusive number of days from Period From to Period To (null if not both set/valid).
+    const daysForRow = (row: any): number | null => {
+        const a = row?.period_from ? new Date(row.period_from) : null;
+        const b = row?.period_to ? new Date(row.period_to) : null;
+        if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime()) || b < a) return null;
+        const utc = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+        return Math.round((utc(b) - utc(a)) / 86400000) + 1;
+    };
+    // Cap for the whole engagement: per-month cap × months (25,000 with stipend/scholarship, else 50,000).
+    const totalCapForRow = (row: any) => capForRow(row) * monthsForRow(row);
+    // Grand Total Amount for the whole engagement (auto-calculated into total_amount_per_month):
+    // Hours / Month × Rate / Hour × months.
+    const totalAmountForRow = (row: any) => Number(row?.total_amount_per_month) || 0;
+
     const refreshMonthlyStatus = useCallback(async (email: string, periodFrom: string | null | undefined) => {
         if (!email) return;
         // Derive month/year. Prefer the row's period_from; fall back to today.
@@ -333,7 +355,9 @@ const TopUpFellowshipForm: React.FC = () => {
                     .map((field: FormField) => {
                         if (field.fieldtype === 'Table' && child_table_fields?.[field.fieldname]) {
                             const childFields = child_table_fields[field.fieldname].map((cf: any) =>
-                                cf.fieldname === 'dept_centre' ? { ...cf, read_only: 0 } : cf
+                                cf.fieldname === 'dept_centre' ? { ...cf, read_only: 0 }
+                                    : cf.fieldname === 'total_amount_per_month' ? { ...cf, read_only: 1 }
+                                    : cf
                             );
                             return { ...field, child_fields: childFields };
                         }
@@ -545,7 +569,13 @@ const TopUpFellowshipForm: React.FC = () => {
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
-            const updatedRow = { ...table[rowIndex], [fieldname]: value };
+            const updatedRow: any = { ...table[rowIndex], [fieldname]: value };
+            // Auto-calculate Grand Total Amount = Hours/Month × Rate/Hour × months in period.
+            if (tableName === 'students' && ['hours_per_month', 'rate_per_hour', 'period_from', 'period_to'].includes(fieldname)) {
+                const hours = Number(updatedRow.hours_per_month) || 0;
+                const rate = Number(updatedRow.rate_per_hour) || 0;
+                updatedRow.total_amount_per_month = hours * rate * monthsForRow(updatedRow);
+            }
             table[rowIndex] = updatedRow;
             // When period_from changes, refresh monthly status for this student
             if (tableName === 'students' && fieldname === 'period_from' && updatedRow.email_of_student) {
@@ -671,13 +701,14 @@ const TopUpFellowshipForm: React.FC = () => {
             if (!email) continue;
             const key = monthKeyFor(email, row?.period_from);
             const status = key ? monthlyStatus[key] : undefined;
-            const proposed = Number(row?.total_amount_per_month) || 0;
+            const months = monthsForRow(row);
+            const proposed = totalAmountForRow(row);
             const existing = status?.total ?? 0;
-            const cap = capForRow(row);
+            const cap = totalCapForRow(row);
             if (existing + proposed > cap) {
                 const over = existing + proposed - cap;
                 capViolations.push(
-                    `${email}: already ₹${existing.toLocaleString('en-IN')} this month, requesting ₹${proposed.toLocaleString('en-IN')} more — exceeds the ₹${cap.toLocaleString('en-IN')} cap${isOnStipendOrScholarship(row) ? ' (stipend/scholarship)' : ''} by ₹${over.toLocaleString('en-IN')}.`
+                    `${email}: already ₹${existing.toLocaleString('en-IN')} this month, requesting ₹${proposed.toLocaleString('en-IN')} for ${months} month(s) — exceeds the ₹${cap.toLocaleString('en-IN')} cap (${months} × ₹${capForRow(row).toLocaleString('en-IN')})${isOnStipendOrScholarship(row) ? ' (stipend/scholarship)' : ''} by ₹${over.toLocaleString('en-IN')}.`
                 );
             }
         }
@@ -778,7 +809,7 @@ const TopUpFellowshipForm: React.FC = () => {
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="h-3 w-1 rounded-full bg-[#4A6CF7]" />
                                     <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-[#93C5FD]">
-                                        Monthly Limit Status (₹{monthlyCap.toLocaleString('en-IN')} cap per student, ₹{STIPEND_OR_SCHOLARSHIP_CAP.toLocaleString('en-IN')} if on stipend/scholarship)
+                                        Monthly Limit Status (₹{monthlyCap.toLocaleString('en-IN')} per month per student, ₹{STIPEND_OR_SCHOLARSHIP_CAP.toLocaleString('en-IN')} per month if on stipend/scholarship; multiplied by months in the period)
                                     </h3>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -787,10 +818,12 @@ const TopUpFellowshipForm: React.FC = () => {
                                             <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                                 <th className="py-2 pr-3">Student</th>
                                                 <th className="py-2 pr-3">Stipend / Scholarship?</th>
+                                                <th className="py-2 pr-3">Period (Days)</th>
+                                                <th className="py-2 pr-3">Months</th>
                                                 <th className="py-2 pr-3">Honorarium this month</th>
                                                 <th className="py-2 pr-3">Top Up this month</th>
                                                 <th className="py-2 pr-3">Already Received</th>
-                                                <th className="py-2 pr-3">Requesting now</th>
+                                                <th className="py-2 pr-3">Requesting now (total)</th>
                                                 <th className="py-2 pr-3">Max Allowed Now</th>
                                                 <th className="py-2">Status</th>
                                             </tr>
@@ -802,15 +835,16 @@ const TopUpFellowshipForm: React.FC = () => {
                                                     return (
                                                         <tr key={idx} className="border-b border-dashed border-[#E4E4E7]/60 dark:border-[#3F3F46]/60">
                                                             <td className="py-2 pr-3 italic text-[#A1A1AA]">Row #{idx + 1} — pick a student</td>
-                                                            <td colSpan={7} />
+                                                            <td colSpan={9} />
                                                         </tr>
                                                     );
                                                 }
                                                 const key = monthKeyFor(email, row?.period_from);
                                                 const status = key ? monthlyStatus[key] : undefined;
-                                                const proposed = Number(row?.total_amount_per_month) || 0;
+                                                const months = monthsForRow(row);
+                                                const proposed = totalAmountForRow(row);
                                                 const existing = status?.total ?? 0;
-                                                const cap = capForRow(row);
+                                                const cap = totalCapForRow(row);
                                                 const remaining = Math.max(0, cap - existing);
                                                 const after = existing + proposed;
                                                 const over = after - cap;
@@ -829,6 +863,8 @@ const TopUpFellowshipForm: React.FC = () => {
                                                                 {row?.stipend_or_scholarship || 'No'}
                                                             </span>
                                                         </td>
+                                                        <td className="py-2 pr-3 font-semibold">{daysForRow(row) ?? '—'}</td>
+                                                        <td className="py-2 pr-3 font-semibold">{months}</td>
                                                         <td className="py-2 pr-3">{status ? fmt(status.honorarium) : '—'}</td>
                                                         <td className="py-2 pr-3">{status ? fmt(status.top_up) : '—'}</td>
                                                         <td className="py-2 pr-3 font-semibold">{status ? fmt(existing) : '—'}</td>
@@ -851,10 +887,23 @@ const TopUpFellowshipForm: React.FC = () => {
                                                 );
                                             })}
                                         </tbody>
+                                        <tfoot>
+                                            <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] font-extrabold text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                <td className="py-2 pr-3" colSpan={2}>Grand Total Amount</td>
+                                                <td className="py-2 pr-3">{formData.students.reduce((n: number, r: any) => n + (daysForRow(r) || 0), 0)}</td>
+                                                <td className="py-2 pr-3">{formData.students.reduce((n: number, r: any) => n + monthsForRow(r), 0)}</td>
+                                                <td colSpan={3} />
+                                                <td className="py-2 pr-3">₹{formData.students.reduce((n: number, r: any) => n + totalAmountForRow(r), 0).toLocaleString('en-IN')}</td>
+                                                <td colSpan={2} />
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
-                                <p className="mt-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                    Counts only <strong>Submitted</strong> Honorarium &amp; Top Up Fellowship rows whose period overlaps the month derived from each row's <em>Period From</em> (defaults to today if unset). Drafts are not included. Mark <strong>Stipend / Scholarship</strong> for students already receiving one — their monthly cap drops to ₹{STIPEND_OR_SCHOLARSHIP_CAP.toLocaleString('en-IN')}.
+                                <p className="mt-3 rounded-md border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-sm font-medium leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                                    Only <strong>Submitted</strong> Honorarium &amp; Top Up Fellowship entries for the month of each row's <em>Period From</em> are counted (today if not set). Drafts are ignored. If a student already gets a <strong>Stipend / Scholarship</strong>, tick it — the monthly cap becomes ₹{STIPEND_OR_SCHOLARSHIP_CAP.toLocaleString('en-IN')}.
+                                    <span className="mt-1 block text-xs font-normal">
+                                        <strong>Examples:</strong> Period From 05-Mar-2026 → only March 2026 Submitted entries are counted. A Draft entry of ₹10,000 is not counted. Cap is per month × number of months: a 3-month range gives ₹{(STIPEND_OR_SCHOLARSHIP_CAP * 3).toLocaleString('en-IN')} with stipend/scholarship, or ₹{(monthlyCap * 3).toLocaleString('en-IN')} without.
+                                    </span>
                                 </p>
                             </div>
                         )}

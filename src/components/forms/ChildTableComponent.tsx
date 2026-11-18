@@ -10,6 +10,7 @@ import { DepartmentName } from '@/components/DepartmentName';
 import { evaluateExpression } from '@/utils/evalExpression';
 import { getFileUrl } from '@/utils/fileUtils';
 import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
+import { DateInputDMY } from '@/components/ui/date-input-dmy';
 import { CharLimitAlert } from '@/components/CharLimitAlert';
 
 const MAX_HOURS_PER_MONTH = 50;
@@ -301,11 +302,10 @@ export const ChildTableComponent = memo(({
 
             case 'Date':
                 return (
-                    <input
-                        type="date"
+                    <DateInputDMY
                         className={inputClasses}
                         value={value || ''}
-                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
+                        onChange={(iso) => onRowChange(tableName, rowIndex, col.fieldname, iso)}
                         disabled={isReadOnly}
                     />
                 );
@@ -584,6 +584,26 @@ export const ChildTableComponent = memo(({
                                                             Total hours of engagement per month (maximum {MAX_HOURS_PER_MONTH} hours).
                                                         </p>
                                                     )}
+                                                    {col.fieldname === 'period_to' && row.period_from && row.period_to && (() => {
+                                                        const a = new Date(row.period_from);
+                                                        const b = new Date(row.period_to);
+                                                        if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+                                                        if (b < a) {
+                                                            return (
+                                                                <p className="mt-1.5 inline-block rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                                                                    Period To is before Period From.
+                                                                </p>
+                                                            );
+                                                        }
+                                                        const utc = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+                                                        const days = Math.round((utc(b) - utc(a)) / 86400000) + 1;
+                                                        const months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + 1;
+                                                        return (
+                                                            <p className="mt-1.5 inline-block rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                                                                Duration: {days} day{days === 1 ? '' : 's'} or {months} month{months === 1 ? '' : 's'}
+                                                            </p>
+                                                        );
+                                                    })()}
                                                     {col.fieldname === 'rate_per_hour' && (
                                                         <p className="mt-1.5 inline-block rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                                                             Hourly rate in rupees (minimum ₹{MIN_RATE_PER_HOUR}, maximum ₹{MAX_RATE_PER_HOUR}).

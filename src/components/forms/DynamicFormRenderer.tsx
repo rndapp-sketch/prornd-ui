@@ -6,6 +6,7 @@ import {
   isFieldReadOnly as checkFieldReadOnly,
   evaluateExpression,
 } from "@/utils/evalExpression";
+import { DateInputDMY } from "@/components/ui/date-input-dmy";
 import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
 import { Info } from "lucide-react";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -453,7 +454,17 @@ const MemoizedFormField = memo(
           );
 
         case "Date":
-          return <input type="date" {...commonProps} />;
+          return (
+            <DateInputDMY
+              id={field.fieldname}
+              name={field.fieldname}
+              className={inputClasses}
+              disabled={isReadOnly}
+              required={isMandatory}
+              value={value ?? ""}
+              onChange={(iso) => handleChange(field.fieldname, iso)}
+            />
+          );
 
         case "Datetime":
           return <input type="datetime-local" {...commonProps} />;
