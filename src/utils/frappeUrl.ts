@@ -77,3 +77,15 @@ export function toSameOriginFileUrl(src: string): string {
     }
     return src;
 }
+
+const HTML_FRAPPE_PATH = /(\s(?:href|src)\s*=\s*)(["'])(\/(?:private\/files|files|assets)\/[^"']*)\2/gi;
+
+/**
+ * Backend-rendered HTML (activity log comments, attachment entries) carries
+ * root-relative links such as <a href="/files/x.pdf">. Injected as-is they
+ * resolve against the SPA root and 404; route them through the Frappe base.
+ */
+export function rewriteFrappeLinks(html: string): string {
+    if (!html) return html;
+    return html.replace(HTML_FRAPPE_PATH, (_m, attr, q, path) => `${attr}${q}${frappeUrl(path)}${q}`);
+}
