@@ -16,6 +16,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { ActivityLog } from '@/components/ActivityLog';
 import { P11PrintModal } from '@/components/P11PrintModal';
+import { generateRecruitmentAdhocContractualHtml } from '@/utils/recruitmentAdhocContractualPrint';
+import { fetchActivityLogHtml } from '@/utils/fetchActivityLogHtml';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI, dpPoAPI, directPurchaseAPI, icssAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
@@ -1982,6 +1984,8 @@ const TaskRegistryDetails: React.FC = () => {
 
     const [tufLinkOptions, setTufLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isTufPrintOpen, setIsTufPrintOpen] = useState(false);
+    const [isRecPrintOpen, setIsRecPrintOpen] = useState(false);
+    const [recActivityHtml, setRecActivityHtml] = useState('');
     const tufActivityLogContainerRef = useRef<HTMLDivElement>(null);
 
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
@@ -2580,6 +2584,19 @@ const TaskRegistryDetails: React.FC = () => {
                                     Print
                                 </button>
                             )}
+                            {doctype === 'Recruitment Adhoc Contractual' && name && (
+                                <button
+                                    onClick={() => {
+                                        setIsRecPrintOpen(true);
+                                        fetchActivityLogHtml('Recruitment Adhoc Contractual', name).then(setRecActivityHtml);
+                                    }}
+                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
+                                    title="Print Recruitment Adhoc Contractual"
+                                >
+                                    <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                    Print
+                                </button>
+                            )}
                             {doctype === 'Top Up Fellowship' && isStaffRnD && (
                                 <button
                                     onClick={() => setIsTufPrintOpen(true)}
@@ -2638,6 +2655,20 @@ const TaskRegistryDetails: React.FC = () => {
                 <ProjectPreviewModal
                     projectName={prPreviewName}
                     onClose={() => setPrPreviewName(null)}
+                />
+            )}
+
+            {doctype === 'Recruitment Adhoc Contractual' && (
+                <P11PrintModal
+                    title="Recruitment Adhoc Contractual Preview"
+                    isOpen={isRecPrintOpen}
+                    onClose={() => setIsRecPrintOpen(false)}
+                    docName={name || ""}
+                    htmlContent={
+                        isRecPrintOpen
+                            ? generateRecruitmentAdhocContractualHtml(displayData, recFields, recLinkOptions, recActivityHtml)
+                            : ""
+                    }
                 />
             )}
 

@@ -86,6 +86,23 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 // --- MAIN COMPONENT ---
 // P-11 and Direct Purchase don't share a fieldname for this, so match by meaning
+const MONEY_FIELDS = ['total_basic_value', 'packing_and_forwarding', 'freight', 'other_charges', 'grand_total'];
+const MONEY_COLUMNS = ['item_unit_price', 'item_discount', 'item_gst', 'dp_total_price'];
+const withCode = (label: string | null | undefined, code: string) =>
+    label && !label.includes(`(${code})`) ? `${label} (${code})` : label;
+// Appends "(USD)" etc. to the amount fields and to the item table's amount columns
+const withCurrencyCode = (f: FormField, code: string): FormField => {
+    if (!code) return f;
+    if (MONEY_FIELDS.includes(f.fieldname)) return { ...f, label: withCode(f.label, code) ?? f.label };
+    if (f.fieldtype === 'Table' && f.child_fields) {
+        return {
+            ...f,
+            child_fields: f.child_fields.map((c) =>
+                MONEY_COLUMNS.includes(c.fieldname) ? { ...c, label: withCode(c.label, code) ?? c.label } : c),
+        };
+    }
+    return f;
+};
 const RECOMMENDATION_HINT = '(provide vendor name, address, email and contact No)';
 const isRecommendationField = (f: { fieldname: string; label?: string | null }) =>
     /committ?ee?_?\s?recommend/i.test(`${f.fieldname} ${f.label ?? ''}`);
@@ -531,6 +548,8 @@ const P11Form: React.FC = () => {
     const activeDeclarationField = committeeRequired ? COMMITTEE_DECLARATION_FIELD : NO_COMMITTEE_DECLARATION_FIELD;
     const inactiveDeclarationField = committeeRequired ? NO_COMMITTEE_DECLARATION_FIELD : COMMITTEE_DECLARATION_FIELD;
 
+    // Money labels carry the currency picked in "Quoted price in Currency", updating as it changes
+    const currencyCode = (String(formData.currency ?? '').match(/(?<![A-Za-z])[A-Z]{3}(?![A-Za-z])/) || [''])[0];
     const visibleFields = useMemo(() => {
         return fields.map(field => {
             const f = { ...field };
@@ -554,9 +573,9 @@ const P11Form: React.FC = () => {
                     f.hidden = 0;
                 }
             }
-            return f;
+            return withCurrencyCode(f, currencyCode);
         });
-    }, [fields, formData, activeDeclarationField, inactiveDeclarationField]);
+    }, [fields, formData, activeDeclarationField, inactiveDeclarationField, currencyCode]);
 
     // --- RENDER LOGIC ---
     if (loading) {

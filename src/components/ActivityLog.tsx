@@ -1,4 +1,4 @@
-import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { FRAPPE_BASE_URL, rewriteFrappeLinks } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -236,7 +236,7 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
                 {/* Comment content */}
                 {entry.content && (
                     <div className="mt-1.5 p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed prose prose-xs dark:prose-invert max-w-none line-clamp-4"
-                        dangerouslySetInnerHTML={{ __html: entry.content }}
+                        dangerouslySetInnerHTML={{ __html: rewriteFrappeLinks(entry.content) }}
                     />
                 )}
             </div>

@@ -873,61 +873,41 @@ const TravelDetails: React.FC = () => {
 
                     {/* Sidebar */}
                     <aside className="lg:col-span-1 space-y-3">
-                        {/* Status */}
-                        <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-[12px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide mb-2">
-                                Status
-                            </h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-zinc-600 dark:text-zinc-400">Workflow State</span>
+                        {/* TA/DA settlement status (the travel's own workflow state / last
+                            modified are intentionally not shown here) */}
+                        {tadaSettlement && (
+                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-zinc-600 dark:text-zinc-400">TA/DA Settlement</span>
                                     <span
                                         className={cn(
                                             "px-3 py-1 text-xs font-bold rounded-full",
-                                            formData.workflow_state === "Approved" &&
+                                            tadaSettlement.workflow_state === "Approved" &&
                                                 "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                            formData.workflow_state === "Rejected" &&
+                                            tadaSettlement.workflow_state === "Rejected" &&
                                                 "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                            formData.workflow_state === "Draft" &&
-                                                "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                            !["Approved", "Rejected", "Draft"].includes(
-                                                formData.workflow_state || "",
-                                            ) &&
+                                            !["Approved", "Rejected"].includes(tadaSettlement.workflow_state || "") &&
                                                 "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
                                         )}
                                     >
-                                        {formData.workflow_state || "Draft"}
+                                        {tadaSettlement.workflow_state || "Pending"}
                                     </span>
                                 </div>
-                                {tadaSettlement && (
-                                    <div className="flex justify-between items-center pt-1 border-t border-zinc-100 dark:border-zinc-800 mt-1">
-                                        <span className="text-zinc-600 dark:text-zinc-400">TA/DA Settlement</span>
-                                        <span
-                                            className={cn(
-                                                "px-3 py-1 text-xs font-bold rounded-full",
-                                                tadaSettlement.workflow_state === "Approved" &&
-                                                    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                                tadaSettlement.workflow_state === "Rejected" &&
-                                                    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                                !["Approved", "Rejected"].includes(tadaSettlement.workflow_state || "") &&
-                                                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                                            )}
-                                        >
-                                            {tadaSettlement.workflow_state || "Pending"}
-                                        </span>
-                                    </div>
-                                )}
-                                {formData.modified && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-600 dark:text-zinc-400">Last Modified</span>
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {new Date(formData.modified).toLocaleDateString("en-IN")}
-                                        </span>
-                                    </div>
-                                )}
                             </div>
-                        </div>
+                        )}
+
+                        {/* Director-signed document, once the panel above is no longer shown (e.g. Approved) */}
+                        {directorSignedPdf && !showDirectorPanel && (
+                            <a
+                                href={getFileUrl(directorSignedPdf)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2.5"
+                            >
+                                <Download className="w-4 h-4" />
+                                View Director Approval Document
+                            </a>
+                        )}
 
                         {/* Director Approval — International travel only.
                             See docs/travel-director-approval-implementation.md */}
