@@ -14,7 +14,9 @@ import {
     UserCheck,
     AlertCircle,
     RefreshCw,
+    ReceiptText,
 } from "lucide-react";
+import { isTravelAdvancePaid } from "@/services/travelSettlement";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,15 @@ interface OtherPIFormDoc {
     workflow_state: string;
     creation?: string;
     detailRoute: string;
+}
+
+interface SettleTravelRow {
+    name: string;
+    owner?: string;
+    webmail_id_travel?: string;
+    workflow_state?: string;
+    travel_financial_assistance?: string;
+    travel_project_number?: string;
 }
 
 const FORM_TYPES = [
@@ -104,12 +115,69 @@ export function OtherPIView() {
 
     // 1. Fetch Travel documents with travel_other_pi == "Other"
     const { data: travelDocs, isLoading: loadingTravel, mutate: mutateTravel } = useFrappeGetDocList("Travel", {
-        fields: ["name", "owner", "applicant_name_travel", "webmail_id_travel", "travel_other_pi_id", "workflow_state", "creation"],
+        fields: ["name", "owner", "applicant_name_travel", "webmail_id_travel", "travel_other_pi_id", "workflow_state", "creation", "travel_financial_assistance", "travel_project_number"],
         filters: [["travel_other_pi", "=", "Other"]],
         orFilters: [["owner", "=", currentUser || "__none__"], ["travel_other_pi_id", "=", currentUser || "__none__"]],
         limit: 100,
         orderBy: { field: "creation", order: "desc" },
     });
+
+    // Settle for the applicant who initiated an Other PI travel. The PI settles from their
+    // project page, which the applicant cannot reach, so the registry offers it here under
+    // the same rule as TravelDetails: Approved, no TA/DA Settlement yet, and — when an
+    // advance was asked for — only once that advance has been paid.
+    const ownApprovedTravels = React.useMemo(
+        () =>
+            ((travelDocs || []) as SettleTravelRow[]).filter(
+                (doc) =>
+                    doc.workflow_state === "Approved" &&
+                    !!currentUser &&
+                    String(doc.webmail_id_travel || doc.owner || "").toLowerCase() === currentUser.toLowerCase(),
+            ),
+        [travelDocs, currentUser],
+    );
+    const ownApprovedNames = ownApprovedTravels.map((doc) => doc.name);
+
+    const { data: tadaDocs, isLoading: loadingTada } = useFrappeGetDocList("TA DA Settlement", {
+        fields: ["name", "ta_da_travel_application"],
+        filters: [["ta_da_travel_application", "in", ownApprovedNames.length ? ownApprovedNames : ["__none__"]]],
+        limit: 500,
+    });
+    const settlementByTravel = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        ((tadaDocs || []) as { name: string; ta_da_travel_application?: string }[]).forEach((s) => {
+            if (s.ta_da_travel_application && !map[s.ta_da_travel_application]) {
+                map[s.ta_da_travel_application] = s.name;
+            }
+        });
+        return map;
+    }, [tadaDocs]);
+
+    const [settleableTravels, setSettleableTravels] = React.useState<Record<string, boolean>>({});
+    React.useEffect(() => {
+        if (loadingTada) return;
+        let cancelled = false;
+        const candidates = ownApprovedTravels.filter((doc) => !settlementByTravel[doc.name]);
+        Promise.all(
+            candidates.map(async (doc) => {
+                const needsAdvance = doc.travel_financial_assistance === "Yes";
+                const ok = needsAdvance
+                    ? await isTravelAdvancePaid(doc.name, doc.travel_project_number || "")
+                    : true;
+                return [doc.name, ok] as const;
+            }),
+        ).then((entries) => {
+            if (!cancelled) setSettleableTravels(Object.fromEntries(entries));
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [ownApprovedTravels, settlementByTravel, loadingTada]);
+    const travelByName = React.useMemo(() => {
+        const map: Record<string, SettleTravelRow> = {};
+        ((travelDocs || []) as SettleTravelRow[]).forEach((doc) => { map[doc.name] = doc; });
+        return map;
+    }, [travelDocs]);
 
     // 2. Fetch Reimbursement documents with pi_webmail_id
     const { data: reimbursementDocs, isLoading: loadingReimb, mutate: mutateReimb } = useFrappeGetDocList("Reimbursement", {
@@ -417,7 +485,7 @@ export function OtherPIView() {
                                 <TableHead className={thClass}>Designated Other PI</TableHead>
                                 <TableHead className={thClass}>Workflow Status</TableHead>
                                 <TableHead className={cn(thClass, "w-[130px]")}>Created</TableHead>
-                                <TableHead className={cn(thClass, "w-[90px] text-right")}>Action</TableHead>
+                                <TableHead className={cn(thClass, "w-[90px] text-right whitespace-nowrap")}>Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -461,7 +529,35 @@ export function OtherPIView() {
                                         <TableCell className={cn(tdClass, "whitespace-nowrap text-[#52525B] dark:text-[#A1A1AA]")}>
                                             {doc.creation ? format(new Date(doc.creation), "dd MMM yyyy") : "N/A"}
                                         </TableCell>
-                                        <TableCell className={cn(tdClass, "text-right")}>
+                                        <TableCell className={cn(tdClass, "text-right whitespace-nowrap")}>
+                                            {doc.doctype === "Travel" && settleableTravels[doc.name] && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#D97757]"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const projectNo = travelByName[doc.name]?.travel_project_number || "";
+                                                        navigate(`/ta-da-settlement?project=${encodeURIComponent(projectNo)}&travel_ref=${encodeURIComponent(doc.name)}`);
+                                                    }}
+                                                >
+                                                    <ReceiptText className="h-3.5 w-3.5" />
+                                                    Settle
+                                                </Button>
+                                            )}
+                                            {doc.doctype === "Travel" && settlementByTravel[doc.name] && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA]"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/ta-da-settlement?edit=${encodeURIComponent(settlementByTravel[doc.name])}`);
+                                                    }}
+                                                >
+                                                    Settlement
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
