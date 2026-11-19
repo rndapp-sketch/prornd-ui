@@ -1,4 +1,5 @@
-import { useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import { useEffect, useState } from "react";
+import { peekDepartmentLabel, resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 
 interface DepartmentNameProps {
     name: string;
@@ -9,28 +10,28 @@ export const DepartmentName = ({ name }: DepartmentNameProps) => {
     return <DepartmentNameResolver name={name} />;
 };
 
-// A department reference can be either the Frappe doc `name` or the short custom
-// `dept_id` field, and length alone isn't a reliable signal — some Department_prornd
-// docnames are short hash-style autonames (e.g. "otg9mgi2qo") that read as a dept_id
-// under a length heuristic but aren't one, leaving the raw id on screen instead of the
-// resolved name. Try both lookups and use whichever resolves, falling back to the raw
-// value only if neither does. Mirrors the same dual-lookup fallback in resolveDepartmentLabel.ts.
+// A department reference can be either the Frappe doc `name` or the short custom `dept_id`
+// field, so the lookup tries both and falls back to the raw value (see resolveDepartmentLabel).
+// Results are cached for the page's lifetime, so the same department shown in several places,
+// or re-mounted when a page re-renders, costs a single request instead of one per mount.
 const DepartmentNameResolver = ({ name }: { name: string }) => {
-    const { data: byDocName, isLoading: loadingDocName } = useFrappeGetDoc<{ dept_name: string }>(
-        "Department_prornd",
-        name,
-        undefined,
-        { revalidateOnFocus: false }
-    );
-    const { data: byDeptId, isLoading: loadingDeptId } = useFrappeGetCall<{ message: { dept_name: string }[] }>(
-        "frappe.client.get_list",
-        { doctype: "Department_prornd", filters: [["dept_id", "=", name]], fields: ["dept_name"], limit_page_length: 1 },
-        undefined,
-        { revalidateOnFocus: false }
-    );
+    const [label, setLabel] = useState<string | undefined>(() => peekDepartmentLabel(name));
 
-    if (loadingDocName || loadingDeptId) return <span>…</span>;
+    useEffect(() => {
+        const cached = peekDepartmentLabel(name);
+        if (cached !== undefined) {
+            setLabel(cached);
+            return;
+        }
+        let cancelled = false;
+        setLabel(undefined);
+        resolveDepartmentLabel(name).then((l) => {
+            if (!cancelled) setLabel(l);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [name]);
 
-    const resolved = byDocName?.dept_name || byDeptId?.message?.[0]?.dept_name;
-    return <span>{resolved || name}</span>;
+    return <span>{label === undefined ? "…" : label}</span>;
 };

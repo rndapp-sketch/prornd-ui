@@ -1,14 +1,20 @@
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
-import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
+import { AnalyticsCard } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import "./projectStaffDashboard.css";
+import {
+  Files, Hourglass, CircleCheck, FileX, Plus, FolderKanban,
   ClipboardCheck, Briefcase, BarChart, Layers,
   AlertCircle, Zap, Activity, Clock,
   ArrowRight, ChevronRight, Mail, User as UserIcon, IdCard,
   Receipt, Wallet, RotateCcw, ShoppingCart, FileText, Search, ListTodo, CheckCircle2,
-  Plane, CalendarDays, LogOut, LayoutGrid, ChevronLeft, Inbox, X
+  Phone, Building2, Cake, CalendarCheck, CalendarClock, Plane, CalendarDays, LogOut, LayoutGrid, ChevronLeft, X
 } from "lucide-react";
 import {
   Table,
@@ -115,26 +121,27 @@ const getStatusTone = (status: string): StatusTone => {
   return "progress";
 };
 
+// Status palette follows the dashboard tokens (see projectStaffDashboard.css).
 const TONE_STYLES: Record<StatusTone, { pill: string; dot: string }> = {
   pending: {
-    pill: "bg-amber-50 text-amber-800 ring-amber-600/15 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/20",
-    dot: "bg-amber-500",
+    pill: "bg-[var(--psd-review-bg)] text-[#B45309] ring-black/5 dark:text-amber-300 dark:ring-white/10",
+    dot: "bg-[var(--psd-review)]",
   },
   approved: {
-    pill: "bg-emerald-50 text-emerald-800 ring-emerald-600/15 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20",
-    dot: "bg-emerald-500",
+    pill: "bg-[var(--psd-approved-bg)] text-[#0A7F58] ring-black/5 dark:text-emerald-300 dark:ring-white/10",
+    dot: "bg-[var(--psd-approved)]",
   },
   draft: {
-    pill: "bg-zinc-100 text-zinc-600 ring-zinc-500/15 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-600/40",
-    dot: "bg-zinc-400",
+    pill: "bg-[var(--psd-returned-bg)] text-[#C42B3C] ring-black/5 dark:text-rose-300 dark:ring-white/10",
+    dot: "bg-[var(--psd-returned)]",
   },
   rejected: {
-    pill: "bg-rose-50 text-rose-800 ring-rose-600/15 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-400/20",
-    dot: "bg-rose-500",
+    pill: "bg-[var(--psd-returned-bg)] text-[#C42B3C] ring-black/5 dark:text-rose-300 dark:ring-white/10",
+    dot: "bg-[var(--psd-returned)]",
   },
   progress: {
-    pill: "bg-sky-50 text-sky-800 ring-sky-600/15 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/20",
-    dot: "bg-sky-500",
+    pill: "bg-[var(--psd-info-bg)] text-[#2F5BC4] ring-black/5 dark:text-blue-300 dark:ring-white/10",
+    dot: "bg-[var(--psd-info)]",
   },
 };
 
@@ -178,14 +185,6 @@ const getGreeting = () => {
   return "Good evening";
 };
 
-const getInitials = (name: string) =>
-  name
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("") || "PS";
-
 const DOCTYPE_ICONS: Record<string, React.ElementType> = {
   "Direct Purchase": ShoppingCart,
   "Indent General Form": FileText,
@@ -202,8 +201,7 @@ const DOCTYPE_ICONS: Record<string, React.ElementType> = {
 };
 
 // Shared surface: tinted, wide-spreading shadow instead of a hard drop shadow
-const SURFACE =
-  "rounded-xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]";
+const SURFACE = "psd-card";
 
 const REVEAL = "animate-in fade-in slide-in-from-bottom-1 fill-mode-both duration-500 motion-reduce:animate-none";
 
@@ -306,82 +304,66 @@ function TermProgress({ start, end }: { start?: string; end?: string }) {
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between text-xs">
-        <span className="text-zinc-500 dark:text-zinc-400">Engagement term</span>
+        <span className="font-semibold text-[var(--psd-heading)]">Engagement progress</span>
         <span
           className={cn(
             "font-mono tabular-nums",
-            ended ? "text-rose-600 dark:text-rose-400" : closing ? "text-amber-700 dark:text-amber-400" : "text-zinc-700 dark:text-zinc-300"
+            ended ? "text-[var(--psd-returned)]" : closing ? "text-[#B45309] dark:text-amber-400" : "text-[var(--psd-heading)]"
           )}
         >
           {ended ? "Term ended" : `${daysLeft} days left`}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+      <div className="h-2 overflow-hidden rounded-full bg-[#FFEBDC] dark:bg-zinc-800">
         <div
           className={cn(
             "h-full origin-left rounded-full transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-            ended ? "bg-rose-500" : closing ? "bg-amber-500" : "bg-emerald-600"
+            ended ? "bg-[var(--psd-returned)]" : closing ? "bg-[var(--psd-review)]" : "bg-[var(--psd-accent)]"
           )}
           style={{ transform: `scaleX(${ready ? ratio : 0})` }}
         />
       </div>
-      <div className="mt-2 flex justify-between font-mono text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">
+      <div className="mt-2 flex justify-between text-[11px] font-medium tabular-nums text-[var(--psd-body)]">
         <span>{formatDate(start)}</span>
-        <span>{Math.round(ratio * 100)}%</span>
+        <span className="font-semibold text-[var(--psd-heading)]">{Math.round(ratio * 100)}% complete</span>
         <span>{formatDate(end)}</span>
       </div>
     </div>
   );
 }
 
-function ProfileRow({ label, mono, children }: { label: string; mono?: boolean; children: React.ReactNode }) {
+// One labelled detail: icon tile, small label above, value below (wraps instead of truncating).
+function ProfileField({ icon: Icon, label, mono, children }: { icon: React.ElementType; label: string; mono?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-3">
-      <dt className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
-      <dd
-        className={cn(
-          "min-w-0 break-words text-right text-sm font-medium text-zinc-900 dark:text-zinc-100",
-          mono && "font-mono text-[13px] tabular-nums"
-        )}
-      >
-        {children}
-      </dd>
+    <div className="flex items-start gap-2 py-1">
+      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+        <Icon className="size-3" strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-[10px] font-semibold leading-tight text-[var(--psd-body)]">{label}</div>
+        <div className={cn("break-words text-[12px] font-semibold leading-snug text-[var(--psd-heading)]", mono && "font-mono tabular-nums")}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
 
-function StatCell({
-  label,
-  value,
-  caption,
-  dot,
-  loading,
-  className,
-}: {
-  label: string;
-  value: number;
-  caption: string;
-  dot: string;
-  loading: boolean;
-  className?: string;
-}) {
+// Small date tile for the "Key dates" row
+function DateTile({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string }) {
   return (
-    <div className={cn("bg-white px-4 py-3.5 dark:bg-zinc-900", className)}>
-      <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-        <span className={cn("size-1.5 rounded-full", dot)} />
-        {label}
+    <div className="rounded-lg border border-[var(--psd-border)] bg-[var(--psd-bg)]/60 px-2 py-1.5">
+      <div className="flex items-center gap-1 text-[10px] font-semibold text-[var(--psd-body)]">
+        <Icon className="size-3" strokeWidth={1.8} /> {label}
       </div>
-      {loading ? (
-        <Skeleton className="mt-2 h-7 w-10" />
-      ) : (
-        <div className="mt-2 font-mono text-2xl font-medium leading-none tracking-tighter tabular-nums text-zinc-900 dark:text-zinc-50">
-          {String(value).padStart(2, "0")}
-        </div>
-      )}
-      <p className="mt-1.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">{caption}</p>
+      <div className="mt-0.5 text-[12px] font-semibold tabular-nums text-[var(--psd-heading)]">{formatDate(value)}</div>
     </div>
   );
 }
+
+const initialsOf = (name: string) =>
+  name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "PS";
+
 // --- Application Module Groups ---
 const applicationGroups = [
   {
@@ -435,6 +417,50 @@ const applicationGroups = [
   },
 ];
 
+// --- Dashboard-local pieces ---
+function HeroClock() {
+  const [now, setNow] = React.useState(new Date());
+  React.useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="relative z-10 shrink-0 rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)]/80 px-2.5 py-1 text-right backdrop-blur-sm">
+      <div className="text-[13px] font-semibold leading-none tabular-nums text-[var(--psd-heading)]">{now.toLocaleTimeString()}</div>
+      <div className="mt-0.5 text-[10px] text-[var(--psd-body)]">
+        {now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}
+      </div>
+    </div>
+  );
+}
+
+// "+ New Application": offers the existing application routes (same list the dashboard already defines).
+function NewApplicationMenu({ onNavigate }: { onNavigate: (path: string) => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="psd-focus inline-flex items-center gap-1.5 rounded-lg bg-[var(--psd-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98]">
+          <Plus className="size-4" strokeWidth={2.25} /> New Application
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center" className="max-h-80 w-64 overflow-y-auto">
+        {applicationGroups.map((g, gi) => (
+          <React.Fragment key={g.group}>
+            {gi > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-[var(--psd-muted)]">{g.group}</DropdownMenuLabel>
+            {g.items.map((it) => (
+              <DropdownMenuItem key={it.path} onSelect={() => onNavigate(it.path)} className="cursor-pointer gap-2">
+                <it.icon className="size-4 text-[var(--psd-primary)]" strokeWidth={1.75} />
+                {it.label}
+              </DropdownMenuItem>
+            ))}
+          </React.Fragment>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // --- Main Component ---
 export function ProjectStaffDashboard() {
   const navigate = useNavigate();
@@ -444,7 +470,7 @@ export function ProjectStaffDashboard() {
   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   // Basic Details (joined via username = part of erp_mail before '@')
-  const { data: basicResp, isLoading: basicLoading } = useFrappeGetCall<{
+  const { data: basicResp, isLoading: basicLoading, error: basicError } = useFrappeGetCall<{
     message: BasicDetailsRecord | null;
   }>(
     "rndopsapp.rndopsapp.doctype.project_staff_details.project_staff_details.get_my_basic_details",
@@ -574,6 +600,11 @@ export function ProjectStaffDashboard() {
     if (st.includes("generated")) return { type: "generated", doc };
     return null;
   }, [myIdCardList]);
+
+  // Only treat the data as unavailable when every source failed. One list erroring (e.g. a doctype this
+  // account can't read) must not blank the counts that did load.
+  const trackingQueries = [dpResult, igResult, icResult, taResult, asResult, rbResult, trResult, tdResult, lvResult, peResult];
+  const trackingError = trackingQueries.every((q) => !!q.error);
 
   const trackingInitialLoad = dpResult.isLoading || igResult.isLoading || icResult.isLoading ||
     taResult.isLoading || asResult.isLoading || rbResult.isLoading ||
@@ -918,38 +949,46 @@ export function ProjectStaffDashboard() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-clip bg-[#FAFAF9] font-sans text-zinc-900 dark:bg-[#18181B] dark:text-zinc-100">
+    <div className="psd-root relative min-h-[100dvh] overflow-x-clip font-sans">
       <div className="relative w-full px-0 pb-4 pt-0">
 
-        {/* Header */}
-        <header className="mb-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#D97757] text-[11px] font-extrabold text-white shadow-sm">
-              {getInitials(displayName)}
+        {/* Hero */}
+        <header className="psd-hero relative mb-2 flex flex-col gap-2 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+            <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+              <Layers className="size-4" strokeWidth={1.6} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-[18px] font-extrabold leading-none tracking-[-0.02em] text-[#27272A] dark:text-[#F4F4F5]">
+              <h1 className="text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">
                 Project Staff Dashboard
               </h1>
-              <p className="mt-1 truncate text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                {getGreeting()}, <span className="font-semibold text-[#3F3F46] dark:text-[#D4D4D8]">{firstName}</span>
-                {basic?.ps_designation && <span> · {basic.ps_designation}</span>}
-                {basic?.project_no && <span className="font-mono"> · {basic.project_no}</span>}
-              </p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                {(basic?.ps_designation || basic?.project_no) && (
+                <>
+                  {basic?.ps_designation && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--psd-primary-light)] px-2 py-0.5 font-medium text-[var(--psd-primary)]">
+                      <Briefcase className="size-3" /> {basic.ps_designation}
+                    </span>
+                  )}
+                  {basic?.project_no && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--psd-border)] px-2 py-0.5 font-medium text-[var(--psd-body)]">
+                      <FolderKanban className="size-3" /> Project ID <span className="font-mono text-[var(--psd-heading)]">{basic.project_no}</span>
+                    </span>
+                  )}
+                </>
+                )}
+              </div>
             </div>
           </div>
-          <CurrentTime />
-        </header>
-
-        {/* Internal Navigation Tabs */}
-        <nav className="mb-6 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-1 dark:border-[#3F3F46] dark:bg-[#27272A]">
+          <div className="relative z-10 flex flex-wrap items-center gap-2">
+        <nav aria-label="Dashboard sections" className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)] p-1 shadow-sm">
           <button
             onClick={() => navigate("/project-staff-dashboard")}
             className={cn(
-              "inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40",
+              "psd-focus inline-flex items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-semibold transition-all duration-200",
               isOverview
-                ? "bg-blue-50 text-[#1D4ED8] dark:bg-blue-500/15 dark:text-blue-300"
-                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                ? "bg-[var(--psd-primary)] text-white shadow-sm"
+                : "text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]"
             )}
           >
             <LayoutGrid className="size-4" strokeWidth={1.75} />
@@ -972,25 +1011,39 @@ export function ProjectStaffDashboard() {
           <button
             onClick={() => navigate("/project-staff-dashboard?tab=tracking")}
             className={cn(
-              "inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40",
+              "psd-focus inline-flex items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-semibold transition-all duration-200",
               activeTab === "tracking"
-                ? "bg-blue-50 text-[#1D4ED8] dark:bg-blue-500/15 dark:text-blue-300"
-                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                ? "bg-[var(--psd-primary)] text-white shadow-sm"
+                : "text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]"
             )}
           >
             <ListTodo className="size-4" strokeWidth={1.75} />
             Track Applications
             {!trackingLoading && trackingItems.length > 0 && (
-              <span className="rounded-full bg-zinc-900/[0.07] px-1.5 py-0.5 font-mono text-[10px] tabular-nums dark:bg-white/10">
+              <span className="rounded-full bg-black/10 px-1.5 dark:bg-white/15 py-0.5 text-[10px] tabular-nums">
                 {trackingItems.length}
               </span>
             )}
           </button>
         </nav>
+            <HeroClock />
+          </div>
+        </header>
+
+        {/* Greeting (kept out of the header card) */}
+        <div className="mb-3 px-0.5">
+          <h2 className="text-[15px] font-semibold text-[var(--psd-heading)]">
+            {getGreeting()}, {displayName || firstName}!
+          </h2>
+          <p className="text-xs text-[var(--psd-body)]">
+            {isOverview ? "Here's a quick look at your applications and profile." : "Track the status of every application you've submitted."}
+          </p>
+        </div>
+
 
         {/* Tab Content: Overview */}
         {isOverview && (
-          <div className="mb-8 space-y-6">
+          <div className="mb-2 space-y-3">
             {/* Action Required Alert for Returned ID Card Request */}
             {returnedIdCardAlert && (
               <AlertBanner
@@ -1034,59 +1087,66 @@ export function ProjectStaffDashboard() {
               </AlertBanner>
             )}
 
-            {/* Status strip: hairline-divided instead of boxed cards */}
+            {/* KPI summary */}
             <section
               aria-label="Application summary"
-              className={cn(
-                SURFACE,
-                REVEAL,
-                "grid grid-cols-2 gap-px overflow-hidden !rounded-xl bg-zinc-200/70 dark:bg-zinc-800 md:grid-cols-4"
-              )}
+              className={cn(REVEAL, "grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3")}
             >
-              <StatCell
-                label="Total applications"
+              <KpiCard
+                title="Total Applications"
                 value={trackingItems.length}
-                caption={`Across ${uniqueDoctypes.length - 1} application ${uniqueDoctypes.length - 1 === 1 ? "type" : "types"}`}
-                dot="bg-zinc-900 dark:bg-zinc-100"
+                description="Across all application types"
+                icon={Files}
+                tone="violet"
                 loading={trackingLoading}
+                error={trackingError}
               />
-              <StatCell
-                label="In review"
+              <KpiCard
+                title="In Review"
                 value={statusCounts.review}
-                caption="Waiting on a decision"
-                dot="bg-amber-500"
+                description="Waiting for a decision"
+                icon={Hourglass}
+                tone="amber"
                 loading={trackingLoading}
+                error={trackingError}
               />
-              <StatCell
-                label="Approved"
+              <KpiCard
+                title="Approved"
                 value={statusCounts.approved}
-                caption="Cleared and completed"
-                dot="bg-emerald-500"
+                description="Cleared and completed"
+                icon={CircleCheck}
+                tone="emerald"
                 loading={trackingLoading}
+                error={trackingError}
               />
-              <StatCell
-                label="Drafts & returned"
+              <KpiCard
+                title="Drafts / Returned"
                 value={statusCounts.attention}
-                caption="Need your input"
-                dot="bg-rose-500"
+                description="Needs your attention"
+                icon={FileX}
+                tone="coral"
                 loading={trackingLoading}
+                error={trackingError}
               />
             </section>
 
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-8">
+            <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
               {/* Recent Submissions */}
-              <section className={cn(SURFACE, "overflow-hidden")}>
-                <div className="flex items-end justify-between gap-4 px-6 pb-4 pt-6">
-                  <div>
-                    <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-                      Recent submissions
-                    </h2>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Your latest activity across all applications</p>
+              <section className={cn(SURFACE, "flex min-h-0 flex-col overflow-hidden")}>
+                <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+                      <ClipboardCheck className="size-4" strokeWidth={1.8} />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="text-[15px] font-semibold tracking-tight text-[var(--psd-heading)]">Recent Submissions</h2>
+                      <p className="mt-0.5 text-xs text-[var(--psd-body)]">Your latest application activity and updates.</p>
+                    </div>
                   </div>
                   {trackingItems.length > 0 && (
                     <button
                       onClick={() => navigate("/project-staff-dashboard?tab=tracking")}
-                      className="group inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/50 active:scale-[0.98] dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                      className="psd-focus group inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--psd-primary)] transition-colors hover:bg-[var(--psd-primary-light)] active:scale-[0.98]"
                     >
                       View all
                       <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -1095,10 +1155,10 @@ export function ProjectStaffDashboard() {
                 </div>
 
                 {trackingLoading ? (
-                  <div className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                  <div className="divide-y divide-[var(--psd-border)] border-t border-[var(--psd-border)]">
                     {[0, 1, 2, 3, 4].map((i) => (
-                      <div key={i} className="flex items-center gap-4 px-6 py-4">
-                        <Skeleton className="size-10 rounded-xl" />
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                        <Skeleton className="size-8 rounded-lg" />
                         <div className="flex-1 space-y-2">
                           <Skeleton className="h-3.5 w-40" />
                           <Skeleton className="h-3 w-28" />
@@ -1107,18 +1167,30 @@ export function ProjectStaffDashboard() {
                       </div>
                     ))}
                   </div>
+                ) : trackingError && trackingItems.length === 0 ? (
+                  <div role="alert" className="flex flex-col items-center border-t border-[var(--psd-border)] px-6 py-8 text-center">
+                    <span className="grid size-12 place-items-center rounded-2xl bg-[var(--psd-returned-bg)] text-[var(--psd-returned)]">
+                      <AlertCircle className="size-6" strokeWidth={1.6} />
+                    </span>
+                    <p className="mt-4 text-[15px] font-semibold text-[var(--psd-heading)]">Couldn't load your submissions</p>
+                    <p className="mt-1 max-w-sm text-[13px] text-[var(--psd-body)]">Something went wrong while fetching your applications. Please refresh the page and try again.</p>
+                  </div>
                 ) : trackingItems.length === 0 ? (
-                  <div className="flex flex-col items-center border-t border-zinc-100 px-6 py-16 text-center dark:border-zinc-800">
-                    <div className="grid size-14 place-items-center rounded-lg border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
-                      <Inbox className="size-6" strokeWidth={1.5} />
-                    </div>
-                    <p className="mt-5 text-sm font-medium text-zinc-900 dark:text-zinc-100">Nothing submitted yet</p>
-                    <p className="mt-1 max-w-xs text-sm text-zinc-500 dark:text-zinc-400">
-                      Applications you submit will show up here with their live approval status.
+                  <div className="flex flex-col items-center border-t border-[var(--psd-border)] px-6 py-8 text-center">
+                    <span className="relative grid size-12 place-items-center rounded-2xl bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+                      <FileText className="size-5" strokeWidth={1.5} />
+                      <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full border-2 border-[var(--psd-surface)] bg-[var(--psd-accent)] text-white">
+                        <Plus className="size-3.5" strokeWidth={3} />
+                      </span>
+                    </span>
+                    <p className="mt-3 text-[15px] font-semibold text-[var(--psd-heading)]">No submissions yet</p>
+                    <p className="mb-3 mt-1 max-w-sm text-xs leading-relaxed text-[var(--psd-body)]">
+                      Applications you submit will show up here with their latest status and updates.
                     </p>
+                    <NewApplicationMenu onNavigate={(path) => navigate(path)} />
                   </div>
                 ) : (
-                  <div className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                  <div className="min-h-0 flex-1 divide-y divide-[var(--psd-border)] overflow-y-auto border-t border-[var(--psd-border)] lg:max-h-[420px]">
                     {trackingItems.slice(0, 5).map((item, i) => {
                       const Icon = DOCTYPE_ICONS[item.doctype] || FileText;
                       return (
@@ -1128,26 +1200,28 @@ export function ProjectStaffDashboard() {
                           style={{ animationDelay: `${i * 60}ms` }}
                           className={cn(
                             REVEAL,
-                            "group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none dark:hover:bg-zinc-800/50 dark:focus-visible:bg-zinc-800/50"
+                            "group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--psd-primary-light)]/50 focus-visible:bg-[var(--psd-primary-light)]/50 focus-visible:outline-none"
                           )}
                         >
-                          <span className="grid size-10 place-items-center rounded-xl bg-zinc-100 text-zinc-600 transition-colors group-hover:bg-emerald-50 group-hover:text-emerald-700 dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-emerald-500/10 dark:group-hover:text-emerald-300">
-                            <Icon className="size-[18px]" strokeWidth={1.75} />
+                          <span className="grid size-8 place-items-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)] transition-transform duration-200 group-hover:scale-105">
+                            <Icon className="size-4" strokeWidth={1.75} />
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.doctype}</span>
-                            <span className="mt-0.5 block truncate font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                              {item.id}
-                              <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">/</span>
-                              <span className="font-sans">Created {formatDate(item.creation)}</span>
+                            <span className="block truncate text-[13px] font-semibold text-[var(--psd-heading)]">{item.doctype}</span>
+                            <span className="block truncate text-[11px] text-[var(--psd-muted)]">
+                              <span className="font-mono">{item.id}</span>
+                              <span className="mx-1.5">·</span>
+                              Submitted {formatDate(item.creation)}
                             </span>
                           </span>
                           <span className="flex items-center gap-3">
-                            <span className="flex flex-col items-end gap-1.5">
+                            <span className="flex flex-col items-end gap-1">
                               <StatusPill status={item.workflow_state} />
-                              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{formatRelativeTime(item.modified)}</span>
+                              <span className="text-[11px] text-[var(--psd-muted)]">{formatRelativeTime(item.modified)}</span>
                             </span>
-                            <ChevronRight className="size-4 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-600 dark:text-zinc-600 dark:group-hover:text-zinc-300" />
+                            <span className="hidden items-center gap-0.5 text-xs font-semibold text-[var(--psd-primary)] sm:inline-flex">
+                              View <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                            </span>
                           </span>
                         </button>
                       );
@@ -1156,61 +1230,83 @@ export function ProjectStaffDashboard() {
                 )}
               </section>
 
-              {/* Basic Details */}
-              <aside className={cn(SURFACE, "self-start p-6")}>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Profile</h2>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Your project staff record</p>
-                  </div>
-                  {basic?.ps_emp_id && (
-                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-mono text-[11px] tabular-nums text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                      {basic.ps_emp_id}
-                    </span>
-                  )}
-                </div>
-
+              {/* Profile */}
+              <aside className={cn(SURFACE, "self-start overflow-hidden")}>
                 {showBasicSkeleton ? (
-                  <div className="mt-6 space-y-4">
-                    <Skeleton className="h-10 w-full" />
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="flex justify-between gap-3">
-                        <Skeleton className="h-3.5 w-20" />
-                        <Skeleton className="h-3.5 w-32" />
+                  <div className="space-y-4 p-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-11 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-3 w-24" />
                       </div>
-                    ))}
+                    </div>
+                    <Skeleton className="h-14 w-full" />
+                    {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
                   </div>
                 ) : !basic ? (
-                  <div className="mt-6 flex flex-col items-center rounded-lg border border-dashed border-zinc-300 px-4 py-10 text-center dark:border-zinc-700">
-                    <UserIcon className="size-6 text-zinc-400" strokeWidth={1.5} />
-                    <p className="mt-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">No record linked</p>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                      No project staff record is linked to your account.
-                    </p>
+                  <div className="p-4">
+                    <div className="flex flex-col items-center rounded-xl border border-dashed border-[var(--psd-border)] px-4 py-8 text-center">
+                      <UserIcon className="size-6 text-[var(--psd-muted)]" strokeWidth={1.5} />
+                      <p className="mt-3 text-sm font-semibold text-[var(--psd-heading)]">
+                        {basicError ? "Couldn't load your profile" : "No record linked"}
+                      </p>
+                      <p className="mt-1 text-[13px] text-[var(--psd-body)]">
+                        {basicError
+                          ? "The profile request failed. Check your connection and sign-in, then refresh."
+                          : "No project staff record is linked to your account."}
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <>
-                    <div className="mt-6">
-                      <TermProgress start={basic.ps_joining_date} end={basic.ps_term_completion_date} />
+                    {/* Identity */}
+                    <div className="relative border-b border-[var(--psd-border)] bg-gradient-to-br from-[var(--psd-primary-light)] via-transparent to-[#FFF3EA] px-4 pb-2.5 pt-3 dark:to-transparent">
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--psd-primary)] text-[15px] font-bold text-white shadow-sm ring-4 ring-[var(--psd-surface)]">
+                          {initialsOf(basicFullName || displayName)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="truncate text-[15px] font-bold leading-tight text-[var(--psd-heading)]">{basicFullName || displayName || "—"}</h2>
+                          <p className="mt-0.5 truncate text-xs text-[var(--psd-body)]">{basic.ps_designation || "Project staff"}</p>
+                        </div>
+                        {basic.ps_emp_id && (
+                          <span className="shrink-0 rounded-md bg-[var(--psd-surface)] px-2 py-1 text-center ring-1 ring-[var(--psd-border)]">
+                            <span className="block text-[9px] font-semibold uppercase tracking-wider text-[var(--psd-muted)]">Employee ID</span>
+                            <span className="block font-mono text-[11px] font-bold tabular-nums text-[var(--psd-primary)]">{basic.ps_emp_id}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <dl className="mt-5 divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
-                      <ProfileRow label="Name">{basicFullName || "—"}</ProfileRow>
-                      <ProfileRow label="Employee ID" mono>{basic.ps_emp_id || "—"}</ProfileRow>
-                      <ProfileRow label="ERP mail">
-                        <span className="break-all">{basic.erp_mail || "—"}</span>
-                      </ProfileRow>
-                      <ProfileRow label="Department">
-                        {basic.ps_department_name || basic.ps_department ? (
-                          <DepartmentName name={basic.ps_department_name || basic.ps_department || ""} />
-                        ) : "—"}
-                      </ProfileRow>
-                      <ProfileRow label="Designation">{basic.ps_designation || "—"}</ProfileRow>
-                      <ProfileRow label="Project no" mono>{basic.project_no || "—"}</ProfileRow>
-                      <ProfileRow label="Phone" mono>{basic.ps_phone_number || "—"}</ProfileRow>
-                      <ProfileRow label="Date of birth" mono>{basic.ps_date_of_birth || "—"}</ProfileRow>
-                      <ProfileRow label="Joining date" mono>{basic.ps_joining_date || "—"}</ProfileRow>
-                      <ProfileRow label="Term completion" mono>{basic.ps_term_completion_date || "—"}</ProfileRow>
-                    </dl>
+
+                    <div className="px-4 pb-3 pt-2.5">
+                      {/* Engagement progress */}
+                      <div className="rounded-lg bg-[#FFF8F3] px-3 py-2 ring-1 ring-[#FFE3CF] dark:bg-zinc-800/50 dark:ring-zinc-700">
+                        <TermProgress start={basic.ps_joining_date} end={basic.ps_term_completion_date} />
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-1 gap-x-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                        <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                          <ProfileField icon={Mail} label="ERP Mail">
+                            <span className="break-all">{basic.erp_mail || "—"}</span>
+                          </ProfileField>
+                        </div>
+                        <ProfileField icon={Phone} label="Phone" mono>{basic.ps_phone_number || "—"}</ProfileField>
+                        <ProfileField icon={Building2} label="Department">
+                          {basic.ps_department_name || basic.ps_department ? (
+                            <DepartmentName name={basic.ps_department_name || basic.ps_department || ""} />
+                          ) : "—"}
+                        </ProfileField>
+                        <ProfileField icon={Briefcase} label="Designation">{basic.ps_designation || "—"}</ProfileField>
+                        <ProfileField icon={FolderKanban} label="Project Number" mono>{basic.project_no || "—"}</ProfileField>
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        <DateTile icon={Cake} label="Date of Birth" value={basic.ps_date_of_birth} />
+                        <DateTile icon={CalendarCheck} label="Joining" value={basic.ps_joining_date} />
+                        <DateTile icon={CalendarClock} label="Term ends" value={basic.ps_term_completion_date} />
+                      </div>
+                    </div>
                   </>
                 )}
               </aside>
@@ -1310,11 +1406,11 @@ export function ProjectStaffDashboard() {
 
         {/* Tab Content: Track Applications */}
         {activeTab === "tracking" && (
-          <section className="mb-8 space-y-5">
+          <section className="mb-2 space-y-3">
             {/* Search & Filter */}
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
               <div className="relative w-full lg:max-w-sm">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--psd-muted)]" />
                 <input
                   type="text"
                   placeholder="Search by type, ID or status"
@@ -1323,7 +1419,7 @@ export function ProjectStaffDashboard() {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="h-11 w-full rounded-full border border-zinc-200 bg-white pl-11 pr-10 text-sm text-zinc-900 outline-none transition-shadow placeholder:text-zinc-400 focus:border-emerald-600/50 focus:ring-4 focus:ring-emerald-600/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-emerald-500/15"
+                  className="h-9 w-full rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] pl-9 pr-9 text-[13px] text-[var(--psd-heading)] outline-none transition-shadow placeholder:text-[var(--psd-muted)] focus:border-[var(--psd-primary)] focus:ring-2 focus:ring-[var(--psd-primary)]/15"
                 />
                 {searchTerm && (
                   <button
@@ -1332,18 +1428,18 @@ export function ProjectStaffDashboard() {
                       setSearchTerm("");
                       setCurrentPage(1);
                     }}
-                    className="absolute right-3 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-[var(--psd-muted)] transition-colors hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]"
                   >
                     <X className="size-3.5" />
                   </button>
                 )}
               </div>
-              <p className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs font-medium tabular-nums text-[var(--psd-body)]">
                 {filteredItems.length} of {trackingItems.length} applications
               </p>
             </div>
 
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
               {uniqueDoctypes.map((dt) => {
                 const active = selectedDoctype === dt;
                 const count = dt === "All" ? trackingItems.length : doctypeCounts[dt] || 0;
@@ -1355,14 +1451,14 @@ export function ProjectStaffDashboard() {
                       setCurrentPage(1);
                     }}
                     className={cn(
-                      "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/50 active:scale-[0.97]",
+                      "psd-focus inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-all active:scale-[0.97]",
                       active
-                        ? "border-zinc-900 bg-zinc-900 text-zinc-50 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-100"
+                        ? "border-[var(--psd-primary)] bg-[var(--psd-primary)] text-white shadow-sm"
+                        : "border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)]/50 hover:text-[var(--psd-primary)]"
                     )}
                   >
                     {dt}
-                    <span className={cn("font-mono text-[10px] tabular-nums", active ? "opacity-60" : "text-zinc-400 dark:text-zinc-500")}>
+                    <span className={cn("text-[10px] tabular-nums", active ? "opacity-80" : "text-[var(--psd-muted)]")}>
                       {count}
                     </span>
                   </button>
@@ -1373,10 +1469,10 @@ export function ProjectStaffDashboard() {
             {/* Applications Table */}
             <div className={cn(SURFACE, "overflow-hidden")}>
               {trackingLoading ? (
-                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  <div className="h-11 bg-zinc-50/70 dark:bg-zinc-900" />
+                <div className="divide-y divide-[var(--psd-border)]">
+                  <div className="h-9 bg-[var(--psd-bg)]" />
                   {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center gap-3 px-5 py-4">
+                    <div key={i} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="flex-1 space-y-2">
                         <Skeleton className="h-3.5 w-40" />
                         <Skeleton className="h-3 w-28" />
@@ -1387,12 +1483,12 @@ export function ProjectStaffDashboard() {
                   ))}
                 </div>
               ) : filteredItems.length === 0 ? (
-                <div className="flex flex-col items-center px-6 py-20 text-center">
-                  <div className="grid size-14 place-items-center rounded-lg border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
-                    <Search className="size-6" strokeWidth={1.5} />
+                <div className="flex flex-col items-center px-6 py-12 text-center">
+                  <div className="grid size-12 place-items-center rounded-xl bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+                    <Search className="size-5" strokeWidth={1.5} />
                   </div>
-                  <p className="mt-5 text-sm font-medium text-zinc-900 dark:text-zinc-100">No applications match</p>
-                  <p className="mt-1 max-w-xs text-sm text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-3 text-sm font-semibold text-[var(--psd-heading)]">No applications match</p>
+                  <p className="mt-1 max-w-xs text-[13px] text-[var(--psd-body)]">
                     {trackingItems.length === 0
                       ? "Applications you submit will appear here."
                       : "Try a different search term or clear the active filters."}
@@ -1400,7 +1496,7 @@ export function ProjectStaffDashboard() {
                   {trackingItems.length > 0 && (
                     <button
                       onClick={clearFilters}
-                      className="mt-5 rounded-full bg-zinc-900 px-4 py-2 text-xs font-medium text-zinc-50 transition-all hover:bg-zinc-700 active:scale-[0.98] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                      className="psd-focus mt-3 rounded-lg bg-[var(--psd-primary)] px-3.5 py-1.5 text-xs font-semibold text-white transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98]"
                     >
                       Clear filters
                     </button>
@@ -1409,13 +1505,13 @@ export function ProjectStaffDashboard() {
               ) : (
                 <>
                   <Table>
-                    <TableHeader className="bg-zinc-50/70 dark:bg-zinc-900">
-                      <TableRow className="border-zinc-100 hover:bg-transparent dark:border-zinc-800 dark:hover:bg-transparent">
-                        <TableHead className="h-11 px-5 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">Application</TableHead>
-                        <TableHead className="h-11 px-5 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">Status</TableHead>
-                        <TableHead className="hidden h-11 px-5 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 md:table-cell">Created</TableHead>
-                        <TableHead className="hidden h-11 px-5 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 sm:table-cell">Modified</TableHead>
-                        <TableHead className="h-11 w-12 px-5" />
+                    <TableHeader className="bg-[var(--psd-bg)]">
+                      <TableRow className="border-[var(--psd-border)] hover:bg-transparent">
+                        <TableHead className="h-9 px-4 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--psd-body)]">Application</TableHead>
+                        <TableHead className="h-9 px-4 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--psd-body)]">Status</TableHead>
+                        <TableHead className="hidden h-9 px-4 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--psd-body)] md:table-cell">Created</TableHead>
+                        <TableHead className="hidden h-9 px-4 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--psd-body)] sm:table-cell">Modified</TableHead>
+                        <TableHead className="h-9 w-10 px-4" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1432,31 +1528,31 @@ export function ProjectStaffDashboard() {
                             style={{ animationDelay: `${i * 30}ms` }}
                             className={cn(
                               REVEAL,
-                              "group cursor-pointer border-zinc-100 transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none dark:border-zinc-800 dark:hover:bg-zinc-800/50 dark:focus-visible:bg-zinc-800/50"
+                              "group cursor-pointer border-[var(--psd-border)] transition-colors hover:bg-[var(--psd-primary-light)]/50 focus-visible:bg-[var(--psd-primary-light)]/50 focus-visible:outline-none"
                             )}
                           >
-                            <TableCell className="px-5 py-4">
-                              <div className="flex items-center gap-3.5">
-                                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-600 transition-colors group-hover:bg-emerald-50 group-hover:text-emerald-700 dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-emerald-500/10 dark:group-hover:text-emerald-300">
+                            <TableCell className="px-4 py-2.5">
+                              <div className="flex items-center gap-3">
+                                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)] transition-transform duration-200 group-hover:scale-105">
                                   <Icon className="size-4" strokeWidth={1.75} />
                                 </span>
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.doctype}</p>
-                                  <p className="mt-0.5 truncate font-mono text-xs text-zinc-500 dark:text-zinc-400">{item.id}</p>
+                                  <p className="truncate text-[13px] font-semibold text-[var(--psd-heading)]">{item.doctype}</p>
+                                  <p className="truncate font-mono text-[11px] text-[var(--psd-muted)]">{item.id}</p>
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className="px-5 py-4">
+                            <TableCell className="px-4 py-2.5">
                               <StatusPill status={item.workflow_state} />
                             </TableCell>
-                            <TableCell className="hidden px-5 py-4 font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400 md:table-cell">
+                            <TableCell className="hidden px-4 py-2.5 text-xs tabular-nums text-[var(--psd-body)] md:table-cell">
                               {new Date(item.creation).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                             </TableCell>
-                            <TableCell className="hidden px-5 py-4 text-xs text-zinc-500 dark:text-zinc-400 sm:table-cell">
+                            <TableCell className="hidden px-4 py-2.5 text-xs text-[var(--psd-body)] sm:table-cell">
                               {formatRelativeTime(item.modified)}
                             </TableCell>
-                            <TableCell className="px-5 py-4 text-right">
-                              <ChevronRight className="ml-auto size-4 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-600 dark:text-zinc-600 dark:group-hover:text-zinc-300" />
+                            <TableCell className="px-4 py-2.5 text-right">
+                              <ChevronRight className="ml-auto size-4 text-[var(--psd-muted)] transition-all group-hover:translate-x-0.5 group-hover:text-[var(--psd-primary)]" />
                             </TableCell>
                           </TableRow>
                         );
@@ -1466,8 +1562,8 @@ export function ProjectStaffDashboard() {
 
                   {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50/50 px-5 py-3.5 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                    <div className="flex flex-col gap-3 border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs font-medium tabular-nums text-[var(--psd-body)]">
                         {String((currentPage - 1) * itemsPerPage + 1).padStart(2, "0")}
                         &ndash;
                         {String(Math.min(currentPage * itemsPerPage, filteredItems.length)).padStart(2, "0")}
@@ -1475,14 +1571,14 @@ export function ProjectStaffDashboard() {
                         {filteredItems.length}
                       </p>
                       <div className="flex items-center gap-2">
-                        <span className="mr-1 font-mono text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
+                        <span className="mr-1 text-xs font-medium tabular-nums text-[var(--psd-body)]">
                           {currentPage} / {totalPages}
                         </span>
                         <button
                           disabled={currentPage === 1}
                           onClick={() => setCurrentPage((prev) => prev - 1)}
                           aria-label="Previous page"
-                          className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-all hover:border-zinc-300 hover:text-zinc-900 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                          className="psd-focus inline-flex items-center gap-1 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--psd-body)] transition-all hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
                         >
                           <ChevronLeft className="size-3.5" />
                           Previous
@@ -1491,7 +1587,7 @@ export function ProjectStaffDashboard() {
                           disabled={currentPage === totalPages}
                           onClick={() => setCurrentPage((prev) => prev + 1)}
                           aria-label="Next page"
-                          className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-all hover:border-zinc-300 hover:text-zinc-900 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                          className="psd-focus inline-flex items-center gap-1 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--psd-body)] transition-all hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
                         >
                           Next
                           <ChevronRight className="size-3.5" />
@@ -1730,22 +1826,22 @@ export function ProjectStaffDashboard() {
 
         {/* Module Breakdown */}
         {moduleBreakdown.length > 0 && (
-          <section className={cn(SURFACE, "mb-8 p-6")}>
-            <div className="mb-5">
-              <h3 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Pending by module</h3>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Where your open tasks are concentrated</p>
+          <section className={cn(SURFACE, "mb-4 p-4")}>
+            <div className="mb-3">
+              <h3 className="text-[15px] font-semibold tracking-tight text-[var(--psd-heading)]">Pending by module</h3>
+              <p className="mt-0.5 text-xs text-[var(--psd-body)]">Where your open tasks are concentrated</p>
             </div>
-            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <div className="divide-y divide-[var(--psd-border)]">
               {moduleBreakdown.map(({ doctype, count }) => (
-                <div key={doctype} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2rem] items-center gap-4 py-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_2rem]">
-                  <span className="truncate text-sm text-zinc-700 dark:text-zinc-300">{doctype}</span>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                <div key={doctype} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2rem] items-center gap-4 py-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_2rem]">
+                  <span className="truncate text-[13px] text-[var(--psd-body)]">{doctype}</span>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--psd-primary-light)]">
                     <div
-                      className="h-full origin-left rounded-full bg-emerald-600 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                      className="h-full origin-left rounded-full bg-[var(--psd-primary)] transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
                       style={{ transform: `scaleX(${count / maxModuleCount})` }}
                     />
                   </div>
-                  <span className="text-right font-mono text-sm tabular-nums text-zinc-900 dark:text-zinc-100">{count}</span>
+                  <span className="text-right text-[13px] font-semibold tabular-nums text-[var(--psd-heading)]">{count}</span>
                 </div>
               ))}
             </div>
@@ -1753,11 +1849,11 @@ export function ProjectStaffDashboard() {
         )}
 
         {/* Footer */}
-        <footer className="mt-10 flex items-center gap-2 border-t border-zinc-200/70 pt-6 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        <footer className="mt-4 flex items-center gap-2 border-t border-[var(--psd-border)] pt-3 text-xs text-[var(--psd-body)]">
           <Mail className="size-3.5" strokeWidth={1.75} />
           <p>
             Questions? Write to{" "}
-            <a href="mailto:ernd@iitg.ac.in" className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-4 transition-colors hover:decoration-emerald-600 dark:text-zinc-100 dark:decoration-zinc-600">
+            <a href="mailto:ernd@iitg.ac.in" className="font-medium text-[var(--psd-primary)] underline decoration-[var(--psd-primary)]/30 underline-offset-4 transition-colors hover:decoration-[var(--psd-primary)]">
               ernd@iitg.ac.in
             </a>
           </p>

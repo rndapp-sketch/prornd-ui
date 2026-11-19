@@ -15,7 +15,6 @@ import {
   CalendarIcon,
   UserIcon,
   DownloadIcon,
-  FileSpreadsheetIcon as LedgerIcon,
   ChevronDown,
   ChevronRight,
   CheckCircle2 as CheckCircleIcon,
@@ -667,6 +666,24 @@ const ReimbursementDetails: React.FC = () => {
 
   const { budgetData, heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
 
+  // Account head chosen when the PI approved: pre-select it in the commitment form.
+  // It is stored as the Budget Head id/name; map it to the label the dropdown lists.
+  const [fetchedHeadLabel, setFetchedHeadLabel] = useState("");
+  const rawAccountHead = String(data?.account_head ?? "").trim();
+  const listHit = budgetHeadList.find((h) => String(h.id) === rawAccountHead || h.name === rawAccountHead);
+  useEffect(() => {
+    setFetchedHeadLabel("");
+    // Not in the master list (e.g. stored under another key): resolve the Budget Head document itself.
+    if (!rawAccountHead || listHit || budgetHeadList.length === 0) return;
+    let cancelled = false;
+    fetch(`${FRAPPE_BASE_URL}/api/v2/document/Budget%20Head/${encodeURIComponent(rawAccountHead)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((res) => { if (!cancelled && res?.data) setFetchedHeadLabel(res.data.budget_head || res.data.name || ""); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [rawAccountHead, listHit, budgetHeadList.length]);
+  const accountHeadLabel = listHit?.name || fetchedHeadLabel || rawAccountHead;
+
   const linkedCommitment = budgetData.find(
     (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
   );
@@ -688,8 +705,10 @@ const ReimbursementDetails: React.FC = () => {
   );
 
   useEffect(() => {
-    if (budgetHeads.length > 0 && !commitHead) setCommitHead(budgetHeads[0]);
-  }, [budgetHeads]);
+    if (budgetHeads.length === 0) return;
+    const preferred = budgetHeads.find((h) => h.trim().toLowerCase() === accountHeadLabel.toLowerCase());
+    if (!commitHead || (preferred && !linkedCommitment)) setCommitHead(preferred || budgetHeads[0]);
+  }, [budgetHeads, accountHeadLabel]);
 
   useEffect(() => {
     if (linkedCommitment) {
@@ -1551,6 +1570,7 @@ const ReimbursementDetails: React.FC = () => {
                   docName={id || ""}
                   projectName={projectTitle}
                   budgetHeads={budgetHeads}
+                  defaultBudgetHead={accountHeadLabel}
                   actualBalance={actualBalance}
                   commitableBalance={commitableBalance}
                   onViewLedger={() => setIsLedgerOpen(true)}
@@ -1558,7 +1578,7 @@ const ReimbursementDetails: React.FC = () => {
                   onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                 />
 
-                {!cancellationFrozen && (
+                {!cancellationFrozen && isCommitted && (
                 <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
                   <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
                     Record Payment
@@ -1599,17 +1619,7 @@ const ReimbursementDetails: React.FC = () => {
                         {isPaying ? "Processing..." : "Submit Payment"}
                       </FrappeButton>
                     </div>
-                  ) : (
-                    <div className="text-center py-6 px-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46]">
-                      <div className="mx-auto w-10 h-10 bg-[#F4F4F5] dark:bg-[#3F3F46] rounded-full flex items-center justify-center mb-3 text-[#71717A] dark:text-[#A1A1AA]">
-                        <LedgerIcon className="w-5 h-5" />
-                      </div>
-                      <p className="text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">Commitment Required</p>
-                      <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
-                        Please make a commitment above before recording payment.
-                      </p>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
                 )}
               </>
