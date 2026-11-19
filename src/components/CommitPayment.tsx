@@ -73,6 +73,13 @@ export interface CommitPaymentProps {
     bmr?: string;
     /** Optional: parent application ID whose committed TID is fetched as refDetails (e.g. Travel → TA DA Settlement) */
     parentAppId?: string;
+    /**
+     * Optional: this commitment settles the advance committed by `parentAppId` (Advance Settlement).
+     * The confirm dialog then shows the head's commitable balance, the advance's committed amount
+     * (read from the ledger) and Remaining = commitable + advance − settlement, since the settlement
+     * replaces the advance commitment.
+     */
+    advanceSettlement?: boolean;
     /** Optional: budget head to auto-select when it exists in budgetHeads */
     defaultBudgetHead?: string;
     /** Optional: map of budget head label -> ledger Budget Head id, used to query the ledger API (accountHeadId expects the id, not the label) */
@@ -246,6 +253,8 @@ interface ConfirmCommitDialogProps {
     onConfirm: () => void;
     onCancel: () => void;
     isSubmitting: boolean;
+    /** Advance Settlement mode: the advance's committed amount ("loading" while the ledger is read) */
+    advanceSettlement?: { committed: number | "loading" };
 }
 
 const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
@@ -255,10 +264,37 @@ const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
     onConfirm,
     onCancel,
     isSubmitting,
+    advanceSettlement,
 }) => {
-    const remainingBalance = availableBalance - commitAmount;
+    const advanceLoading = advanceSettlement?.committed === "loading";
+    const advanceCommitted =
+        advanceSettlement && typeof advanceSettlement.committed === "number" ? advanceSettlement.committed : 0;
+    // A settlement replaces the advance commitment: the advance is released and the settlement
+    // amount is committed in its place, so only the difference moves the head's balance.
+    const remainingBalance = advanceSettlement
+        ? availableBalance + advanceCommitted - commitAmount
+        : availableBalance - commitAmount;
+    const showExceedsWarning = remainingBalance < 0 && !advanceLoading;
 
     const fmt = (n: number) => n.toLocaleString("en-IN");
+
+    const summaryRows: { label: string; value: string; highlight?: string }[] = advanceSettlement
+        ? [
+            { label: "Budget Head", value: budgetHeadName },
+            { label: "Available Commitable Balance", value: `₹${fmt(availableBalance)}` },
+            { label: "Advance Committed Amount", value: advanceLoading ? "Loading…" : `₹${fmt(advanceCommitted)}` },
+            { label: "Commitment Amount in Settlement", value: `₹${fmt(commitAmount)}`, highlight: "text-[#D97757]" },
+        ]
+        : [
+            { label: "Budget Head", value: budgetHeadName },
+            { label: "Available Balance", value: `₹${fmt(availableBalance)}` },
+            { label: "Commitment Amount", value: `₹${fmt(commitAmount)}`, highlight: "text-[#D97757]" },
+        ];
+    summaryRows.push({
+        label: "Remaining Balance After Commitment",
+        value: advanceLoading ? "Loading…" : `₹${fmt(remainingBalance)}`,
+        highlight: remainingBalance < 0 && !advanceLoading ? "text-red-600 dark:text-red-400 font-bold" : "text-emerald-600 dark:text-emerald-400",
+    });
 
     return createPortal(
         <div
@@ -297,16 +333,7 @@ const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
 
                     {/* Summary rows */}
                     <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden text-sm">
-                        {[
-                            { label: "Budget Head", value: budgetHeadName },
-                            { label: "Available Balance", value: `₹${fmt(availableBalance)}` },
-                            { label: "Commitment Amount", value: `₹${fmt(commitAmount)}`, highlight: "text-[#D97757]" },
-                            {
-                                label: "Remaining Balance After Commitment",
-                                value: `₹${fmt(remainingBalance)}`,
-                                highlight: remainingBalance < 0 ? "text-red-600 dark:text-red-400 font-bold" : "text-emerald-600 dark:text-emerald-400",
-                            },
-                        ].map(({ label, value, highlight }, i, arr) => (
+                        {summaryRows.map(({ label, value, highlight }, i, arr) => (
                             <div
                                 key={label}
                                 className={cn(
@@ -321,10 +348,12 @@ const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
                         ))}
                     </div>
 
-                    {remainingBalance < 0 && (
+                    {showExceedsWarning && (
                         <div className="flex items-center gap-2 p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
                             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                            Warning: Commitment amount exceeds available balance.
+                            {advanceSettlement
+                                ? "Warning: Settlement amount exceeds the available commitable balance plus the advance committed amount."
+                                : "Warning: Commitment amount exceeds available balance."}
                         </div>
                     )}
                 </div>
@@ -791,6 +820,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     billAmount,
     bmr = "",
     parentAppId,
+    advanceSettlement = false,
     defaultBudgetHead,
     budgetHeadIds,
     lockBudgetHead = false,
@@ -1013,6 +1043,41 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         : commitHead && displayHeadBalances?.[commitHead] != null
             ? Math.max(0, displayHeadBalances[commitHead].commitable)
             : (commitableBalance ?? actualBalance);
+
+    // Advance Settlement: the amount the parent advance committed on the selected head, read from
+    // the ledger when the confirm dialog opens. Not found on this head → 0 (nothing is released here).
+    const [advanceCommitted, setAdvanceCommitted] = useState<number | "loading">("loading");
+    useEffect(() => {
+        if (!advanceSettlement || !showConfirmDialog) return;
+        if (!parentAppId || !projectName || !commitHead) { setAdvanceCommitted(0); return; }
+        let cancelled = false;
+        setAdvanceCommitted("loading");
+        (async () => {
+            type Row = { frapAppId?: string | null; transactionType?: string | null; commitAmount?: number | null };
+            let rows: Row[] = [];
+            try {
+                if (isOverheadProjectNo(projectName)) {
+                    rows = await fetchOverheadLedger(projectName);
+                } else {
+                    const headId = resolveLedgerHeadId(budgetHeadIds, commitHead) ?? (await fetchLedgerHeadId(commitHead));
+                    if (headId) {
+                        const res = await fetch(
+                            `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(headId)}`,
+                        );
+                        const data = res.ok ? await res.json() : [];
+                        rows = Array.isArray(data) ? data : [];
+                    }
+                }
+            } catch {
+                rows = [];
+            }
+            const parentRows = rows.filter((r) => r.frapAppId === parentAppId && (Number(r.commitAmount) || 0) > 0);
+            const commitRow =
+                parentRows.find((r) => r.transactionType === "COMMIT" || r.transactionType === "Commitment") ?? parentRows[0];
+            if (!cancelled) setAdvanceCommitted(Number(commitRow?.commitAmount) || 0);
+        })();
+        return () => { cancelled = true; };
+    }, [advanceSettlement, showConfirmDialog, parentAppId, projectName, commitHead, budgetHeadIds]);
 
     // Per-head figures: use what the page supplied, otherwise load the project's own ledger so
     // every commit form shows the same balance breakup without each page wiring it up.
@@ -1518,6 +1583,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     onConfirm={handleCommit}
                     onCancel={() => setShowConfirmDialog(false)}
                     isSubmitting={isSubmitting}
+                    advanceSettlement={advanceSettlement ? { committed: advanceCommitted } : undefined}
                 />
             )}
         </div>
