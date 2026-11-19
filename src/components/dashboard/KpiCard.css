@@ -1,0 +1,127 @@
+/* Scoped to .kpi-card — nothing here leaks to other modules.
+   Tokens: --kpi-primary, --kpi-light, --kpi-accent, --kpi-surface, --kpi-border, --kpi-shadow */
+.kpi-card {
+  --kpi-surface: #ffffff;
+  --kpi-border: #e5e7ef;
+  --kpi-shadow: 0 1px 2px rgba(21, 27, 50, 0.04), 0 4px 14px -6px rgba(21, 27, 50, 0.08);
+  --kpi-shadow-hover: 0 2px 4px rgba(21, 27, 50, 0.05), 0 12px 26px -10px rgba(21, 27, 50, 0.16);
+  --kpi-heading: #151b32;
+  --kpi-body: #59647a;
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 5px 10px;
+  border: 1px solid var(--kpi-border);
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--kpi-surface) 0%, var(--kpi-accent) 100%);
+  box-shadow: var(--kpi-shadow);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.dark .kpi-card {
+  --kpi-surface: #27272a;
+  --kpi-border: #3f3f46;
+  --kpi-light: color-mix(in srgb, var(--kpi-primary) 18%, #27272a);
+  --kpi-accent: color-mix(in srgb, var(--kpi-primary) 9%, #27272a);
+  --kpi-heading: #f4f4f5;
+  --kpi-body: #a1a1aa;
+  --kpi-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --kpi-shadow-hover: 0 10px 24px -10px rgba(0, 0, 0, 0.6);
+}
+
+/* Decorative abstract shape, kept behind the content */
+.kpi-card::before,
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.kpi-card::before {
+  right: -18px;
+  bottom: -30px;
+  width: 64px;
+  height: 64px;
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--kpi-primary) 16%, transparent), transparent 70%);
+}
+.kpi-card::after {
+  right: 34px;
+  bottom: -24px;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid color-mix(in srgb, var(--kpi-primary) 14%, transparent);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--kpi-shadow-hover);
+  border-color: color-mix(in srgb, var(--kpi-primary) 35%, var(--kpi-border));
+}
+
+.kpi-card[data-clickable="true"] {
+  cursor: pointer;
+}
+.kpi-card:focus-visible {
+  outline: 2px solid var(--kpi-primary);
+  outline-offset: 2px;
+}
+
+.kpi-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--kpi-light);
+  color: var(--kpi-primary);
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+.kpi-card:hover .kpi-icon {
+  background: color-mix(in srgb, var(--kpi-primary) 20%, var(--kpi-light));
+  transform: scale(1.05);
+}
+
+.kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--kpi-heading);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-title {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--kpi-heading);
+}
+.kpi-desc {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--kpi-body);
+}
+.kpi-trend {
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--kpi-light);
+  color: var(--kpi-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card,
+  .kpi-icon {
+    transition: none;
+  }
+  .kpi-card:hover {
+    transform: none;
+  }
+}

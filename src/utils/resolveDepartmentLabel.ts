@@ -9,11 +9,39 @@ import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
  * but as a plain async function so it can run outside React (e.g. inside
  * print-PDF generators, which build a plain HTML string).
  */
-export async function resolveDepartmentLabel(
-    value?: string | number | null,
-): Promise<string> {
-    if (value === null || value === undefined || value === "") return "-";
+// Department names effectively never change, so each one is looked up at most once per
+// page load: resolved labels are kept here, and concurrent callers share one in-flight request.
+const resolved = new Map<string, string>();
+const inflight = new Map<string, Promise<string>>();
+// Unresolved values (unknown department / transient error) are not re-requested for a minute.
+const unresolvedUntil = new Map<string, number>();
+const RETRY_AFTER_MS = 60_000;
+
+/** Already-resolved label for this reference, or undefined if it hasn't been looked up yet. */
+export function peekDepartmentLabel(value?: string | number | null): string | undefined {
+    return value === null || value === undefined || value === "" ? undefined : resolved.get(String(value));
+}
+
+export function resolveDepartmentLabel(value?: string | number | null): Promise<string> {
+    if (value === null || value === undefined || value === "") return Promise.resolve("-");
     const key = String(value);
+    const hit = resolved.get(key);
+    if (hit !== undefined) return Promise.resolve(hit);
+    if ((unresolvedUntil.get(key) ?? 0) > Date.now()) return Promise.resolve(key);
+    const pending = inflight.get(key);
+    if (pending) return pending;
+
+    const p = lookupDepartmentLabel(key).then((label) => {
+        // Only remember real answers; an unresolved value (network error / unknown) may succeed later.
+        if (label !== key) resolved.set(key, label);
+        else unresolvedUntil.set(key, Date.now() + RETRY_AFTER_MS);
+        return label;
+    }).finally(() => inflight.delete(key));
+    inflight.set(key, p);
+    return p;
+}
+
+async function lookupDepartmentLabel(key: string): Promise<string> {
 
     const byDocName = async (): Promise<string | null> => {
         try {

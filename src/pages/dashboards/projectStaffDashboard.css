@@ -1,0 +1,76 @@
+/* Design tokens for the Project Staff Dashboard. Scoped to .psd-root, so nothing
+   here affects other modules (the sidebar and global header sit outside this element). */
+.psd-root {
+  --psd-primary: #6842d9;
+  --psd-primary-hover: #5632c5;
+  --psd-primary-light: #f0ebff;
+  --psd-secondary: #64748b;
+  --psd-bg: #f8f9fc;
+  --psd-surface: #ffffff;
+  --psd-border: #e5e7ef;
+  --psd-heading: #151b32;
+  --psd-body: #59647a;
+  --psd-muted: #9299a9;
+
+  --psd-approved: #0da875;
+  --psd-approved-bg: #e5f8f0;
+  --psd-review: #f59e0b;
+  --psd-review-bg: #fff5df;
+  --psd-returned: #f04455;
+  --psd-returned-bg: #fff0f1;
+  --psd-info: #4775e8;
+  --psd-info-bg: #eef3ff;
+
+  --psd-accent: #f47721; /* institutional orange — progress only */
+  --psd-card-shadow: 0 1px 2px rgba(21, 27, 50, 0.04), 0 6px 18px -10px rgba(21, 27, 50, 0.1);
+
+  background: linear-gradient(135deg, #fcfbff 0%, #f8f9fc 55%, #fff8f5 100%);
+  color: var(--psd-body);
+}
+
+.dark .psd-root {
+  --psd-primary: #8b6cf0;
+  --psd-primary-hover: #a08af5;
+  --psd-primary-light: rgba(139, 108, 240, 0.16);
+  --psd-bg: #18181b;
+  --psd-surface: #27272a;
+  --psd-border: #3f3f46;
+  --psd-heading: #f4f4f5;
+  --psd-body: #a1a1aa;
+  --psd-muted: #71717a;
+  --psd-approved-bg: rgba(13, 168, 117, 0.15);
+  --psd-review-bg: rgba(245, 158, 11, 0.15);
+  --psd-returned-bg: rgba(240, 68, 85, 0.15);
+  --psd-info-bg: rgba(71, 117, 232, 0.16);
+  --psd-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  background: #18181b;
+}
+
+/* Warm decorative wash, top-right of the dashboard */
+.psd-hero::before {
+  content: "";
+  position: absolute;
+  inset: -40px -40px auto auto;
+  width: 360px;
+  height: 220px;
+  background: radial-gradient(closest-side, rgba(244, 119, 33, 0.11), transparent 75%),
+    radial-gradient(closest-side at 70% 60%, rgba(104, 66, 217, 0.1), transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+}
+.dark .psd-hero::before {
+  opacity: 0.5;
+}
+
+.psd-card {
+  background: var(--psd-surface);
+  border: 1px solid var(--psd-border);
+  border-radius: 16px;
+  box-shadow: var(--psd-card-shadow);
+}
+
+.psd-focus:focus-visible {
+  outline: 2px solid var(--psd-primary);
+  outline-offset: 2px;
+}
