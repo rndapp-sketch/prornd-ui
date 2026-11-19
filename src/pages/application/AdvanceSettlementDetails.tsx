@@ -361,7 +361,7 @@ const AdvanceSettlementDetails: React.FC = () => {
 
   // Load Project Budget Data
   const budgetProjectCode = data?.project_code || "";
-  const { budgetData, heads: budgetHeads } = useProjectBudget(budgetProjectCode);
+  const { budgetData, heads: budgetHeads, headBalances } = useProjectBudget(budgetProjectCode);
 
   // Print-only: resolve a human-readable project title, applicant name, department, and
   // designation from the linked Project Registration/Proposal — Advance Settlement's own
@@ -813,6 +813,8 @@ const AdvanceSettlementDetails: React.FC = () => {
                     budgetHeads={budgetHeads}
                     budgetHeadIds={budgetHeadIdMap}
                     parentAppId={data.temporary_advance_application}
+                    advanceSettlement
+                    displayHeadBalances={headBalances}
                     onCommitSuccess={() => window.location.reload()}
                     onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                 />
