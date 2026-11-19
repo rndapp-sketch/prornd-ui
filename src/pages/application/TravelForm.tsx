@@ -9,6 +9,7 @@ import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
+import { useIsPfmsProject, PFMS_NO_ADVANCE_MESSAGE } from '@/hooks/useIsPfmsProject';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -219,6 +220,7 @@ const TravelForm: React.FC = () => {
     // `overheadFund`, which fixes and locks every Budget Head selector on the form.
     // Ordinary projects are untouched: the flag is false for them.
     const isOverheadProject = useIsOverheadProject(formData.travel_project_number || formData.travel_project_title);
+    const isPfmsProject = useIsPfmsProject(formData.travel_project_number || formData.travel_project_title);
 
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -895,6 +897,11 @@ const TravelForm: React.FC = () => {
                 f.read_only = 1;
             }
 
+            if (f.fieldname === 'travel_financial_assistance' && isPfmsProject) {
+                f.read_only = 1;
+                f.description = PFMS_NO_ADVANCE_MESSAGE;
+            }
+
             return f;
         });
 
@@ -916,7 +923,14 @@ const TravelForm: React.FC = () => {
         }
 
         return processedFields;
-    }, [fields, formData]);
+    }, [fields, formData, isPfmsProject]);
+
+    // A PFMS project cannot fund an advance: clear a "Yes" as soon as one is selected.
+    useEffect(() => {
+        if (isPfmsProject && formData.travel_financial_assistance === 'Yes') {
+            setFormData(prev => ({ ...prev, travel_financial_assistance: 'No' }));
+        }
+    }, [isPfmsProject, formData.travel_financial_assistance]);
 
     // --- RENDER LOGIC ---
     // New applications must accept the Important Notice before the form is shown.

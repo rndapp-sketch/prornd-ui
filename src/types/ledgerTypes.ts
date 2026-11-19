@@ -15,6 +15,14 @@ export interface CommitRecord {
     source?: 'project' | 'overhead';
 }
 
+/** What a settlement commit actually nets to once the advance paid against its parent is offset. */
+export interface SettlementNet {
+    bill: number;
+    paidAcrossChain: number;
+    /** bill − paidAcrossChain; negative means the excess advance is recovered from the applicant. */
+    net: number;
+}
+
 export interface LedgerPaymentRecord {
     // Helper interface for payments returned by the ledger API, if different from the Frappe one.
     // Based on "Get payments by account head ID", assuming it returns similar structure or we might need to adjust.
