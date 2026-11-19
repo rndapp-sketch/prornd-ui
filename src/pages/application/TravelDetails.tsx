@@ -13,6 +13,7 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { usePfmsProjectNames } from '@/hooks/useIsPfmsProject';
 import { useUserRoles } from '@/components/UserRole';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 import { CommitPayment } from '@/components/CommitPayment';
@@ -460,6 +461,10 @@ const TravelDetails: React.FC = () => {
 
     // Advance / Settle logic
     const needsAdvance = formData.travel_financial_assistance === "Yes";
+    // PFMS projects may not fund an advance, so the Other PI cannot charge one to them.
+    const pfmsOtherPiProjects = usePfmsProjectNames(
+        isOtherPiStep ? otherPiProjects.map((p) => p.value) : [],
+    );
     const isApproved = formData.workflow_state === "Approved";
     // Only the applicant who initiated this Travel application should see "Settle Travel" —
     // not the approvers (HoS/Dean/Ado_RnD/etc.) reviewing/approving it.
@@ -820,10 +825,20 @@ const TravelDetails: React.FC = () => {
                                     className="w-full min-w-0 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
                                 >
                                     <option value="">Select project…</option>
-                                    {otherPiProjects.map((p) => (
-                                        <option key={p.value} value={p.value}>{p.label}</option>
-                                    ))}
+                                    {otherPiProjects.map((p) => {
+                                        const blocked = needsAdvance && pfmsOtherPiProjects.has(p.value);
+                                        return (
+                                            <option key={p.value} value={p.value} disabled={blocked}>
+                                                {blocked ? `${p.label} (PFMS – advance not allowed)` : p.label}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
+                                {needsAdvance && pfmsOtherPiProjects.size > 0 && (
+                                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        This travel requests an advance, so PFMS projects cannot be selected.
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1">

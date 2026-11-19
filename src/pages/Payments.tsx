@@ -9,7 +9,7 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 
 import { ledgerService } from '@/services/ledgerService';
 import { overheadFundAPI } from '@/services/apiService';
-import type { CommitRecord } from '@/types/ledgerTypes';
+import type { CommitRecord, SettlementNet } from '@/types/ledgerTypes';
 import { PaymentForm } from '@/components/PaymentForm';
 import { useUserRoles } from '@/components/UserRole';
 import { useFrappeAuth, useFrappePostCall } from 'frappe-react-sdk';
@@ -41,6 +41,9 @@ interface PaymentRecord {
 }
 
 type FundSource = 'project' | 'overhead';
+
+const formatNet = (n: number) =>
+    `${n < 0 ? '−' : ''}₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 // Commit numbers are only unique within one source (project ledger vs overhead tables),
 // so every commit <-> payment lookup is keyed on source + number.
@@ -671,6 +674,40 @@ const Payments: React.FC = () => {
         return latest;
     };
 
+    // A TA/DA (13) or advance (8) settlement against a parent commit is paid by Accounts as
+    // billAmount − every PAID payment across the parent + settlement chain, whatever amount
+    // is sent (AccountHeadPaymentServiceImpl). The row's commitAmount is the chain total, so
+    // when the advance was already paid it overstates what is owed: a 4,000 bill on a paid
+    // 4,500 advance nets to −500, recovered from the applicant. The payment still sends the
+    // bill; this is only what staff are shown. Null when nothing was paid across the chain,
+    // since the commit amount is then already right.
+    const settlementNetFor = React.useMemo(() => {
+        const paidByCommit = new Map<string, number>();
+        payments.forEach(p => {
+            if (String(p.payment_status || '').toUpperCase() !== 'PAID') return;
+            const key = commitKey(p.source, p.transaction_commit_number);
+            if (key != null) paidByCommit.set(key, (paidByCommit.get(key) || 0) + (Number(p.payment_amount) || 0));
+        });
+        return (commit: CommitRecord | null | undefined): SettlementNet | null => {
+            if (!commit || !['8', '13'].includes(String(commit.moduleId ?? ''))) return null;
+            const root = Number(String(commit.refDetails ?? '').trim());
+            if (!Number.isInteger(root) || root <= 0) return null;
+            const chain = new Set<number>([root]);
+            pendingCommits.forEach(c => {
+                if ((c.source ?? 'project') === (commit.source ?? 'project') && Number(c.refDetails) === root && c.transactionCommitNumber != null) {
+                    chain.add(c.transactionCommitNumber);
+                }
+            });
+            if (commit.transactionCommitNumber != null) chain.add(commit.transactionCommitNumber);
+            let paidAcrossChain = 0;
+            chain.forEach(n => { paidAcrossChain += paidByCommit.get(commitKey(commit.source, n) as string) || 0; });
+            if (paidAcrossChain <= 0) return null;
+            const bill = Number(commit.billAmount ?? commit.commitAmount) || 0;
+            return { bill, paidAcrossChain, net: bill - paidAcrossChain };
+        };
+    }, [payments, pendingCommits]);
+    const selectedSettlementNet = settlementNetFor(selectedCommit);
+
     // Earlier payments against the commit being paid, oldest first.
     const previousPayments = React.useMemo(() => {
         const key = commitKey(selectedCommit?.source, selectedCommit?.transactionCommitNumber);
@@ -919,7 +956,25 @@ const Payments: React.FC = () => {
                                                     <td className="px-3 py-2 text-sm">{commit.commitParticular}</td>
                                                     <td className="px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400">{commit.refDetails}</td>
                                                     <td className="px-3 py-2 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                                                        ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        {(() => {
+                                                            const settlement = settlementNetFor(commit);
+                                                            if (!settlement) {
+                                                                return <>₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</>;
+                                                            }
+                                                            return (
+                                                                <div title="Settlement: bill amount less the advance already paid against the travel/advance commit">
+                                                                    <div className={settlement.net < 0 ? 'text-red-600 dark:text-red-400' : ''}>
+                                                                        {formatNet(settlement.net)}
+                                                                    </div>
+                                                                    <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                                                        Bill {formatNet(settlement.bill)} − advance paid {formatNet(settlement.paidAcrossChain)}
+                                                                    </div>
+                                                                    {settlement.net < 0 && (
+                                                                        <div className="text-[10px] font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">Recover from applicant</div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="flex gap-2 items-center">
@@ -1474,7 +1529,12 @@ const Payments: React.FC = () => {
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                                 You're about to pay{' '}
                                 <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                                    ₹{payConfirm.commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    {(() => {
+                                        const settlement = settlementNetFor(payConfirm.commit);
+                                        return settlement
+                                            ? `${formatNet(settlement.net)} (bill ${formatNet(settlement.bill)} − advance paid ${formatNet(settlement.paidAcrossChain)})`
+                                            : `₹${payConfirm.commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                                    })()}
                                 </span>{' '}
                                 for <span className="font-mono">{payConfirm.commit.frapAppId || payConfirm.commit.projectNumber}</span>.
                                 A comment is required before proceeding.
@@ -1570,6 +1630,7 @@ const Payments: React.FC = () => {
                                 commitData={selectedCommit || undefined}
                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
                                 previousPaid={previousPaidTotal}
+                                settlementNet={selectedSettlementNet}
                                 onSuccess={() => {
                                     const paidKey = commitKey(selectedCommit?.source, selectedCommit?.transactionCommitNumber);
                                     if (paidKey != null) {
