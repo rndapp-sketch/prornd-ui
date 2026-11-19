@@ -19,6 +19,7 @@ import {
 import { fetchOverheadLedger, isOverheadProjectNo } from "@/services/overheadLedger";
 import type { LedgerRow } from "@/utils/decommitCalc";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 
@@ -66,12 +67,12 @@ interface WorkflowActionsResponse {
 type Accent = "blue" | "red" | "emerald" | "violet" | "teal" | "amber";
 
 const ACCENTS: Record<Accent, { head: string; icon: string; title: string }> = {
-  blue:    { head: "bg-gradient-to-r from-[#4A6CF7]/10 to-transparent", icon: "bg-[#4A6CF7]/15 text-[#4A6CF7]", title: "text-[#3451C7] dark:text-[#8FA5FF]" },
-  red:     {   head: "bg-gradient-to-r from-red-500/10 to-transparent",   icon: "bg-red-500/15 text-red-500",   title: "text-red-700 dark:text-red-400" },
-  emerald: { head: "bg-gradient-to-r from-emerald-500/10 to-transparent", icon: "bg-emerald-500/15 text-emerald-600", title: "text-emerald-700 dark:text-emerald-400" },
-  violet:  { head: "bg-gradient-to-r from-violet-500/10 to-transparent", icon: "bg-violet-500/15 text-violet-600", title: "text-violet-700 dark:text-violet-400" },
-  teal:    {  head: "bg-gradient-to-r from-teal-500/10 to-transparent",  icon: "bg-teal-500/15 text-teal-600", title: "text-teal-700 dark:text-teal-400" },
-  amber:   { head: "bg-gradient-to-r from-amber-500/10 to-transparent", icon: "bg-amber-500/15 text-amber-600", title: "text-amber-700 dark:text-amber-400" },
+  blue:    { head: "bg-gradient-to-r from-[var(--psd-primary-light)] to-transparent", icon: "bg-[var(--psd-primary-light)] text-[var(--psd-primary)]", title: "text-[var(--psd-primary)]" },
+  violet:  { head: "bg-gradient-to-r from-[var(--psd-primary-light)] to-transparent", icon: "bg-[var(--psd-primary-light)] text-[var(--psd-primary)]", title: "text-[var(--psd-primary)]" },
+  red:     { head: "bg-gradient-to-r from-[var(--psd-returned-bg)] to-transparent",   icon: "bg-[var(--psd-returned-bg)] text-[var(--psd-returned)]",   title: "text-[#C42B3C] dark:text-rose-300" },
+  emerald: { head: "bg-gradient-to-r from-[var(--psd-approved-bg)] to-transparent",   icon: "bg-[var(--psd-approved-bg)] text-[var(--psd-approved)]",   title: "text-[#0A7F58] dark:text-emerald-300" },
+  teal:    { head: "bg-gradient-to-r from-[var(--psd-info-bg)] to-transparent",       icon: "bg-[var(--psd-info-bg)] text-[var(--psd-info)]",           title: "text-[#2F5BC4] dark:text-blue-300" },
+  amber:   { head: "bg-gradient-to-r from-[var(--psd-review-bg)] to-transparent",     icon: "bg-[var(--psd-review-bg)] text-[#B45309]",                 title: "text-[#B45309] dark:text-amber-300" },
 };
 
 const FrappeCard = ({
@@ -93,20 +94,20 @@ const FrappeCard = ({
   return (
     <div
       className={cn(
-        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
+        "psd-card",
         className,
       )}
     >
       {title && (
-        <div className={cn("px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2.5", c.head)}>
+        <div className={cn("px-4 py-2.5 border-b border-[var(--psd-border)] flex items-center gap-2.5 rounded-t-2xl", c.head)}>
           {icon && <div className={cn("p-1.5 rounded-lg [&_svg]:text-current", c.icon)}>{icon}</div>}
-          <h3 className={cn("text-sm font-bold uppercase tracking-wider", c.title)}>
+          <h3 className={cn("text-[12px] font-bold uppercase tracking-wider", c.title)}>
             {title}
           </h3>
-          {hint && <span className="ml-auto text-[10px] text-[#A1A1AA] italic">{hint}</span>}
+          {hint && <span className="ml-auto text-[11px] text-[var(--psd-body)]">{hint}</span>}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div className="p-4">{children}</div>
     </div>
   );
 };
@@ -129,14 +130,14 @@ const FrappeButton = ({
     onClick={onClick}
     disabled={disabled}
     className={cn(
-      "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
-      "focus:outline-none focus:ring-2 focus:ring-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed",
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-[13px] transition-all duration-150 active:scale-[0.98]",
+      "psd-focus disabled:opacity-50 disabled:cursor-not-allowed",
       variant === "primary" &&
-        "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-md border border-[#C66A4E]",
+        "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm",
       variant === "ghost" &&
-        "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700",
+        "bg-transparent text-[var(--psd-heading)] hover:bg-[var(--psd-primary-light)]",
       variant === "outline" &&
-        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+        "bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
       className,
     )}
   >
@@ -236,11 +237,11 @@ const formatINR = (n?: number | null) =>
 
 const InfoRow = ({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value?: React.ReactNode; hint?: string }) => (
   <div className="flex items-start gap-3">
-    <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-lg bg-[#4A6CF7]/10 text-[#4A6CF7]">{icon}</div>
+    <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">{icon}</div>
     <div className="min-w-0">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
-      <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7] truncate">{value || "—"}</p>
-      {hint && <p className="text-[11px] leading-snug text-[#71717A] dark:text-[#A1A1AA] mt-0.5">{hint}</p>}
+      <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--psd-body)]">{label}</p>
+      <p className="text-[13px] font-semibold text-[var(--psd-heading)] truncate">{value || "—"}</p>
+      {hint && <p className="text-[11px] leading-snug text-[var(--psd-body)] mt-0.5">{hint}</p>}
     </div>
   </div>
 );
@@ -272,20 +273,20 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
             <React.Fragment key={stage}>
               <div className="flex flex-col items-center gap-1.5 min-w-[80px]">
                 <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0",
-                  status === "completed" && "bg-emerald-500",
-                  status === "in-progress" && "bg-[#4A6CF7]",
+                  "w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0",
+                  status === "completed" && "bg-[var(--psd-approved)]",
+                  status === "in-progress" && "bg-[var(--psd-primary)] ring-4 ring-[var(--psd-primary-light)]",
                   status === "pending" && "bg-zinc-300 dark:bg-zinc-600",
-                  status === "failed" && "bg-red-500",
+                  status === "failed" && "bg-[var(--psd-returned)]",
                 )}>
                   {status === "completed" ? "✓" : status === "failed" ? "✗" : idx + 1}
                 </div>
                 <span className={cn(
                   "text-[10px] font-medium text-center leading-tight",
-                  status === "in-progress" && "text-[#4A6CF7]",
-                  status === "completed" && "text-emerald-600 dark:text-emerald-400",
-                  status === "failed" && "text-red-500",
-                  status === "pending" && "text-[#A1A1AA]",
+                  status === "in-progress" && "text-[var(--psd-primary)] font-bold",
+                  status === "completed" && "text-[#0A7F58] dark:text-emerald-400",
+                  status === "failed" && "text-[var(--psd-returned)]",
+                  status === "pending" && "text-[var(--psd-body)]",
                 )}>
                   {stage}
                 </span>
@@ -294,7 +295,7 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
                 <div className={cn(
                   "h-0.5 flex-1 mx-2 min-w-[20px]",
                   getStageStatus(stages[idx + 1], currentState) !== "pending"
-                    ? "bg-emerald-400"
+                    ? "bg-[var(--psd-approved)]"
                     : "bg-zinc-200 dark:bg-zinc-700",
                 )} />
               )}
@@ -761,7 +762,7 @@ const ProjectStaffResignationForm: React.FC = () => {
   // ── Render ───────────────────────────────────────────────────────────────────
   if (!editDocName && !isCreatingNew && !listLoading && userDrafts.length > 0) {
     return (
-      <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+      <div className="psd-root min-h-screen">
         <main className="flex-1 p-0">
           <div className="w-full max-w-7xl mx-auto">
             <PageHeader
@@ -775,42 +776,42 @@ const ProjectStaffResignationForm: React.FC = () => {
 
             <FrappeCard
               title={`Saved Drafts (${userDrafts.length})`}
-              icon={<FileText className="h-4 w-4 text-[#4A6CF7]" />}
+              icon={<FileText className="h-4 w-4 text-[var(--psd-primary)]" />}
               className="overflow-hidden"
             >
-              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] -mt-2 mb-4">
+              <p className="text-[13px] text-[var(--psd-body)] -mt-1 mb-3">
                 You have saved draft applications. Click <strong>Edit</strong> to open a draft, or create a new application.
               </p>
-              <div className="overflow-x-auto -mx-6">
+              <div className="overflow-x-auto -mx-4">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-xs font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider border-y border-zinc-200 dark:border-zinc-700">
+                  <thead className="bg-[var(--psd-bg)] text-[11px] font-bold text-[var(--psd-body)] uppercase tracking-wider border-y border-[var(--psd-border)]">
                     <tr>
-                      <th className="px-6 py-3.5">Application ID</th>
-                      <th className="px-6 py-3.5">Project No</th>
-                      <th className="px-6 py-3.5">Resignation Date</th>
-                      <th className="px-6 py-3.5">Workflow State</th>
-                      <th className="px-6 py-3.5">Last Saved</th>
-                      <th className="px-6 py-3.5 text-right">Action</th>
+                      <th className="px-4 py-2.5">Application ID</th>
+                      <th className="px-4 py-2.5">Project No</th>
+                      <th className="px-4 py-2.5">Resignation Date</th>
+                      <th className="px-4 py-2.5">Workflow State</th>
+                      <th className="px-4 py-2.5">Last Saved</th>
+                      <th className="px-4 py-2.5 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                  <tbody className="divide-y divide-[var(--psd-border)]">
                     {userDrafts.map((draft) => (
-                      <tr key={draft.name} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-700/30 transition-colors">
-                        <td className="px-6 py-4 font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                      <tr key={draft.name} className="hover:bg-[var(--psd-primary-light)]/50 transition-colors">
+                        <td className="px-4 py-2.5 font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                           {draft.name}
                         </td>
-                        <td className="px-6 py-4 text-[#71717A] dark:text-[#A1A1AA]">
+                        <td className="px-4 py-2.5 text-[#71717A] dark:text-[#A1A1AA]">
                           {draft.applicant_prj_num || projectNo || "—"}
                         </td>
-                        <td className="px-6 py-4 text-[#71717A] dark:text-[#A1A1AA]">
+                        <td className="px-4 py-2.5 text-[#71717A] dark:text-[#A1A1AA]">
                           {draft.resignation_date || "—"}
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
+                        <td className="px-4 py-2.5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300">
                             Draft
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-[#71717A] dark:text-[#A1A1AA] text-xs">
+                        <td className="px-4 py-2.5 text-[#71717A] dark:text-[#A1A1AA] text-xs">
                           {new Date((draft as any).modified || (draft as any).creation || Date.now()).toLocaleDateString("en-IN", {
                             day: "2-digit",
                             month: "short",
@@ -819,7 +820,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-2.5 text-right">
                           <FrappeButton
                             variant="primary"
                             className="!px-4 !py-1.5 !text-xs"
@@ -841,7 +842,7 @@ const ProjectStaffResignationForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+    <div className="psd-root min-h-screen">
       <main className="flex-1 p-0">
         <div className="w-full max-w-9xl mx-auto">
 
@@ -886,8 +887,8 @@ const ProjectStaffResignationForm: React.FC = () => {
             <div className={cn(
               "flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm font-medium mb-5 shadow-sm",
               toast.type === "success"
-                ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800"
-                : "bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
+                ? "bg-[var(--psd-approved-bg)] text-[#0A7F58] border border-[var(--psd-approved)]/30 dark:text-emerald-300"
+                : "bg-[var(--psd-returned-bg)] text-[#C42B3C] border border-[var(--psd-returned)]/30 dark:text-rose-300",
             )}>
               {toast.type === "success"
                 ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
@@ -898,7 +899,7 @@ const ProjectStaffResignationForm: React.FC = () => {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-[#4A6CF7]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--psd-primary)]" />
             </div>
           ) : !hasFormData ? (
             <FrappeCard className="p-8 text-center">
@@ -913,8 +914,8 @@ const ProjectStaffResignationForm: React.FC = () => {
               </p>
             </FrappeCard>
           ) : (
-            <div className={cn(showSidebar ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
-              <div className={cn("space-y-5", showSidebar && "lg:col-span-3")}>
+            <div className={cn(showSidebar ? "grid grid-cols-1 lg:grid-cols-4 gap-4" : "space-y-4")}>
+              <div className={cn("space-y-4", showSidebar && "lg:col-span-3")}>
 
                 {/* Workflow Timeline */}
                 {docName && (
@@ -953,8 +954,8 @@ const ProjectStaffResignationForm: React.FC = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
-                        <CalendarDays className="h-4 w-4 text-[#A1A1AA]" />
+                      <label className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--psd-heading)] mb-1.5">
+                        <CalendarDays className="h-4 w-4 text-[var(--psd-muted)]" />
                         Date of Resignation
                         {canEdit && <span className="text-red-500 ml-0.5">*</span>}
                       </label>
@@ -967,14 +968,14 @@ const ProjectStaffResignationForm: React.FC = () => {
                           required
                           className={cn(
                             "w-full sm:w-64 px-3 py-2 text-sm rounded-lg border transition-colors",
-                            "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                            "border-zinc-200 dark:border-zinc-700",
-                            "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                            "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                            "border-[var(--psd-border)]",
+                            "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                             "disabled:opacity-60 disabled:cursor-not-allowed",
                           )}
                         />
                       ) : (
-                        <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                        <p className="text-[13px] font-semibold text-[var(--psd-heading)]">
                           {resignationDate || "—"}
                         </p>
                       )}
@@ -982,11 +983,11 @@ const ProjectStaffResignationForm: React.FC = () => {
 
                     {loadedResignation?.creation && (
                       <div>
-                        <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--psd-heading)] mb-1.5">
                           <CalendarDays className="h-4 w-4 text-[#A1A1AA]" />
                           Form Created On
                         </label>
-                        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-bg)] text-[13px] font-semibold text-[var(--psd-heading)]">
                           {formatCreated(loadedResignation.creation)}
                         </div>
                       </div>
@@ -994,7 +995,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                      <label className="block text-[13px] font-semibold text-[var(--psd-heading)] mb-1.5">
                         Reason
                       </label>
                       {canEdit ? (
@@ -1008,9 +1009,9 @@ const ProjectStaffResignationForm: React.FC = () => {
                             maxLength={FIELD_CHAR_LIMITS.Text}
                             className={cn(
                               "w-full px-3 py-2 text-sm rounded-lg border transition-colors resize-none",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700 placeholder:text-[#A1A1AA]",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                              "border-[var(--psd-border)] placeholder:text-[var(--psd-muted)]",
+                              "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                               "disabled:opacity-60 disabled:cursor-not-allowed",
                             )}
                           />
@@ -1196,8 +1197,8 @@ const ProjectStaffResignationForm: React.FC = () => {
                   <div className={cn(
                     "flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm border",
                     workflowState === "Approved"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
-                      : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
+                      ? "bg-[var(--psd-approved-bg)] border-[var(--psd-approved)]/30 text-[#0A7F58] dark:text-emerald-300"
+                      : "bg-[var(--psd-returned-bg)] border-[var(--psd-returned)]/30 text-[#C42B3C] dark:text-rose-300",
                   )}>
                     {workflowState === "Approved"
                       ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
@@ -1211,7 +1212,7 @@ const ProjectStaffResignationForm: React.FC = () => {
 
               {/* Commit window — R&D staff must stage a commitment before forwarding */}
               {showSidebar && (
-                <aside className="lg:col-span-1 space-y-5">
+                <aside className="lg:col-span-1 space-y-4">
                   {/* While staff are staging, CommitPayment shows the committed details itself. */}
                   {stagedDecommit && !showCommitSection && (
                     <FrappeCard title="Decommitted Amount" accent="emerald" icon={<CheckCircle2 className="h-4 w-4" />}>

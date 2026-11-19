@@ -14,6 +14,8 @@ interface Options {
     maxWidth?: number;
     minWidth?: number;
     minHeight?: number;
+    /** Initial height in px (defaults to 88% of the viewport). */
+    initialHeight?: number;
 }
 
 /**
@@ -21,7 +23,7 @@ interface Options {
  * Spread `moveHandlers` on the title bar and `edgeHandlers(edge)` on edge/corner grips (see ResizeEdges);
  * apply `rect` as left/top/width/height on a `position: absolute|fixed` element.
  */
-export function useFloatingWindow({ isOpen, persistKey, maxWidth = 1500, minWidth = 640, minHeight = 360 }: Options) {
+export function useFloatingWindow({ isOpen, persistKey, maxWidth = 1500, minWidth = 640, minHeight = 360, initialHeight }: Options) {
     const [rect, setRectState] = useState<Rect>(
         () => (persistKey && savedRects.get(persistKey)) || { x: 0, y: 0, w: 1200, h: 600 },
     );
@@ -41,9 +43,9 @@ export function useFloatingWindow({ isOpen, persistKey, maxWidth = 1500, minWidt
             return;
         }
         const w = Math.min(maxWidth, window.innerWidth * 0.96);
-        const h = window.innerHeight * 0.88;
+        const h = Math.min(initialHeight ?? window.innerHeight * 0.88, window.innerHeight * 0.96);
         setRectState({ x: (window.innerWidth - w) / 2, y: (window.innerHeight - h) / 2, w, h });
-    }, [isOpen, maxWidth, persistKey]);
+    }, [isOpen, maxWidth, persistKey, initialHeight]);
 
     const start = (mode: Mode) => (e: React.PointerEvent<HTMLElement>) => {
         if ((e.target as HTMLElement).closest("button")) return;
