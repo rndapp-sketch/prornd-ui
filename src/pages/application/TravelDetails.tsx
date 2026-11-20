@@ -29,6 +29,7 @@ import { Printer, Download, UploadCloud } from 'lucide-react';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import { CancellationStatusBanner } from "../../components/CancellationStatusBanner";
+import { travelRequestedAdvance } from "@/services/travelSettlement";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -474,7 +475,10 @@ const TravelDetails: React.FC = () => {
         currentUser.toLowerCase() === String(formData.webmail_id_travel).toLowerCase();
     // Settle: after Dean approval; if advance needed, only after payment recorded;
     // and only when a TA/DA Settlement hasn't already been raised for this travel.
-    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (needsAdvance ? !!linkedPayment : true);
+    // Settle waits for a payment only when an advance was actually asked for ("Do you need
+    // Advance?" = Yes) — financial assistance without an advance can be settled straight away.
+    const advanceRequested = travelRequestedAdvance(formData);
+    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (advanceRequested ? !!linkedPayment : true);
 
 
     // Block "Forward" when R&D Staff hasn't committed yet but advance is required

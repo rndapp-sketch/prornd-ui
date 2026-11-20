@@ -16,7 +16,7 @@ import {
     RefreshCw,
     ReceiptText,
 } from "lucide-react";
-import { isTravelAdvancePaid } from "@/services/travelSettlement";
+import { isTravelAdvancePaid, travelRequestedAdvance } from "@/services/travelSettlement";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ interface SettleTravelRow {
     webmail_id_travel?: string;
     workflow_state?: string;
     travel_financial_assistance?: string;
+    do_you_need_advance?: string;
     travel_project_number?: string;
 }
 
@@ -115,7 +116,7 @@ export function OtherPIView() {
 
     // 1. Fetch Travel documents with travel_other_pi == "Other"
     const { data: travelDocs, isLoading: loadingTravel, mutate: mutateTravel } = useFrappeGetDocList("Travel", {
-        fields: ["name", "owner", "applicant_name_travel", "webmail_id_travel", "travel_other_pi_id", "workflow_state", "creation", "travel_financial_assistance", "travel_project_number"],
+        fields: ["name", "owner", "applicant_name_travel", "webmail_id_travel", "travel_other_pi_id", "workflow_state", "creation", "travel_financial_assistance", "do_you_need_advance", "travel_project_number"],
         filters: [["travel_other_pi", "=", "Other"]],
         orFilters: [["owner", "=", currentUser || "__none__"], ["travel_other_pi_id", "=", currentUser || "__none__"]],
         limit: 100,
@@ -160,7 +161,7 @@ export function OtherPIView() {
         const candidates = ownApprovedTravels.filter((doc) => !settlementByTravel[doc.name]);
         Promise.all(
             candidates.map(async (doc) => {
-                const needsAdvance = doc.travel_financial_assistance === "Yes";
+                const needsAdvance = travelRequestedAdvance(doc);
                 const ok = needsAdvance
                     ? await isTravelAdvancePaid(doc.name, doc.travel_project_number || "")
                     : true;
