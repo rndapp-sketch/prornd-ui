@@ -9,7 +9,7 @@
 | **Source of truth** | `docs/pdf-project-implementation.md`, `docs/dpf-project-implementation.md` |
 | **Safety** | `pragati_v0.05` and `origin` are untouched. `git checkout pragati_v0.05` returns to the original state. |
 
-**The feature:** PDF (Personal Development Fund, one per employee) and DPF (Departmental Development Fund, one per department) are surfaced as pre-approved projects. Each is a single "Overhead" pool with no budget-head dimension.
+**The feature:** PDF (Professional Development Fund, one per employee) and DPF (Departmental Development Fund, one per department) are surfaced as pre-approved projects. Each is a single "Overhead" pool with no budget-head dimension.
 
 ---
 

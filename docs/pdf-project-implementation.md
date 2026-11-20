@@ -1,4 +1,4 @@
-# PDF Project (Personal Development Fund) — Implementation Plan
+# PDF Project (Professional Development Fund) — Implementation Plan
 
 Status: **Stage 1 (reading) implemented and verified. Stage 2 (spending) blocked** on the Accounts team
 building their overhead Kafka consumers — see §5.4. Cross-checked against their *"Overhead Commit/Payment
@@ -200,7 +200,7 @@ Creates the row, pre-approved, bypassing the workflow entirely:
 ```python
 doc = frappe.get_doc({
     "doctype": "Project Registration",
-    "project_title": f"Personal Development Fund — {full_name}",
+    "project_title": f"Professional Development Fund — {full_name}",
     "project_type": "PDF",
     "implementation_department": dept,
     "applicant_department": dept,

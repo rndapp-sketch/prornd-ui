@@ -9,6 +9,20 @@ interface LedgerRow {
 }
 
 /**
+ * Whether a Travel application actually asked for an advance.
+ *
+ * "Do you need Advance?" (`do_you_need_advance`) is only asked when "Do you require financial
+ * assistance?" (`travel_financial_assistance`) is Yes, so both must be Yes. Financial assistance
+ * alone does not mean an advance: such a travel may be settled without any advance payment.
+ */
+export const travelRequestedAdvance = (doc: {
+    travel_financial_assistance?: string | null;
+    do_you_need_advance?: string | null;
+}): boolean =>
+    String(doc?.travel_financial_assistance ?? "").trim().toLowerCase() === "yes" &&
+    String(doc?.do_you_need_advance ?? "").trim().toLowerCase() === "yes";
+
+/**
  * Whether a Travel's advance has been paid out, read from its project's ledger.
  *
  * A travel that asked for an advance may only be settled once that advance is paid — the

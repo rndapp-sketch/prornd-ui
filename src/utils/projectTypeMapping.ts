@@ -218,7 +218,7 @@ const OVERHEAD_DPF_ROLES = [
     'HoS (Head of School)',
 ];
 
-/** Roles that own a Personal Development Fund — a PI. */
+/** Roles that own a Professional Development Fund — a PI. */
 const OVERHEAD_PDF_ROLES = ['Permanent Employee'];
 
 /**
