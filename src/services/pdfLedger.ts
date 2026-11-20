@@ -1,5 +1,5 @@
 /**
- * Personal Development Fund — ledger access.
+ * Professional Development Fund — ledger access.
  *
  * @deprecated Superseded by `overheadLedger.ts`, which serves every overhead fund (PDF
  * per employee, DPF per department) through one whitelisted Frappe method. PDF was the

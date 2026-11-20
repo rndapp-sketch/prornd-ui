@@ -1296,7 +1296,7 @@ const QuickActions = ({
             ],
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
-        // Loans are not possible against a Personal Development Fund, so the group is
+        // Loans are not possible against a Professional Development Fund, so the group is
         // dropped entirely for PDF projects rather than shown and rejected later.
         ...(isOverheadProject
             ? []
@@ -4032,7 +4032,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const sanctionEditLocked =
         hasFundReceived || commitableBalance > 0 || actualBalance > 0 || isFundLoading;
 
-    // Personal Development Fund project: a personal overhead fund surfaced as a project.
+    // Professional Development Fund project: a personal overhead fund surfaced as a project.
 
     const handleCommit = () => {
         const amount = parseFloat(commitAmount);
