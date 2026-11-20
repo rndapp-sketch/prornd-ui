@@ -34,6 +34,9 @@ import {
     Pencil,
     ReceiptIndianRupee,
     RefreshCw,
+    Send,
+    LockOpen,
+    Route,
 } from "lucide-react";
 import {
     EndorsementCertificate,
@@ -47,6 +50,7 @@ import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -970,6 +974,84 @@ const MemoizedBudgetTable = memo(
 );
 
 // --- MAIN COMPONENT ---
+interface FlowStep {
+    icon: React.ElementType;
+    label: string;
+    who: string;
+    tone: string;
+    here?: boolean;
+}
+
+/** A row of coloured nodes joined by arrows. Arrows are hidden where a row wraps (small: smCols, wide: xlCols). */
+const FlowDiagram = ({
+    title,
+    subtitle,
+    icon: HeaderIcon,
+    steps,
+    smCols,
+    xlCols,
+    footer,
+    className,
+}: {
+    title: string;
+    subtitle: string;
+    icon: React.ElementType;
+    steps: FlowStep[];
+    smCols: number;
+    xlCols: number;
+    footer?: React.ReactNode;
+    className?: string;
+}) => (
+    <div className={cn("psd-card overflow-hidden", className)}>
+        <div className="flex items-center gap-2 border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] px-2.5 py-1 dark:bg-zinc-800/60">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--psd-accent)] text-white shadow-sm"><HeaderIcon className="h-2.5 w-2.5" /></span>
+            <div>
+                <p className="text-[11.5px] font-extrabold leading-tight text-[var(--psd-heading)]">{title}</p>
+                <p className="text-[9.5px] font-medium text-[var(--psd-body)]">{subtitle}</p>
+            </div>
+        </div>
+        <div className="px-2.5 py-2">
+            <ol
+                className="grid gap-y-2 grid-cols-[repeat(var(--sm-cols),minmax(0,1fr))] xl:grid-cols-[repeat(var(--xl-cols),minmax(0,1fr))]"
+                style={{ ["--sm-cols" as string]: smCols, ["--xl-cols" as string]: xlCols }}
+            >
+                {steps.map((n, i) => {
+                    const last = i === steps.length - 1;
+                    const endsSmallRow = (i + 1) % smCols === 0;
+                    const endsWideRow = (i + 1) % xlCols === 0;
+                    return (
+                        <li key={n.label} className="relative flex flex-col items-center px-1 text-center">
+                            {/* Arrow from this node to the next */}
+                            {!last && (
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        "pointer-events-none absolute top-[11px] left-[calc(50%+15px)] right-[calc(-50%+15px)] items-center",
+                                        endsSmallRow ? "hidden" : "flex",
+                                        endsSmallRow && !endsWideRow && "xl:flex",
+                                    )}
+                                >
+                                    <span className="h-[2px] flex-1 rounded-full" style={{ background: n.tone, opacity: 0.45 }} />
+                                    <ArrowRight className="-ml-1 size-2.5 shrink-0" style={{ color: n.tone }} strokeWidth={2.5} />
+                                </span>
+                            )}
+                            <span
+                                className="relative z-10 grid size-6 place-items-center rounded-full text-white shadow-sm ring-2 ring-[var(--psd-surface)]"
+                                style={{ background: n.tone, boxShadow: n.here ? `0 0 0 3px color-mix(in srgb, ${n.tone} 28%, transparent)` : undefined }}
+                            >
+                                <n.icon className="size-3" />
+                            </span>
+                            <span className="mt-0.5 text-[10.5px] font-extrabold leading-tight text-[var(--psd-heading)]">{n.label}</span>
+                            <span className="text-[9px] font-medium leading-tight text-[var(--psd-body)]">{n.here ? "You are here" : n.who}</span>
+                        </li>
+                    );
+                })}
+            </ol>
+            {footer && <div className="mt-1.5 border-t border-[var(--psd-border)] pt-1">{footer}</div>}
+        </div>
+    </div>
+);
+
 const ProjectRegistration: React.FC = () => {
     // --- STATE & API HOOKS ---
     const { currentUser } = useFrappeAuth();
@@ -3126,58 +3208,63 @@ Endorsement is optional. You may continue completing Project Registration while 
         ];
 
         return (
-            <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
+            <div className="psd-root flex-1 w-full min-h-screen">
                 <div className="w-full px-0 py-0 mx-auto">
 
                     {/* Page header */}
-                    <div className="flex items-center gap-3 mb-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(-1)}
-                            className="p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors"
-                        >
-                            <ArrowLeft className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
-                        </button>
-                        <div>
-                            <h1 className="text-[18px] font-extrabold text-[#18181B] dark:text-[#FAFAFA] leading-tight">Project Registration Guide</h1>
-                            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">Understand the process before you begin</p>
+                    <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
+                        <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+                        <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => navigate(-1)}
+                                aria-label="Go back"
+                                className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">New project</div>
+                                <h1 className="mt-0.5 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Project Registration Guide</h1>
+                            </div>
                         </div>
-                    </div>
+                        <p className="relative z-10 hidden text-xs text-[var(--psd-body)] sm:block">Understand the process before you begin</p>
+                    </header>
 
                     <div className="space-y-4">
 
                         {/* TOP ROW — two columns */}
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
 
                         {/* LEFT COLUMN — fill the form */}
-                        <div className="lg:col-span-3 space-y-4">
+                        <div className="lg:col-span-2 grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
 
                             {/* STEP A: Fill the form */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-[#4A6CF7] px-4 py-2.5 flex items-center gap-2">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white text-[10px] font-extrabold">A</span>
+                            <div className="psd-card overflow-hidden">
+                                <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] dark:bg-zinc-800/60 px-3.5 py-2 flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--psd-primary)] text-white text-[11px] font-extrabold shadow-sm">A</span>
                                     <div>
-                                        <p className="text-[12px] font-extrabold text-white leading-tight">Fill the Registration Form</p>
-                                        <p className="text-[9px] text-blue-100 mt-0.5">You are here — complete these 4 sections</p>
+                                        <p className="text-[12px] font-extrabold text-[var(--psd-heading)] leading-tight">Fill the Registration Form</p>
+                                        <p className="text-[11px] font-medium text-[var(--psd-body)] mt-0.5">You are here — complete these 4 sections</p>
                                     </div>
                                 </div>
-                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
+                                <div className="divide-y divide-[var(--psd-border)]">
                                     {[
                                         { icon: FileText, color: "text-[#4A6CF7]", bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", step: "1", title: "Project Details", body: <>Choose the <b>project type</b> (Research / Consultancy / Others), enter the title, select the <b>department</b> and <b>funding agency</b>, set the duration, and attach the <b>proposal or invitation letter</b>.</> },
                                         { icon: Users, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-900/20", step: "2", title: "Investigators (PI / Co-PI)", body: <>Your <b>PI details auto-fill from webmail</b>. Add a Co-PI or Additional PI only if someone else is also responsible for the project. External collaborators need <b>stakeholder registration</b> first.</> },
                                         { icon: Landmark, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20", step: "3", title: "Budget & Clearances", body: <>Enter the <b>proposed budget breakup by head</b> (manpower, equipment, travel, etc.). Fill committee clearance or ethical declaration fields <b>only if applicable</b> to your project.</> },
                                         { icon: CheckCircle2, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20", step: "4", title: "Save or Submit", body: <>Use <b>Save As Draft</b> if the form is not yet complete — you can return later. When everything is ready, click <b>Submit</b> to send the project for approval.</> },
                                     ].map((s) => (
-                                        <div key={s.step} className="flex gap-3 px-4 py-2.5">
-                                            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg mt-0.5 ${s.bg}`}>
+                                        <div key={s.step} className="flex gap-3 px-3 py-1.5 transition-colors hover:bg-[var(--psd-primary-light)]/30">
+                                            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg mt-0.5 ${s.bg}`}>
                                                 <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                                             </div>
                                             <div>
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="text-[10px] font-extrabold text-[#A1A1AA] dark:text-[#71717A] uppercase tracking-wide">Step {s.step}</span>
-                                                    <span className="text-[12px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <span className="rounded-full bg-[var(--psd-bg)] px-2 py-px text-[10px] font-extrabold uppercase tracking-wide text-[var(--psd-body)] ring-1 ring-[var(--psd-border)]">Step {s.step}</span>
+                                                    <span className="text-[12px] font-extrabold text-[var(--psd-heading)]">{s.title}</span>
                                                 </div>
-                                                <p className="text-[11px] font-medium leading-snug text-[#52525B] dark:text-[#A1A1AA] [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">{s.body}</p>
+                                                <p className="text-[11px] font-medium leading-snug text-[var(--psd-body)] [&_b]:font-extrabold [&_b]:text-[var(--psd-heading)]">{s.body}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -3185,81 +3272,107 @@ Endorsement is optional. You may continue completing Project Registration while 
                             </div>
 
                             {/* STEP B: What happens after */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-emerald-600 px-4 py-2.5 flex items-center gap-2">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white text-[10px] font-extrabold">B</span>
+                            <div className="psd-card overflow-hidden">
+                                <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] dark:bg-zinc-800/60 px-3.5 py-2 flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--psd-approved)] text-white text-[11px] font-extrabold shadow-sm">B</span>
                                     <div>
-                                        <p className="text-[12px] font-extrabold text-white leading-tight">What Happens After You Submit</p>
-                                        <p className="text-[9px] text-emerald-100 mt-0.5">The project goes through this pipeline automatically</p>
+                                        <p className="text-[12px] font-extrabold text-[var(--psd-heading)] leading-tight">What Happens After You Submit</p>
+                                        <p className="text-[11px] font-medium text-[var(--psd-body)] mt-0.5">The project goes through this pipeline automatically</p>
                                     </div>
                                 </div>
-                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
+                                <div className="divide-y divide-[var(--psd-border)]">
                                     {[
                                         { num: "1", title: "Approval Workflow", body: <>Your submitted project goes to the configured approvers — typically <b>HoS</b> (Head of Section) followed by <b>Dean R&D</b>. Each approver reviews and approves at their level.</>, tag: "Auto-routed", tagColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
                                         { num: "2", title: "Project Approved", body: <>Once all approvers sign off, the project status changes to <b>Approved</b>. You will now be able to <b>add fund sanction details</b>.</>, tag: "Milestone", tagColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
                                         { num: "3", title: "Add Fund Sanction", body: <>Enter the <b>sanction letter details</b> from your funding agency — sanction number, date, total amount, and budget breakup. This also goes through an <b>approval workflow</b>.</>, tag: "Action needed", tagColor: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
                                         { num: "4", title: "Record Fund Received", body: <>After sanction is approved, record each <b>installment of actual funds received</b> from the agency. Once funds are recorded, <b>all application modules</b> (Travel, Reimbursement, etc.) unlock.</>, tag: "Unlocks apps", tagColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
                                     ].map((s) => (
-                                        <div key={s.num} className="flex gap-3 px-4 py-2.5">
+                                        <div key={s.num} className="flex gap-3 px-3 py-1.5 transition-colors hover:bg-[var(--psd-approved-bg)]/40">
                                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold mt-0.5">
                                                 {s.num}
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                                    <span className="text-[12px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                    <span className="text-[12px] font-extrabold text-[var(--psd-heading)]">{s.title}</span>
                                                     <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${s.tagColor}`}>{s.tag}</span>
                                                 </div>
-                                                <p className="text-[11px] font-medium leading-snug text-[#52525B] dark:text-[#A1A1AA] [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">{s.body}</p>
+                                                <p className="text-[11px] font-medium leading-snug text-[var(--psd-body)] [&_b]:font-extrabold [&_b]:text-[var(--psd-heading)]">{s.body}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+
+                            {/* WORKFLOW DIAGRAMS: where this form goes */}
+                            <FlowDiagram
+                                className="xl:col-span-2"
+                                icon={Route}
+                                title="Your project's journey"
+                                subtitle="Where this form goes, from your desk to unlocked applications"
+                                smCols={4}
+                                xlCols={8}
+                                steps={[
+                                    { icon: FileText, label: "Fill the form", who: "You", tone: "#6842D9", here: true },
+                                    { icon: Send, label: "Submit", who: "You", tone: "#6842D9" },
+                                    { icon: Users, label: "R&D Staff", who: "Review", tone: "#E99A16" },
+                                    { icon: Users, label: "HoS, R&D", who: "Approval", tone: "#E99A16" },
+                                    { icon: Users, label: "Dean, R&D", who: "Approval", tone: "#E99A16" },
+                                    { icon: CheckCircle2, label: "Project approved", who: "Milestone", tone: "#0DA875" },
+                                    { icon: Landmark, label: "Fund sanction", who: "You add, then approved", tone: "#F47721" },
+                                    { icon: LockOpen, label: "Funds received", who: "Applications unlock", tone: "#0B8F85" },
+                                ]}
+                                footer={
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] font-medium text-[var(--psd-body)]">
+                                        {[["#6842D9", "Your action"], ["#E99A16", "Approvers"], ["#0DA875", "Milestone"], ["#F47721", "Action needed"], ["#0B8F85", "Unlocks"]].map(([c, l]) => (
+                                            <span key={l} className="inline-flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: c }} />{l}</span>
+                                        ))}
+                                        <span className="ml-auto text-[var(--psd-muted)]">Save As Draft any time before submitting. Approvers follow your configured workflow.</span>
+                                    </div>
+                                }
+                            />
+
+                            <FlowDiagram
+                                className="xl:col-span-2"
+                                icon={FileBadge}
+                                title="Endorsement process"
+                                subtitle="Optional: only when your project or office process needs an endorsement certificate"
+                                smCols={3}
+                                xlCols={6}
+                                steps={[
+                                    { icon: FileText, label: "Fill basic data", who: "In this form", tone: "#6842D9" },
+                                    { icon: FileBadge, label: "Generate", who: "Click Generate Endorsement", tone: "#6842D9" },
+                                    { icon: Send, label: "Submit", who: "Goes to Dean R&D", tone: "#6842D9" },
+                                    { icon: Users, label: "Dean approves", who: "Endorsement approved", tone: "#E99A16" },
+                                    { icon: RefreshCw, label: "Download", who: "Certificate from Project View", tone: "#0DA875" },
+                                    { icon: ArrowRight, label: "Register Project", who: "Continue registration", tone: "#0B8F85" },
+                                ]}
+                            />
                         </div>
 
                         {/* RIGHT COLUMN — endorsement + CTA */}
-                        <div className="lg:col-span-2 space-y-4">
+                        <div className="lg:col-span-1 space-y-3">
 
                             {/* Endorsement guide */}
-                            <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
-                                <div className="px-4 py-2.5 border-b border-orange-200 dark:border-orange-800/50 flex items-center gap-2 bg-orange-50 dark:bg-orange-900/20">
+                            <div className="psd-card overflow-hidden">
+                                <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] dark:bg-zinc-800/60 px-3.5 py-2 flex items-center gap-2">
                                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-800/40 ring-1 ring-orange-200 dark:ring-orange-700">
                                         <FileBadge className="h-3 w-3 text-orange-600 dark:text-orange-300" />
                                     </div>
                                     <div>
-                                        <p className="text-[12px] font-extrabold text-orange-900 dark:text-orange-100">Endorsement</p>
-                                        <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Optional — not required for every project</p>
+                                        <p className="text-[13px] font-extrabold text-[var(--psd-heading)]">Endorsement</p>
+                                        <p className="text-[11px] font-semibold text-[#C2570C] dark:text-orange-300">Optional — not required for every project</p>
                                     </div>
                                 </div>
 
-                                <div className="px-4 py-3 space-y-2.5">
-                                    <div className="rounded-lg bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-3 py-2">
-                                        <p className="text-[12px] font-extrabold text-slate-800 dark:text-slate-100 mb-0.5">When do I need it?</p>
-                                        <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 leading-snug">Only when the project or office process <b className="font-extrabold text-slate-800 dark:text-slate-100">specifically requires</b> an endorsement certificate. <b className="font-extrabold text-slate-800 dark:text-slate-100">Most projects can be registered directly</b> without it.</p>
+                                <div className="px-3.5 py-2.5 space-y-2">
+                                    <div className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2">
+                                        <p className="text-[13px] font-extrabold text-[var(--psd-heading)] mb-0.5">When do I need it?</p>
+                                        <p className="text-[12px] font-medium text-[var(--psd-body)] leading-snug">Only when the project or office process <b className="font-extrabold text-slate-800 dark:text-slate-100">specifically requires</b> an endorsement certificate. <b className="font-extrabold text-slate-800 dark:text-slate-100">Most projects can be registered directly</b> without it.</p>
                                     </div>
 
-                                    <div>
-                                        <p className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Endorsement process</p>
-                                        <div className="space-y-1.5">
-                                            {[
-                                                "Fill basic project data in this form",
-                                                "Click Generate Endorsement",
-                                                "Submit — goes to Dean R&D for approval",
-                                                "Dean approves the endorsement",
-                                                "Download the certificate from Project View",
-                                                "Use Register Project to continue registration",
-                                            ].map((text, i) => (
-                                                <div key={i} className="flex gap-2 items-start">
-                                                    <span className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-extrabold mt-0.5">{i + 1}</span>
-                                                    <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-snug">{text}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="rounded-lg bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-3 py-2">
-                                        <p className="text-[12px] font-extrabold text-slate-800 dark:text-slate-100 mb-1">Fields needed</p>
-                                        <ul className="space-y-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                                    <div className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2">
+                                        <p className="text-[13px] font-extrabold text-[var(--psd-heading)] mb-1">Fields needed</p>
+                                        <ul className="space-y-1 text-[12px] font-medium text-[var(--psd-body)]">
                                             <li>• Project Title, Type, Department</li>
                                             <li>• Duration & Funding Agency</li>
                                             <li>• PI Webmail, Name, Designation, Employee ID</li>
@@ -3270,17 +3383,17 @@ Endorsement is optional. You may continue completing Project Registration while 
                             </div>
 
                             {/* Quick tip */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] px-4 py-3">
-                                <p className="text-[12px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2">Quick Tips</p>
-                                <ul className="space-y-1.5">
+                            <div className="psd-card px-3.5 py-2.5">
+                                <p className="text-[13px] font-extrabold text-[var(--psd-heading)] mb-2 border-l-[3px] border-[var(--psd-accent)] pl-2.5">Quick Tips</p>
+                                <ul className="space-y-1">
                                     {[
                                         <>You can <b>save as draft</b> at any time and return later.</>,
                                         <>Only <b>submit</b> when all required fields are filled.</>,
                                         <><b>Consultancy projects</b> can be registered without endorsement.</>,
                                         <>If a Co-PI is <b>from outside IIT Guwahati</b>, they need stakeholder registration first.</>,
                                     ].map((tip, i) => (
-                                        <li key={i} className="flex gap-1.5 items-start text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA] leading-snug [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">
-                                            <span className="text-[#4A6CF7] mt-0.5 shrink-0 font-extrabold">→</span>
+                                        <li key={i} className="flex gap-1.5 items-start text-[12px] font-medium text-[var(--psd-body)] leading-snug [&_b]:font-extrabold [&_b]:text-[var(--psd-heading)]">
+                                            <span className="text-[var(--psd-primary)] mt-0.5 shrink-0 font-extrabold">→</span>
                                             {tip}
                                         </li>
                                     ))}
@@ -3295,7 +3408,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                             type="button"
                             onClick={() => setEntryStep("form")}
                             disabled={loading}
-                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#4A6CF7] hover:bg-[#3558E8] text-white text-[13px] font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)] text-white text-[13px] font-extrabold shadow-lg shadow-[var(--psd-primary)]/35 hover:shadow-[var(--psd-primary)]/50 transition-all disabled:opacity-50"
                         >
                             {loading ? (
                                 <>

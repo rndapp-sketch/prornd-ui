@@ -31,6 +31,7 @@ import Login from './pages/Login.tsx';
 import LandingPage from './pages/landing.tsx';
 import Home from './pages/Home.tsx';
 import PiHomePage from './pages/PiHomePage.tsx';
+import PiFinancialDashboard from './pages/PiFinancialDashboard.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
 import ProjectRegistration from './pages/ProjectRegistration.tsx';
@@ -198,6 +199,15 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <Home />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    // PI's account-wise financial dashboard and ledger records across all their projects
+                    path: "pi-financial-dashboard",
+                    element: (
+                        <AuthRouteWrapper allowedRole="Permanent Employee">
+                            <PiFinancialDashboard />
                         </AuthRouteWrapper>
                     ),
                 },

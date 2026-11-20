@@ -41,6 +41,8 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FolderKanban } from "lucide-react";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { useUserRoles } from "../components/UserRole";
 import { projectTypeTabLabel } from "@/utils/projectTypeMapping";
 import { format } from "date-fns";
@@ -794,12 +796,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     doRndError,
   ]);
 
-  const projectTypeCounts = React.useMemo(() => ({
-    Research: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
-    Consultancy: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
-    Others: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
-    Overhead: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Overhead').length,
-  }), [activeTab, visibleDelegatedProjects, myProjects]);
+  // Counts for the tree: every scope (My Projects / Delegated) with its project-type children
+  const scopeTypeCounts = React.useMemo(() => {
+    const count = (list: any[] | undefined) =>
+      PROJECT_TYPE_TABS.reduce(
+        (acc, t) => ({ ...acc, [t]: (list ?? []).filter((p) => normalizeProjectType(p.project_type) === t).length }),
+        {} as Record<ProjectTypeTab, number>,
+      );
+    return {
+      myProjects: count(myProjects as any[] | undefined),
+      delegated: count(visibleDelegatedProjects as any[] | undefined),
+    };
+  }, [myProjects, visibleDelegatedProjects]);
 
   const visibleProjects = activeTab === "delegated" ? visibleDelegatedProjects : myProjects;
   const visibleProjectsLoading = activeTab === "delegated"
@@ -861,29 +869,24 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   };
 
   const getStatusBadge = (status: string) => {
-    const s = status?.toLowerCase();
-    let className =
-      "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border-zinc-200"; // Default/Draft
-
-    if (
-      ["pending", "under review", "approval pending", "process"].some(
-        (t) => s?.includes(t),
-      )
-    ) {
-      className =
-        "bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200"; // Pending
-    } else if (s?.includes("approved") || s?.includes("open")) {
-      className =
-        "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200"; // Success
-    } else if (s?.includes("rejected") || s?.includes("closed")) {
-      className =
-        "bg-rose-100 text-rose-800 hover:bg-rose-200 border-rose-200"; // Error/Closed
+    const s = status?.toLowerCase() ?? "";
+    let tone = "bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300";
+    let dot = "bg-[var(--psd-info)]";
+    if (["pending", "under review", "approval pending", "process"].some((t) => s.includes(t))) {
+      tone = "bg-[var(--psd-review-bg)] text-[#B45309] dark:text-amber-300";
+      dot = "bg-[var(--psd-review)]";
+    } else if (s.includes("approved") || s.includes("open")) {
+      tone = "bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300";
+      dot = "bg-[var(--psd-approved)]";
+    } else if (s.includes("rejected") || s.includes("closed") || s.includes("draft")) {
+      tone = "bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300";
+      dot = "bg-[var(--psd-returned)]";
     }
-
     return (
-      <Badge variant="outline" className={cn("border", className)}>
+      <span className={cn("inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", tone)}>
+        <span className={cn("size-1.5 rounded-full", dot)} />
         {status}
-      </Badge>
+      </span>
     );
   };
 
@@ -1076,7 +1079,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     <TableRow>
                       <TableCell
                         colSpan={7}
-                        className="h-24 text-center text-zinc-500"
+                        className="h-16 text-center text-sm text-zinc-500"
                       >
                         No active tasks in this
                         category.
@@ -1151,44 +1154,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     );
   };
 
-  const renderProjectsTable = () => (
-    <div className="space-y-3 animate-in fade-in duration-500">
-      <>
-        {/* Project Type Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {PROJECT_TYPE_TABS.map((tab) => {
-            const active = selectedProjectType === tab;
-            const tabColors: Record<string, string> = {
-              Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
-              Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
-              Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
-              Overhead: active ? 'bg-[#FFF7ED] border-[#EA580C] text-[#9A3412] shadow-sm shadow-[#EA580C]/10 dark:bg-[#EA580C]/18 dark:border-[#FB923C] dark:text-[#FED7AA]' : 'border-[#FED7AA] bg-[#FFF7ED]/60 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#EA580C]/30 dark:bg-[#EA580C]/10 dark:text-[#FED7AA]',
-            };
-            const badgeColors: Record<string, string> = {
-              Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
-              Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
-              Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
-              Overhead: active ? 'bg-[#EA580C] text-white' : 'bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50',
-            };
-            return (
-              <button
-                key={tab}
-                onClick={() => updateProjectTypeTab(tab)}
-                className={cn(
-                  "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all duration-150",
-                  tabColors[tab]
-                )}
-              >
-                {projectTypeTabLabel(tab, roles)}
-                <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-bold leading-none", badgeColors[tab])}>
-                  {projectTypeCounts[tab]}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+  const rowStripe = (state?: string) => {
+    const t = (state || "").toLowerCase();
+    if (t.includes("reject") || t.includes("draft") || t.includes("closed")) return "#F04455";
+    if (t.includes("pending") || t.includes("under review")) return "#F59E0B";
+    if (t.includes("approved") || t.includes("open")) return "#0DA875";
+    return "#4775E8";
+  };
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
+  const renderProjectsTable = () => (
+    <div className="space-y-2.5 animate-in fade-in duration-500">
+      <>
+        <div className="psd-card flex flex-col sm:flex-row gap-2.5 justify-between items-center !rounded-xl px-3 py-2">
           <div className="relative w-full sm:w-72">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
             <Input
@@ -1198,7 +1175,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 pl-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]"
+              className="h-8 pl-9 bg-[var(--psd-surface)] border-[var(--psd-border)] text-[13px] focus-visible:border-[var(--psd-primary)] focus-visible:ring-[var(--psd-primary)]/20"
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -1206,7 +1183,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               value={sortField}
               onValueChange={(v: any) => handleSortChange(v)}
             >
-              <SelectTrigger className="h-9 w-[180px] bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]">
+              <SelectTrigger className="h-8 w-[175px] bg-[var(--psd-surface)] border-[var(--psd-border)] text-[13px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -1229,35 +1206,35 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               onClick={() =>
                 setSortOrder(sortOrder === "asc" ? "desc" : "asc")
               }
-              className="h-9 w-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] shrink-0"
+              className="h-8 w-8 bg-[var(--psd-surface)] border-[var(--psd-border)] shrink-0"
             >
               <ChevronsUpDown className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+        <Card className="psd-card overflow-hidden !rounded-xl !border !border-[var(--psd-border)] !bg-[var(--psd-surface)] !shadow-none">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table className="w-full">
-                <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                  <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
-                    <TableHead className="w-[80px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                <TableHeader className="bg-[#DCE6CD] dark:bg-[#34402B]">
+                  <TableRow className="border-b border-[#BBC9A4] dark:border-[#4B5A3E] hover:bg-transparent">
+                    <TableHead className="w-[80px] whitespace-nowrap px-3 py-1.5 h-8 text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                       Number
                     </TableHead>
-                    <TableHead className="w-full min-w-[260px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-full min-w-[260px] whitespace-nowrap px-3 py-1.5 h-8 text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                       Project Title
                     </TableHead>
-                    <TableHead className="min-w-[150px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="min-w-[150px] whitespace-nowrap px-3 py-1.5 h-8 text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                       Funding Agency
                     </TableHead>
-                    <TableHead className="w-[90px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-[90px] whitespace-nowrap px-3 py-1.5 h-8 text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                       Date
                     </TableHead>
-                    <TableHead className="w-[100px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-[100px] whitespace-nowrap px-3 py-1.5 h-8 text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                       Status
                     </TableHead>
-                    <TableHead className="text-right w-[60px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                    <TableHead className="text-right w-[60px] whitespace-nowrap px-3 py-1.5 h-8 text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                       Action
                     </TableHead>
                   </TableRow>
@@ -1290,7 +1267,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     <TableRow>
                       <TableCell
                         colSpan={8}
-                        className="h-24 text-center text-red-500"
+                        className="h-16 text-center text-sm text-red-500"
                       >
                         Error loading projects. Please try
                         again.
@@ -1300,7 +1277,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     <TableRow>
                       <TableCell
                         colSpan={8}
-                        className="h-24 text-center text-zinc-500"
+                        className="h-16 text-center text-sm text-zinc-500"
                       >
                         No projects found matching your
                         criteria.
@@ -1310,7 +1287,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     paginatedProjects.map((p: any) => (
                       <TableRow
                         key={p.name}
-                        className="cursor-pointer even:bg-[#FAFAFA] dark:even:bg-[#27272A]/60 hover:bg-[#EEF2FF] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
+                        className="cursor-pointer border-b border-[var(--psd-border)] last:border-b-0 hover:bg-[var(--psd-primary-light)]/40"
+                        style={{ boxShadow: `inset 3px 0 0 ${rowStripe(p.workflow_state)}` }}
                         onClick={() => {
                           const targetPath =
                             p.workflow_state ===
@@ -1328,10 +1306,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           });
                         }}
                       >
-                        <TableCell className="px-3 py-2 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 font-mono text-xs font-bold text-[#7A46AE] dark:text-[#D3B4F0] bg-[#F1E8F9] dark:bg-[#33243F] whitespace-nowrap border-b border-[#D8C6EC] dark:border-[#4A3A5C] [tr:last-child_&]:border-b-0 relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#C9D3BA] dark:after:bg-[#4B5A3E]">
                           {p.project_no || p.name}
                         </TableCell>
-                        <TableCell className="px-3 py-2 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 font-semibold text-[var(--psd-heading)] relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#C9D3BA] dark:after:bg-[#4B5A3E]">
                           <div
                             className="line-clamp-2 text-[13px] leading-snug"
                             title={p.project_title}
@@ -1339,10 +1317,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                             {p.project_title}
                           </div>
                         </TableCell>
-                        <TableCell className="px-3 py-2 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 text-[var(--psd-body)] text-xs whitespace-nowrap relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#C9D3BA] dark:after:bg-[#4B5A3E]">
                           {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
                         </TableCell>
-                        <TableCell className="px-3 py-2 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 text-[var(--psd-body)] text-xs whitespace-nowrap relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#C9D3BA] dark:after:bg-[#4B5A3E]">
                           {p.creation
                             ? format(
                               new Date(p.creation),
@@ -1350,16 +1328,16 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                             )
                             : "-"}
                         </TableCell>
-                        <TableCell className="px-3 py-2 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 whitespace-nowrap relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#C9D3BA] dark:after:bg-[#4B5A3E]">
                           <div className="flex flex-col gap-0.5">
                             {getStatusBadge(p.workflow_state)}
                             {p.workflow_state === "Approved" && showsSanctionState(p) && (
                               hasSanction(p) ? (
-                                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                <span className="text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400">
                                   (Sanction Approved)
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                <span className="text-[10.5px] font-semibold text-amber-600 dark:text-amber-400">
                                   (Pending Sanction)
                                 </span>
                               )
@@ -1373,7 +1351,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                  className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setConfirmDeleteProject(p);
@@ -1389,7 +1367,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0"
+                                    className="h-7 w-7 p-0"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <span className="sr-only">Open menu</span>
@@ -1422,7 +1400,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                   <ProInvButton
                                     projectKey={p.project_no || p.name}
                                     size="sm"
-                                    className="h-8 px-2 text-xs font-bold border-zinc-300 text-zinc-700 hover:text-[#D97757] hover:border-[#D97757] dark:text-zinc-300 dark:border-zinc-700"
+                                    className="h-7 px-2 text-xs font-bold border-zinc-300 text-zinc-700 hover:text-[#D97757] hover:border-[#D97757] dark:text-zinc-300 dark:border-zinc-700"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       navigate(`/project-details-overview/${p.name}/proforma-invoice`);
@@ -1434,7 +1412,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0"
+                                  className="h-7 w-7 p-0"
                                 >
                                   <ChevronRight className="h-4 w-4" />
                                   <span className="sr-only">View</span>
@@ -1454,7 +1432,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between py-1">
-            <div className="text-sm text-zinc-500">
+            <div className="text-xs font-medium tabular-nums text-[var(--psd-body)]">
               Page {currentPage} of {totalPages}
             </div>
             <div className="flex items-center gap-2">
@@ -1488,44 +1466,105 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   );
 
   return (
-    <div className="w-full mx-auto space-y-3 animate-in fade-in duration-500">
-      <div className="flex flex-wrap gap-2 rounded-lg border border-[#E4E4E7] bg-white p-1.5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-        {[
-          { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
-          { id: "delegated", label: "Delegated", count: visibleDelegatedProjects.length },
-        ].map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setCurrentPage(1);
-              }}
-              className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all",
-                active
-                  ? "bg-[#EEF2FF] text-[#1E3A8A] shadow-sm dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]"
-                  : "text-[#52525B] hover:bg-[#F4F4F5] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]",
-              )}
-            >
-              {tab.label}
-              <span
+    <div className="psd-root w-full mx-auto space-y-2.5 animate-in fade-in duration-500">
+      {/* Header */}
+      <header className="psd-hero relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
+        <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+        <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+          <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+            <FolderKanban className="size-4" strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Research &amp; Development</div>
+            <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Projects</h1>
+          </div>
+          <span aria-hidden className="mx-1 hidden h-6 w-px bg-[var(--psd-border)] sm:block" />
+          <div role="tablist" aria-label="Projects" className="inline-flex items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-bg)] p-0.5">
+            {[
+              { id: "myProjects", label: "My Projects", total: myProjects?.length || 0 },
+              { id: "delegated", label: "Delegated", total: visibleDelegatedProjects.length },
+            ].map((scope) => {
+              const active = activeTab === scope.id;
+              return (
+                <button
+                  key={scope.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setActiveTab(scope.id);
+                    setCurrentPage(1);
+                  }}
+                  className={cn(
+                    "psd-focus inline-flex h-8 items-center gap-2 rounded-md px-3.5 text-[12.5px] font-semibold transition-all duration-200",
+                    active
+                      ? "bg-[var(--psd-primary)] font-bold text-white shadow-md shadow-[var(--psd-primary)]/35"
+                      : "text-[var(--psd-body)] hover:text-[var(--psd-primary)]",
+                  )}
+                >
+                  {scope.label}
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums", active ? "bg-white/25 text-white" : "bg-[var(--psd-surface)] text-[var(--psd-body)]")}>
+                    {scope.total}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </header>
+
+      {/* Project type toggle */}
+      <div className="psd-card flex flex-wrap items-center gap-2 !rounded-xl px-2.5 py-2">
+        <div role="tablist" aria-label="Project type" className="flex flex-wrap items-center gap-2">
+          {PROJECT_TYPE_TABS.map((type) => {
+            const count = scopeTypeCounts[activeTab === "delegated" ? "delegated" : "myProjects"][type];
+            const selected = selectedProjectType === type;
+            // Each type keeps its own colour: solid when selected, soft tint otherwise
+            const look: Record<ProjectTypeTab, { solid: string; soft: string; badge: string }> = {
+              Research: {
+                solid: "bg-[#4A6CF7] text-white shadow-md shadow-[#4A6CF7]/40 ring-2 ring-[#4A6CF7]/40 ring-offset-2 ring-offset-[var(--psd-surface)]",
+                soft: "bg-[#EEF2FF] text-[#2F47B8] hover:bg-[#E0E7FF] dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]",
+                badge: "bg-white/80 text-[#2F47B8] dark:bg-[#18181B]/50 dark:text-[#C7D2FE]",
+              },
+              Consultancy: {
+                solid: "bg-[#10B981] text-white shadow-md shadow-[#10B981]/40 ring-2 ring-[#10B981]/40 ring-offset-2 ring-offset-[var(--psd-surface)]",
+                soft: "bg-[#E6F8F1] text-[#047857] hover:bg-[#D3F2E6] dark:bg-[#10B981]/15 dark:text-[#A7F3D0]",
+                badge: "bg-white/80 text-[#047857] dark:bg-[#18181B]/50 dark:text-[#A7F3D0]",
+              },
+              Others: {
+                solid: "bg-[#71717A] text-white shadow-md shadow-[#71717A]/40 ring-2 ring-[#71717A]/40 ring-offset-2 ring-offset-[var(--psd-surface)]",
+                soft: "bg-[#F1F1F3] text-[#52525B] hover:bg-[#E7E7EA] dark:bg-[#3F3F46] dark:text-[#E4E4E7]",
+                badge: "bg-white/80 text-[#52525B] dark:bg-[#18181B]/50 dark:text-[#E4E4E7]",
+              },
+              Overhead: {
+                solid: "bg-[#EA580C] text-white shadow-md shadow-[#EA580C]/40 ring-2 ring-[#EA580C]/40 ring-offset-2 ring-offset-[var(--psd-surface)]",
+                soft: "bg-[#FFF1E6] text-[#C2410C] hover:bg-[#FFE4CC] dark:bg-[#EA580C]/15 dark:text-[#FED7AA]",
+                badge: "bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50 dark:text-[#FED7AA]",
+              },
+            };
+            return (
+              <button
+                key={type}
+                role="tab"
+                aria-selected={selected}
+                onClick={() => updateProjectTypeTab(type)}
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-[11px] font-bold",
-                  active
-                    ? "bg-[#4A6CF7] text-white"
-                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]",
+                  "psd-focus inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[12.5px] transition-all duration-200",
+                  selected ? cn(look[type].solid, "scale-[1.06] font-extrabold") : cn(look[type].soft, "font-semibold opacity-80 hover:opacity-100"),
+                  !selected && count === 0 && "!opacity-50",
                 )}
               >
-                {tab.count}
-              </span>
-            </button>
-          );
-        })}
+                {selected && <CheckCircle2 className="size-3.5" strokeWidth={2.5} />}
+                {projectTypeTabLabel(type, roles)}
+                <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold leading-none tabular-nums", selected ? "bg-white/30 text-white" : look[type].badge)}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35">
+      <div>
         {activeTab === "pending"
           ? renderPendingTasks()
           : renderProjectsTable()}

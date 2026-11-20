@@ -10,7 +10,6 @@ import {
     UsersIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 interface ProjectPerson {
     pi_name?: string;
@@ -111,20 +111,25 @@ const isApprovedProject = (project: Project) => {
 
 const getStatusBadge = (status?: string) => {
     const s = normalize(status);
-    let className = "bg-zinc-100 text-zinc-800 border-zinc-200";
+    let tone = "bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300";
+    let dot = "bg-[var(--psd-info)]";
 
     if (s.includes("pending") || s.includes("review") || s.includes("process")) {
-        className = "bg-amber-100 text-amber-800 border-amber-200";
+        tone = "bg-[var(--psd-review-bg)] text-[#B45309] dark:text-amber-300";
+        dot = "bg-[var(--psd-review)]";
     } else if (s.includes("approved") || s.includes("open")) {
-        className = "bg-emerald-100 text-emerald-800 border-emerald-200";
-    } else if (s.includes("rejected") || s.includes("closed")) {
-        className = "bg-rose-100 text-rose-800 border-rose-200";
+        tone = "bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300";
+        dot = "bg-[var(--psd-approved)]";
+    } else if (s.includes("rejected") || s.includes("closed") || !s || s.includes("draft")) {
+        tone = "bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300";
+        dot = "bg-[var(--psd-returned)]";
     }
 
     return (
-        <Badge variant="outline" className={cn("border", className)}>
+        <span className={cn("inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", tone)}>
+            <span className={cn("size-1.5 rounded-full", dot)} />
             {status || "Draft"}
-        </Badge>
+        </span>
     );
 };
 
@@ -567,35 +572,36 @@ export default function CoProjectView() {
     };
 
     return (
-        <div className="w-full mx-auto space-y-3 animate-in fade-in duration-500">
-            <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
-                <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                <div className="flex flex-col gap-1 px-4 py-2.5">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                        Project Registry
-                    </span>
-                    <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                        Co-Projects
-                    </h1>
-                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                        Projects where you are listed as an Additional PI or Co-Investigator.
-                    </p>
+        <div className="psd-root w-full mx-auto space-y-2.5 animate-in fade-in duration-500">
+            <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
+                <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+                <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                    <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                        <UsersIcon className="size-4" strokeWidth={1.8} />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Project Registry</div>
+                        <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Co-Projects</h1>
+                    </div>
                 </div>
-            </div>
+                <p className="relative z-10 hidden text-xs text-[var(--psd-body)] md:block">
+                    Projects where you are listed as an Additional PI or Co-Investigator.
+                </p>
+            </header>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
+            <div className="psd-card flex flex-col sm:flex-row gap-2.5 justify-between items-center !rounded-xl px-3 py-2">
                 <div className="relative w-full sm:w-80">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
                     <Input
                         placeholder="Search co-projects..."
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
-                        className="h-9 pl-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]"
+                        className="h-8 pl-9 bg-[var(--psd-surface)] border-[var(--psd-border)] text-[13px] focus-visible:border-[var(--psd-primary)] focus-visible:ring-[var(--psd-primary)]/20"
                     />
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
-                        <SelectTrigger className="h-9 w-[180px] bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]">
+                        <SelectTrigger className="h-8 w-[175px] bg-[var(--psd-surface)] border-[var(--psd-border)] text-[13px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -610,43 +616,43 @@ export default function CoProjectView() {
                         variant="outline"
                         size="icon"
                         onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                        className="h-9 w-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] shrink-0"
+                        className="h-8 w-8 bg-[var(--psd-surface)] border-[var(--psd-border)] shrink-0"
                     >
                         <ChevronsUpDown className="h-4 w-4" />
                     </Button>
                 </div>
             </div>
 
-            <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-lg">
+            <Card className="psd-card overflow-hidden !rounded-xl !border-[var(--psd-border)] !bg-[var(--psd-surface)] !shadow-none">
                 <CardContent className="p-0">
-                    <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                    <div className="flex items-center justify-between border-b border-[var(--psd-border)] px-3 py-2">
                         <div className="flex items-center gap-2">
-                            <UsersIcon className="h-4 w-4 text-[#4A6CF7]" />
-                            <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                            <span className="grid size-6 place-items-center rounded-md bg-[var(--psd-primary-light)] text-[var(--psd-primary)]"><UsersIcon className="h-3.5 w-3.5" /></span>
+                            <span className="text-[13px] font-bold text-[var(--psd-heading)]">
                                 {filteredAndSortedProjects.length} Co-Project{filteredAndSortedProjects.length === 1 ? "" : "s"}
                             </span>
                         </div>
                     </div>
                     <div className="overflow-x-auto">
-                        <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
-                            <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                                <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
-                                    <TableHead className="w-[120px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                        <Table className="w-full">
+                            <TableHeader className="bg-[#DCE6CD] dark:bg-[#34402B]">
+                                <TableRow className="border-b border-[#BBC9A4] dark:border-[#4B5A3E] hover:bg-transparent">
+                                    <TableHead className="w-[120px] whitespace-nowrap px-3 py-1.5 h-8 text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Number
                                     </TableHead>
-                                    <TableHead className="min-w-[220px] px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="min-w-[220px] px-3 py-1.5 h-8 text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Project Title
                                     </TableHead>
-                                    <TableHead className="w-[160px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[160px] whitespace-nowrap px-3 py-1.5 h-8 text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Funding Agency
                                     </TableHead>
-                                    <TableHead className="w-[110px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[110px] whitespace-nowrap px-3 py-1.5 h-8 text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Date
                                     </TableHead>
-                                    <TableHead className="w-[130px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[130px] whitespace-nowrap px-3 py-1.5 h-8 text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider relative after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Status
                                     </TableHead>
-                                    <TableHead className="text-right w-[70px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                                    <TableHead className="text-right w-[70px] whitespace-nowrap px-3 py-1.5 h-8 text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider">
                                         Action
                                     </TableHead>
                                 </TableRow>
@@ -678,28 +684,28 @@ export default function CoProjectView() {
                                     filteredAndSortedProjects.map((project) => (
                                         <TableRow
                                             key={project.name}
-                                            className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
+                                            className="cursor-pointer border-b border-[var(--psd-border)] last:border-b-0 hover:bg-[var(--psd-primary-light)]/40"
                                             onClick={() => openProject(project)}
                                         >
-                                            <TableCell className="px-3 py-2 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 font-mono text-xs font-bold text-[#7A46AE] dark:text-[#D3B4F0] bg-[#F1E8F9] dark:bg-[#33243F] whitespace-nowrap border-b border-[#D8C6EC] dark:border-[#4A3A5C] [tr:last-child_&]:border-b-0 relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDD0EE] dark:after:bg-[#4A3A5C]">
                                                 {project.project_no || project.name}
                                             </TableCell>
-                                            <TableCell className="px-3 py-2 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                                                <div className="line-clamp-2 min-w-[180px] max-w-[420px]" title={project.project_title}>
+                                            <TableCell className="px-3 py-2 font-semibold text-[13px] text-[var(--psd-heading)] relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDE3D2] dark:after:bg-[#3F4A36]">
+                                                <div className="line-clamp-2 min-w-[180px] max-w-[420px] leading-snug" title={project.project_title}>
                                                     {project.project_title || "-"}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="px-3 py-2 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 text-[var(--psd-body)] text-xs whitespace-nowrap relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDE3D2] dark:after:bg-[#3F4A36]">
                                                 {fundingAgencyNameMap.get(project.funding_agen || "") || project.funding_agen || "-"}
                                             </TableCell>
-                                            <TableCell className="px-3 py-2 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 text-[var(--psd-body)] text-xs whitespace-nowrap relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDE3D2] dark:after:bg-[#3F4A36]">
                                                 {project.creation ? format(new Date(project.creation), "MMM dd, yyyy") : "-"}
                                             </TableCell>
-                                            <TableCell className="px-3 py-2 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 whitespace-nowrap relative after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDE3D2] dark:after:bg-[#3F4A36]">
                                                 {getStatusBadge(project.workflow_state)}
                                             </TableCell>
                                             <TableCell className="px-3 py-2 text-right whitespace-nowrap">
-                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                                                     <ChevronRightIcon className="h-4 w-4" />
                                                     <span className="sr-only">View</span>
                                                 </Button>
