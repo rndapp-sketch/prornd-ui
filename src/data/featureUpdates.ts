@@ -125,7 +125,7 @@ export const featureUpdates: FeatureUpdate[] = [
     },
     {
         id: "overhead-funds",
-        title: "Personal & Departmental Development Funds",
+        title: "Professional & Departmental Development Funds",
         date: "2026-09-20",
         time: "19:22",
         status: "live",
@@ -133,7 +133,7 @@ export const featureUpdates: FeatureUpdate[] = [
         tags: ["Projects", "Funds", "Overhead"],
         summary: "Overhead funds now appear as projects, so they can be spent from and approved like any other project.",
         highlights: [
-            "Faculty see their Personal Development Fund and department heads see their Departmental Development Fund, under a new Overhead tab",
+            "Faculty see their Professional Development Fund and department heads see their Departmental Development Fund, under a new Overhead tab",
             "Applications such as Travel, Reimbursement, Indent and Direct Purchase can be raised against them, with the account head fixed to Overhead",
             "Balance, ledger and payments come from the accounts service; there are no sanction, loan or fund-received steps for these funds",
             "R&D approvers get an Overhead tab in Pending Task and Task Registry",

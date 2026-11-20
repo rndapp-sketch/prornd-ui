@@ -92,7 +92,7 @@ import { awaitingLabel } from "@/utils/cancellationLabels";
 import { loanSettlementAPI } from "@/services/apiService";
 import { OVERHEAD_BUDGET_HEAD, OVERHEAD_BUDGET_HEAD_ID, fetchOverheadLedger } from "@/services/overheadLedger";
 import { UC_REQUEST_ENABLED } from "@/config/features";
-import { isTravelAdvancePaid } from "@/services/travelSettlement";
+import { isTravelAdvancePaid, travelRequestedAdvance } from "@/services/travelSettlement";
 
 // --- Ledger Interfaces ---
 interface LedgerTransaction {
@@ -1048,7 +1048,7 @@ const QuickActions = ({
         // Same rule as TravelDetails: a travel that asked for an advance can only be
         // settled once that advance has been paid.
         if (
-            item.travel_financial_assistance === "Yes" &&
+            travelRequestedAdvance(item) &&
             !(await isTravelAdvancePaid(item.name, item.travel_project_number || projectNo || ""))
         ) {
             setIsLoading(false);
@@ -1296,7 +1296,7 @@ const QuickActions = ({
             ],
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
-        // Loans are not possible against a Personal Development Fund, so the group is
+        // Loans are not possible against a Professional Development Fund, so the group is
         // dropped entirely for PDF projects rather than shown and rejected later.
         ...(isOverheadProject
             ? []
@@ -1561,7 +1561,7 @@ const QuickActions = ({
                         ? `&filters=${encodeURIComponent(JSON.stringify([["travel_project_title", "=", projectName]]))}`
                         : "";
                     const travelPromise = fetch(
-                        `${FRAPPE_BASE_URL}/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel","travel_financial_assistance"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
+                        `${FRAPPE_BASE_URL}/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel","travel_financial_assistance","do_you_need_advance"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
                         {
                             method: "GET",
                             headers: { Accept: "application/json" },
@@ -4032,7 +4032,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const sanctionEditLocked =
         hasFundReceived || commitableBalance > 0 || actualBalance > 0 || isFundLoading;
 
-    // Personal Development Fund project: a personal overhead fund surfaced as a project.
+    // Professional Development Fund project: a personal overhead fund surfaced as a project.
 
     const handleCommit = () => {
         const amount = parseFloat(commitAmount);
