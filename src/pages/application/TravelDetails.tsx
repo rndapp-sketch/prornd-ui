@@ -13,6 +13,7 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { usePfmsProjectNames } from '@/hooks/useIsPfmsProject';
 import { useUserRoles } from '@/components/UserRole';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 import { CommitPayment } from '@/components/CommitPayment';
@@ -28,6 +29,7 @@ import { Printer, Download, UploadCloud } from 'lucide-react';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import { CancellationStatusBanner } from "../../components/CancellationStatusBanner";
+import { travelRequestedAdvance } from "@/services/travelSettlement";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -460,6 +462,10 @@ const TravelDetails: React.FC = () => {
 
     // Advance / Settle logic
     const needsAdvance = formData.travel_financial_assistance === "Yes";
+    // PFMS projects may not fund an advance, so the Other PI cannot charge one to them.
+    const pfmsOtherPiProjects = usePfmsProjectNames(
+        isOtherPiStep ? otherPiProjects.map((p) => p.value) : [],
+    );
     const isApproved = formData.workflow_state === "Approved";
     // Only the applicant who initiated this Travel application should see "Settle Travel" —
     // not the approvers (HoS/Dean/Ado_RnD/etc.) reviewing/approving it.
@@ -469,7 +475,10 @@ const TravelDetails: React.FC = () => {
         currentUser.toLowerCase() === String(formData.webmail_id_travel).toLowerCase();
     // Settle: after Dean approval; if advance needed, only after payment recorded;
     // and only when a TA/DA Settlement hasn't already been raised for this travel.
-    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (needsAdvance ? !!linkedPayment : true);
+    // Settle waits for a payment only when an advance was actually asked for ("Do you need
+    // Advance?" = Yes) — financial assistance without an advance can be settled straight away.
+    const advanceRequested = travelRequestedAdvance(formData);
+    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (advanceRequested ? !!linkedPayment : true);
 
 
     // Block "Forward" when R&D Staff hasn't committed yet but advance is required
@@ -820,10 +829,20 @@ const TravelDetails: React.FC = () => {
                                     className="w-full min-w-0 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
                                 >
                                     <option value="">Select project…</option>
-                                    {otherPiProjects.map((p) => (
-                                        <option key={p.value} value={p.value}>{p.label}</option>
-                                    ))}
+                                    {otherPiProjects.map((p) => {
+                                        const blocked = needsAdvance && pfmsOtherPiProjects.has(p.value);
+                                        return (
+                                            <option key={p.value} value={p.value} disabled={blocked}>
+                                                {blocked ? `${p.label} (PFMS – advance not allowed)` : p.label}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
+                                {needsAdvance && pfmsOtherPiProjects.size > 0 && (
+                                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        This travel requests an advance, so PFMS projects cannot be selected.
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1">
@@ -873,61 +892,41 @@ const TravelDetails: React.FC = () => {
 
                     {/* Sidebar */}
                     <aside className="lg:col-span-1 space-y-3">
-                        {/* Status */}
-                        <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-[12px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide mb-2">
-                                Status
-                            </h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-zinc-600 dark:text-zinc-400">Workflow State</span>
+                        {/* TA/DA settlement status (the travel's own workflow state / last
+                            modified are intentionally not shown here) */}
+                        {tadaSettlement && (
+                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-zinc-600 dark:text-zinc-400">TA/DA Settlement</span>
                                     <span
                                         className={cn(
                                             "px-3 py-1 text-xs font-bold rounded-full",
-                                            formData.workflow_state === "Approved" &&
+                                            tadaSettlement.workflow_state === "Approved" &&
                                                 "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                            formData.workflow_state === "Rejected" &&
+                                            tadaSettlement.workflow_state === "Rejected" &&
                                                 "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                            formData.workflow_state === "Draft" &&
-                                                "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                            !["Approved", "Rejected", "Draft"].includes(
-                                                formData.workflow_state || "",
-                                            ) &&
+                                            !["Approved", "Rejected"].includes(tadaSettlement.workflow_state || "") &&
                                                 "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
                                         )}
                                     >
-                                        {formData.workflow_state || "Draft"}
+                                        {tadaSettlement.workflow_state || "Pending"}
                                     </span>
                                 </div>
-                                {tadaSettlement && (
-                                    <div className="flex justify-between items-center pt-1 border-t border-zinc-100 dark:border-zinc-800 mt-1">
-                                        <span className="text-zinc-600 dark:text-zinc-400">TA/DA Settlement</span>
-                                        <span
-                                            className={cn(
-                                                "px-3 py-1 text-xs font-bold rounded-full",
-                                                tadaSettlement.workflow_state === "Approved" &&
-                                                    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                                tadaSettlement.workflow_state === "Rejected" &&
-                                                    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                                !["Approved", "Rejected"].includes(tadaSettlement.workflow_state || "") &&
-                                                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                                            )}
-                                        >
-                                            {tadaSettlement.workflow_state || "Pending"}
-                                        </span>
-                                    </div>
-                                )}
-                                {formData.modified && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-600 dark:text-zinc-400">Last Modified</span>
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {new Date(formData.modified).toLocaleDateString("en-IN")}
-                                        </span>
-                                    </div>
-                                )}
                             </div>
-                        </div>
+                        )}
+
+                        {/* Director-signed document, once the panel above is no longer shown (e.g. Approved) */}
+                        {directorSignedPdf && !showDirectorPanel && (
+                            <a
+                                href={getFileUrl(directorSignedPdf)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2.5"
+                            >
+                                <Download className="w-4 h-4" />
+                                View Director Approval Document
+                            </a>
+                        )}
 
                         {/* Director Approval — International travel only.
                             See docs/travel-director-approval-implementation.md */}

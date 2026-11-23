@@ -1068,7 +1068,7 @@ export function HeadOverview() {
     // ── PI workload (dept-scoped) directly from Head API ──────────────────────
     const piData = React.useMemo(() => {
         // Keep only projects that also exist in deptProjects, so the PI list agrees with the
-        // rest of the page (the Head API also returns entries such as Personal Development Fund).
+        // rest of the page (the Head API also returns entries such as Professional Development Fund).
         const known = new Set(deptProjects.map((p: any) => p.name));
         const scoped = deptProjects.length > 0;
         return piWiseProjects

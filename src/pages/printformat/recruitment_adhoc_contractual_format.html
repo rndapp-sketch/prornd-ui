@@ -253,9 +253,14 @@
 
             .content { padding: 0 14mm; }
 
+            /* Let the log split between rows (rows themselves stay whole) so the heading
+               is never stranded on a page of its own while the comments jump to the next. */
             .activity-table {
-                page-break-inside: avoid;
+                page-break-inside: auto;
+                break-inside: auto;
             }
+            .activity-table thead { display: table-header-group; }
+            .activity-table tr { page-break-inside: avoid; break-inside: avoid; }
 
             .print-hide {
                 display: none !important;

@@ -798,7 +798,7 @@ const SanctionSheetForm: React.FC = () => {
             <P11PrintModal
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
-                htmlContent={isPrintModalOpen ? generateSanctionSheetHtml({ ...formData, is_foreign: dpDocData?.is_foreign, quoted_price_currency: dpDocData?.quoted_price_currency }) : ''}
+                htmlContent={isPrintModalOpen ? generateSanctionSheetHtml({ ...formData, is_foreign: dpDocData?.is_foreign, quoted_price_currency: dpDocData?.quoted_price_currency || dpDocData?.currency }) : ''}
                 docName={editDocName || formData.name || ''}
             />
 

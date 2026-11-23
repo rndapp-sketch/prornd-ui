@@ -117,18 +117,33 @@
         /* Item table */
         table.item-table {
             width: 100%;
+            /* Fixed layout keeps the table inside the page: columns follow <colgroup> and
+               long values wrap instead of stretching the table past the edge. */
+            table-layout: fixed;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 12px;
             margin-bottom: 10px;
         }
 
         table.item-table th,
         table.item-table td {
             border: 1px solid #000;
-            padding: 5px 6px;
+            padding: 4px 5px;
             vertical-align: middle;
             line-height: 1.3;
             word-wrap: break-word;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        /* Amounts may wrap rather than overflow their (narrow) column */
+        table.item-table td.right {
+            white-space: normal;
+        }
+
+        .info-table td {
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         table.item-table th {
@@ -237,8 +252,9 @@
                 page-break-inside: auto;
             }
 
+            /* @page already supplies the 12mm side margins; extra padding here only narrowed the table */
             .content {
-                padding: 0 14mm;
+                padding: 0;
             }
 
             .signature-section {
@@ -327,15 +343,15 @@
             <table class="item-table">
                 <colgroup>
                     <col style="width: 4%" />
-                    <col style="width: 16%" />
-                    <col style="width: 9%" />
+                    <col style="width: 14%" />
+                    <col style="width: 8%" />
                     <col style="width: 9%" />
                     <col style="width: 21%" />
                     <col style="width: 5%" />
-                    <col style="width: 10%" />
+                    <col style="width: 11%" />
                     <col style="width: 9%" />
-                    <col style="width: 7%" />
-                    <col style="width: 10%" />
+                    <col style="width: 8%" />
+                    <col style="width: 11%" />
                 </colgroup>
                 <thead>
                     <tr>

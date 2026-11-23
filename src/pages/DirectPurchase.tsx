@@ -6,6 +6,7 @@
 // import { PageHeader } from '@/components/common/PageHeader';
 // import { directPurchaseAPI } from '@/services/apiService';
 // import { CommentModal } from '@/components/CommentModal';
+import { CurrencyHint, CurrencyRateLine } from '@/components/CurrencyRatesModal';
 // import { Plus, Trash2, Printer } from 'lucide-react';
 // import { DepartmentName } from "@/components/DepartmentName";
 // import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
@@ -2288,6 +2289,16 @@ const DirectPurchase: React.FC = () => {
         () => getDpCurrency(formData, linkOptions['quoted_price_currency'] || linkOptions['Currency'] || []),
         [formData, linkOptions],
     );
+    // Foreign purchase (or any non-INR currency): point the user to the top-bar converter.
+    const isForeignYes = ['1', 'yes', 'true'].includes(String(formData.is_foreign ?? '').trim().toLowerCase());
+    const showConverterHint = isForeignYes || dpCurrency.code !== 'INR';
+    const converterHint = (
+        <>
+            {dpCurrency.code !== 'INR' ? <>You have selected <b>{dpCurrency.code}</b>, a currency other than INR. </> : <>This is a foreign purchase. </>}
+            Click the <b>$₹ currency icon</b> in the top bar to open the converter and check the current exchange rate to INR.
+            <CurrencyRateLine code={dpCurrency.code} />
+        </>
+    );
     const projectNoForHeads = formData.project_no || formData.project_name || projectName || '';
     // Budget Heads sanctioned/received against the selected project
     const { data: projectBudgetHeadsResult } = useFrappeGetCall<{
@@ -2952,6 +2963,8 @@ const DirectPurchase: React.FC = () => {
                     projectName={projectName}
                 />
 
+                <CurrencyHint show={showConverterHint}>{converterHint}</CurrencyHint>
+
                 <form onSubmit={handleFormSubmit}>
                     <div className="space-y-5">
                         {sections.map((section, index) => (
@@ -3015,7 +3028,13 @@ const DirectPurchase: React.FC = () => {
                                         const isWebmail = field.fieldname === 'applying_for_name';
                                         const prefix = 'applicant';
 
-                                        return (
+                                        const isCurrencyField = field.fieldtype !== 'Table' && field.fieldtype !== 'HTML' && (
+                                            field.fieldname === 'quoted_price_currency' ||
+                                            (field.fieldtype === 'Link' && field.options === 'Currency') ||
+                                            /currency/i.test(field.fieldname) ||
+                                            /quoted price.*currency/i.test(field.label || '')
+                                        );
+                                        const fieldEl = (
                                             <MemoizedFormField
                                                 key={field.fieldname}
                                                 field={effectiveField}
@@ -3027,6 +3046,18 @@ const DirectPurchase: React.FC = () => {
                                                 isWebmailField={isWebmail}
                                                 webmailPrefix={prefix}
                                             />
+                                        );
+                                        if (!(isCurrencyField && isForeignYes)) return fieldEl;
+                                        return (
+                                            <div key={field.fieldname} className="space-y-1.5">
+                                                {fieldEl}
+                                                <div className="rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs leading-snug text-orange-900 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+                                                    {dpCurrency.code === 'INR'
+                                                        ? <span>Select a currency to see its exchange rate to INR.</span>
+                                                        : <CurrencyRateLine code={dpCurrency.code} />}
+                                                    <span className="mt-0.5 block text-[11px] opacity-80">Click the <b>$₹</b> icon in the top bar to open the converter.</span>
+                                                </div>
+                                            </div>
                                         );
                                     })}
                                 </div>

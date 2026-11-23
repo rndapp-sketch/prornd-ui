@@ -1,14 +1,14 @@
 # Top-Up Fellowship — Implementation Details
 
 **Branch:** `mythos_omni_v0.4`  
-**Date:** 2026-06-01  
+**Date:** 2026-06-01 (limits/auto-calculation section updated 2026-11-18)  
 **Author:** okramjimmy
 
 ---
 
 ## Overview
 
-The Top-Up Fellowship feature enables Principal Investigators (PIs) to apply for additional monthly stipends for students working on research projects, subject to a **₹25,000/month per-student cap**. It includes a multi-stage approval workflow and a Faculty Admission signed-PDF upload sub-workflow for R&D Staff.
+The Top-Up Fellowship feature enables Principal Investigators (PIs) to apply for additional monthly stipends for students working on research projects, subject to a **per-student monthly cap** (₹50,000/month by default, ₹25,000/month for students already on a stipend/scholarship), scaled by the number of months in the engagement period. It includes a multi-stage approval workflow and a Faculty Admission signed-PDF upload sub-workflow for R&D Staff.
 
 ---
 
@@ -16,7 +16,7 @@ The Top-Up Fellowship feature enables Principal Investigators (PIs) to apply for
 
 | Area | Description |
 |---|---|
-| **Form** | Multi-student application with per-student cap validation |
+| **Form** | Multi-student application with per-student cap validation, auto-calculated months and Grand Total Amount |
 | **Details View** | Read-only view with full workflow timeline |
 | **Faculty Admission Flow** | R&D Staff downloads generated PDF → Faculty Admission signs → Staff uploads scan |
 | **Routing** | 3 new protected routes in the React Router config |
@@ -40,11 +40,12 @@ The Top-Up Fellowship feature enables Principal Investigators (PIs) to apply for
   - `email_of_student` (Link to student DB — auto-fetches roll number + department)
   - `roll_number` (auto-filled)
   - `dept_centre` (auto-filled)
-  - `period_from` / `period_to` (date range)
+  - `period_from` / `period_to` (date range, shown as dd/mm/yyyy)
   - `hours_per_month`
   - `rate_per_hour`
-  - `total_amount_per_month` (auto-computed)
-- **Monthly cap enforcement:** Real-time fetch of each student's existing honorarium + top-up total; blocks submission if ₹25,000/month is exceeded
+  - `stipend_or_scholarship` (Select: Yes/No)
+  - `total_amount_per_month` (labelled **Grand Total Amount**; auto-computed and read-only — see below)
+- **Monthly cap enforcement:** Real-time fetch of each student's existing honorarium + top-up total; blocks save/submit if the engagement-wide cap is exceeded (see *Limits & Auto-Calculation*)
 - **Project auto-link:** Selecting `project_code` auto-fills `project_title` and coordinating PI
 - Supports both **draft save** and **submit for approval**
 
@@ -56,6 +57,27 @@ The Top-Up Fellowship feature enables Principal Investigators (PIs) to apply for
 - `rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_students_monthly_summary`
 
 **Routes:** `/top-up-fellowship` (new application), `/top-up-fellowship?project=<name>` (pre-filled from project)
+
+#### Limits & Auto-Calculation
+
+All of this is computed client-side from the row's `period_from`, `period_to`, `hours_per_month`, `rate_per_hour` and `stipend_or_scholarship`.
+
+| Item | Rule |
+|---|---|
+| **Months** | Inclusive count of calendar months from Period From to Period To (`monthsForRow`). 01-Jan → 31-Mar = 3. Missing/invalid/backwards dates count as 1. |
+| **Days** | Inclusive day count (`daysForRow`). 01-Jan → 31-Mar = 90. |
+| **Grand Total Amount** | `hours_per_month × rate_per_hour × months`, written into `total_amount_per_month` whenever any of those four fields changes (in `handleTableRowChange`). The field is forced `read_only` when child fields are loaded. |
+| **Per-month cap** | ₹50,000 (value reported by the backend `get_students_monthly_summary`, seeded at 50,000) or ₹25,000 (`STIPEND_OR_SCHOLARSHIP_CAP`) when `stipend_or_scholarship = Yes`. |
+| **Engagement cap** | per-month cap × months (`totalCapForRow`). Example: 3 months → ₹75,000 with stipend/scholarship, ₹1,50,000 without. |
+| **Check** | `already received + Grand Total Amount > engagement cap` → "Over by ₹…" in the panel and a blocking alert on Save. |
+
+**Monthly Limit Status panel** (above the form) shows per student: stipend/scholarship flag, Period (Days), Months, Honorarium / Top Up this month, Already Received, Requesting now (total), Max Allowed Now and a Within cap / Over by status. A footer row shows the totals of days and months and the **Grand Total Amount** across all students. A highlighted note beneath the table explains what is counted, with examples.
+
+**Known limitation:** "Already received" comes from `get_students_monthly_summary`, which works per month and is queried for the month of Period From only. For multi-month ranges, amounts already received in the later months are not counted.
+
+**Row editor hints** (in `ChildTableComponent.tsx`): under Period To a hint shows `Duration: N days or M months` once both dates are valid (red warning if Period To is before Period From). It is keyed on the `period_to` fieldname, so any child table with that field shows it. Hours / Month and Rate / Hour show their existing limit hints (max 50 hours; ₹100–₹1000).
+
+**Date format:** Date fields display and accept `dd/mm/yyyy` via `src/components/ui/date-input-dmy.tsx` (`DateInputDMY`), used by both `ChildTableComponent` and `DynamicFormRenderer` — so this applies to every Date field app-wide, not only this form. The stored/API value stays `YYYY-MM-DD`. Native `<input type="date">` cannot be forced to a format because it follows the OS locale; the component is a masked text input plus a calendar button that opens the native picker.
 
 ---
 

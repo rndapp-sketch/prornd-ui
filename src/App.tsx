@@ -3,6 +3,7 @@
 import { PersistentPopups } from "@/components/PersistentPopups";
 import { DomainReminder } from "@/components/DomainReminder";
 import { AnnouncementBell } from "@/components/AnnouncementBell";
+import { CurrencyRatesButton } from "@/components/CurrencyRatesModal";
 import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import {
   FrappeProvider,
@@ -241,6 +242,9 @@ function AppContent() {
 
                         {/* Announcements (Announcement Pragati) */}
                         <AnnouncementBell user={currentUser} />
+
+                        {/* Currency rates (role-gated) */}
+                        <CurrencyRatesButton user={currentUser} />
 
                         {/* What's New */}
                         <Tooltip>

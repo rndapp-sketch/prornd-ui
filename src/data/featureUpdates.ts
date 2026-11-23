@@ -32,11 +32,42 @@ export interface FeatureUpdate {
 
 export const featureUpdates: FeatureUpdate[] = [
     {
+        id: "currency-converter",
+        title: "Currency Rates & Converter",
+        date: "2026-11-19",
+        time: "14:53",
+        status: "live",
+        accent: "orange",
+        tags: ["Currency", "Converter", "Direct Purchase"],
+        summary: "Check current exchange rates and convert amounts from a movable window opened by the $₹ icon in the top bar, available to R&D staff, permanent employees, Heads, Dean and Associate Deans.",
+        highlights: [
+            "Convert between INR and any currency in either direction, or between two foreign currencies on the Other ⇄ Other tab",
+            "Search currencies by code or full name, pick the rate date (today by default) and see the latest rates for USD, EUR, GBP, JPY, AUD, CAD, SGD, CHF and AED with country flags",
+            "Rates are fetched fresh every time the window opens; Refresh shows when they were last updated in IST",
+            "The window can be dragged and resized, and stays open while you work on the page behind it",
+            "On the Direct Purchase form, choosing a foreign purchase or a currency other than INR shows the current rate below Quoted Price In Currency and a notice pointing to the $₹ icon",
+        ],
+    },
+    {
+        id: "reimbursement-auto-budget-head",
+        title: "Reimbursement: Budget Head Pre-selected for Commitment",
+        date: "2026-11-19",
+        time: "14:53",
+        status: "live",
+        accent: "teal",
+        tags: ["Reimbursement", "Commitment", "Budget Head"],
+        summary: "When R&D staff make a commitment on a Reimbursement, the Budget Head chosen at approval is selected automatically.",
+        highlights: [
+            "The account head picked by the approver is pre-selected in the Make Commitment form",
+            "The Record Payment box now appears only once a commitment exists, instead of showing a placeholder message",
+        ],
+    },
+    {
         id: "independent-researcher-inspired-faculty-registration",
         title: "Independent Researchers & Inspired Faculty Can Now Apply for Projects",
         date: "2026-09-28",
         time: "16:32",
-        status: "in-progress",
+        status: "live",
         accent: "sky",
         tags: ["Project Registration", "Independent Researcher", "Inspired Faculty"],
         summary: "Independent Researchers and Inspired Faculty can now register projects through the portal, with a mentor assigned to review and approve on their behalf.",
@@ -94,7 +125,7 @@ export const featureUpdates: FeatureUpdate[] = [
     },
     {
         id: "overhead-funds",
-        title: "Personal & Departmental Development Funds",
+        title: "Professional & Departmental Development Funds",
         date: "2026-09-20",
         time: "19:22",
         status: "live",
@@ -102,7 +133,7 @@ export const featureUpdates: FeatureUpdate[] = [
         tags: ["Projects", "Funds", "Overhead"],
         summary: "Overhead funds now appear as projects, so they can be spent from and approved like any other project.",
         highlights: [
-            "Faculty see their Personal Development Fund and department heads see their Departmental Development Fund, under a new Overhead tab",
+            "Faculty see their Professional Development Fund and department heads see their Departmental Development Fund, under a new Overhead tab",
             "Applications such as Travel, Reimbursement, Indent and Direct Purchase can be raised against them, with the account head fixed to Overhead",
             "Balance, ledger and payments come from the accounts service; there are no sanction, loan or fund-received steps for these funds",
             "R&D approvers get an Overhead tab in Pending Task and Task Registry",

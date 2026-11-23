@@ -1,7 +1,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect } from 'react';
 import { FormRender } from './FormRender';
-import type { CommitRecord } from '@/types/ledgerTypes';
+import type { CommitRecord, SettlementNet } from '@/types/ledgerTypes';
 import { ErrorModal } from './ErrorModal';
 import { CharLimitAlert } from './CharLimitAlert';
 import { parseFrappeError } from '../utils/errorUtils';
@@ -14,11 +14,14 @@ interface PaymentFormProps {
     commitData?: CommitRecord; // If provided (and no docName), we are creating a new payment from this commit
     resolvedBudgetHead?: string; // Pre-resolved name for the budget/account head Link field
     previousPaid?: number; // Already paid against this commit (earlier instalments)
+    // Settlement whose advance was already paid: what it really nets to. Display only — the
+    // payment still sends the bill, and Accounts works out the net itself.
+    settlementNet?: SettlementNet | null;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, resolvedBudgetHead, previousPaid = 0, onSuccess, onCancel }) => {
+export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, resolvedBudgetHead, previousPaid = 0, settlementNet = null, onSuccess, onCancel }) => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [fieldDefs, setFieldDefs] = useState<any[]>([]);
@@ -295,6 +298,24 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-zinc-300 dark:bg-zinc-600" />Left after {leftPct.toFixed(1)}%</span>
                         </div>
                     </div>
+
+                    {settlementNet && (
+                        <div className={`rounded-xl border p-4 ${settlementNet.net < 0
+                            ? 'border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/20'
+                            : 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-950/20'}`}>
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net to pay (settlement)</div>
+                            <div className={`mt-1 text-xl font-extrabold ${settlementNet.net < 0 ? 'text-red-700 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                                {settlementNet.net < 0 ? '−' : ''}{money(Math.abs(settlementNet.net))}
+                            </div>
+                            <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+                                Bill {money(settlementNet.bill)} − advance already paid {money(settlementNet.paidAcrossChain)}
+                                {settlementNet.net < 0 && <> — the applicant must refund {money(Math.abs(settlementNet.net))}.</>}
+                            </div>
+                            <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                The payment is submitted with the bill amount; Accounts records the net amount above.
+                            </div>
+                        </div>
+                    )}
 
                     {/* Amount */}
                     <div>

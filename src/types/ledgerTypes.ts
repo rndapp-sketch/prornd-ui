@@ -11,6 +11,16 @@ export interface CommitRecord {
     billAmount: number | null;
     moduleId: string | null;
     frapAppId: string | null;
+    /** Set client-side when merging project and overhead commits; their ids collide. */
+    source?: 'project' | 'overhead';
+}
+
+/** What a settlement commit actually nets to once the advance paid against its parent is offset. */
+export interface SettlementNet {
+    bill: number;
+    paidAcrossChain: number;
+    /** bill − paidAcrossChain; negative means the excess advance is recovered from the applicant. */
+    net: number;
 }
 
 export interface LedgerPaymentRecord {

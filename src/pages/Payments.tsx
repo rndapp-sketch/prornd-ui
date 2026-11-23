@@ -9,7 +9,7 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 
 import { ledgerService } from '@/services/ledgerService';
 import { overheadFundAPI } from '@/services/apiService';
-import type { CommitRecord } from '@/types/ledgerTypes';
+import type { CommitRecord, SettlementNet } from '@/types/ledgerTypes';
 import { PaymentForm } from '@/components/PaymentForm';
 import { useUserRoles } from '@/components/UserRole';
 import { useFrappeAuth, useFrappePostCall } from 'frappe-react-sdk';
@@ -33,9 +33,22 @@ interface PaymentRecord {
     // staff can't re-initiate a second payment on a commit whose status hasn't
     // caught up yet (see commitPaymentInfo below).
     transaction_commit_number?: number | null;
+    // Which service the payment came from. Project and overhead commit ids are separate
+    // sequences that collide, so a commit number is only meaningful together with this.
+    source?: FundSource;
     remaining_amount?: number;
     commit_status?: string;
 }
+
+type FundSource = 'project' | 'overhead';
+
+const formatNet = (n: number) =>
+    `${n < 0 ? '−' : ''}₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+// Commit numbers are only unique within one source (project ledger vs overhead tables),
+// so every commit <-> payment lookup is keyed on source + number.
+const commitKey = (source: FundSource | undefined, num: number | null | undefined): string | null =>
+    num == null ? null : `${source ?? 'project'}:${num}`;
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -180,7 +193,8 @@ const Payments: React.FC = () => {
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             )
                 .then(r => r.json())
-                .then(payload => (payload?.message?.data ?? []) as CommitRecord[])
+                .then(payload => ((payload?.message?.data ?? []) as CommitRecord[])
+                    .map(c => ({ ...c, source: 'overhead' as const })))
                 .catch(() => [] as CommitRecord[]);
 
             const [results, overhead] = await Promise.all([
@@ -188,7 +202,10 @@ const Payments: React.FC = () => {
                 overheadCommits,
             ]);
             // Flatten results and sort by date descending (latest first)
-            const allCommits = [...results.flat(), ...overhead];
+            const allCommits = [
+                ...results.flat().map(c => ({ ...c, source: 'project' as const })),
+                ...overhead,
+            ];
             allCommits.sort((a, b) => {
                 const dateA = a.commitDate ? new Date(a.commitDate).getTime() : 0;
                 const dateB = b.commitDate ? new Date(b.commitDate).getTime() : 0;
@@ -302,14 +319,18 @@ const Payments: React.FC = () => {
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             )
                 .then(r => r.json())
-                .then(payload => (payload?.message?.data ?? []) as any[])
+                .then(payload => ((payload?.message?.data ?? []) as any[])
+                    .map(p => ({ ...p, __source: 'overhead' as const })))
                 .catch(() => [] as any[]);
 
             const [projectPayments, overhead] = await Promise.all([
                 ledgerService.getAllPayments(),
                 overheadPayments,
             ]);
-            const data = [...(Array.isArray(projectPayments) ? projectPayments : []), ...overhead];
+            const data = [
+                ...(Array.isArray(projectPayments) ? projectPayments : []).map(p => ({ ...p, __source: 'project' as const })),
+                ...overhead,
+            ];
             if (data && Array.isArray(data)) {
                 const loadedPayments: PaymentRecord[] = data.map((p: any) => ({
                     name: String(p.transactionPaymentNumber),
@@ -325,6 +346,7 @@ const Payments: React.FC = () => {
                     modified: p.paymentDate,
                     doctype: String(p.moduleId || ''), // store raw moduleId; resolved later via useMemo
                     transaction_commit_number: p.transactionCommitNumber ?? null,
+                    source: p.__source as FundSource,
                     remaining_amount: p.remainingAmount,
                     commit_status: p.commitStatus,
                 }));
@@ -343,7 +365,7 @@ const Payments: React.FC = () => {
     }, []);
 
     // Commit ids paid during this session, before Accounts has echoed the payment back.
-    const [justPaidCommitIds, setJustPaidCommitIds] = useState<Set<number>>(new Set());
+    const [justPaidCommitIds, setJustPaidCommitIds] = useState<Set<string>>(new Set());
 
     // Map commit id -> its most recent payment info. The ledger's commit `status`
     // (COMMITTED/PARTIALLY_PAID/...) frequently doesn't get updated the moment a
@@ -354,11 +376,11 @@ const Payments: React.FC = () => {
     // `payments` is sorted desc by date, so the first entry seen per commit id
     // is the most recent one.
     const commitPaymentInfo = React.useMemo(() => {
-        const map = new Map<number, PaymentRecord>();
+        const map = new Map<string, PaymentRecord>();
         payments.forEach(p => {
-            const commitId = p.transaction_commit_number;
-            if (commitId != null && !map.has(commitId)) {
-                map.set(commitId, p);
+            const key = commitKey(p.source, p.transaction_commit_number);
+            if (key != null && !map.has(key)) {
+                map.set(key, p);
             }
         });
         // A payment just made in this session may not be readable back yet: both payment
@@ -367,12 +389,14 @@ const Payments: React.FC = () => {
         // until that round trip lands — which is what made it look like nothing happened
         // until the page was reloaded. Record it locally so the row flips the moment the
         // modal closes; the real payment replaces this as soon as it comes back.
-        justPaidCommitIds.forEach(commitId => {
-            if (!map.has(commitId)) {
-                map.set(commitId, {
+        justPaidCommitIds.forEach(key => {
+            if (!map.has(key)) {
+                const [source, num] = key.split(':');
+                map.set(key, {
                     name: 'pending…',
                     payment_status: 'PENDING',
-                    transaction_commit_number: commitId,
+                    source: source as FundSource,
+                    transaction_commit_number: Number(num),
                 } as PaymentRecord);
             }
         });
@@ -640,8 +664,9 @@ const Payments: React.FC = () => {
     // earlier payment by definition, so that alone must not block the next instalment — only a
     // payment still in flight (PENDING, including one just made this session) does.
     const blockingPayment = (commit: CommitRecord): PaymentRecord | undefined => {
-        if (commit.transactionCommitNumber == null) return undefined;
-        const latest = commitPaymentInfo.get(commit.transactionCommitNumber);
+        const key = commitKey(commit.source, commit.transactionCommitNumber);
+        if (key == null) return undefined;
+        const latest = commitPaymentInfo.get(key);
         if (!latest) return undefined;
         if (commit.status === 'PARTIALLY_PAID' && String(latest.payment_status).toUpperCase() !== 'PENDING') {
             return undefined;
@@ -649,12 +674,46 @@ const Payments: React.FC = () => {
         return latest;
     };
 
+    // A TA/DA (13) or advance (8) settlement against a parent commit is paid by Accounts as
+    // billAmount − every PAID payment across the parent + settlement chain, whatever amount
+    // is sent (AccountHeadPaymentServiceImpl). The row's commitAmount is the chain total, so
+    // when the advance was already paid it overstates what is owed: a 4,000 bill on a paid
+    // 4,500 advance nets to −500, recovered from the applicant. The payment still sends the
+    // bill; this is only what staff are shown. Null when nothing was paid across the chain,
+    // since the commit amount is then already right.
+    const settlementNetFor = React.useMemo(() => {
+        const paidByCommit = new Map<string, number>();
+        payments.forEach(p => {
+            if (String(p.payment_status || '').toUpperCase() !== 'PAID') return;
+            const key = commitKey(p.source, p.transaction_commit_number);
+            if (key != null) paidByCommit.set(key, (paidByCommit.get(key) || 0) + (Number(p.payment_amount) || 0));
+        });
+        return (commit: CommitRecord | null | undefined): SettlementNet | null => {
+            if (!commit || !['8', '13'].includes(String(commit.moduleId ?? ''))) return null;
+            const root = Number(String(commit.refDetails ?? '').trim());
+            if (!Number.isInteger(root) || root <= 0) return null;
+            const chain = new Set<number>([root]);
+            pendingCommits.forEach(c => {
+                if ((c.source ?? 'project') === (commit.source ?? 'project') && Number(c.refDetails) === root && c.transactionCommitNumber != null) {
+                    chain.add(c.transactionCommitNumber);
+                }
+            });
+            if (commit.transactionCommitNumber != null) chain.add(commit.transactionCommitNumber);
+            let paidAcrossChain = 0;
+            chain.forEach(n => { paidAcrossChain += paidByCommit.get(commitKey(commit.source, n) as string) || 0; });
+            if (paidAcrossChain <= 0) return null;
+            const bill = Number(commit.billAmount ?? commit.commitAmount) || 0;
+            return { bill, paidAcrossChain, net: bill - paidAcrossChain };
+        };
+    }, [payments, pendingCommits]);
+    const selectedSettlementNet = settlementNetFor(selectedCommit);
+
     // Earlier payments against the commit being paid, oldest first.
     const previousPayments = React.useMemo(() => {
-        const id = selectedCommit?.transactionCommitNumber;
-        if (id == null) return [];
+        const key = commitKey(selectedCommit?.source, selectedCommit?.transactionCommitNumber);
+        if (key == null) return [];
         return payments
-            .filter(p => p.transaction_commit_number === id)
+            .filter(p => commitKey(p.source, p.transaction_commit_number) === key)
             .sort((a, b) => new Date(a.payment_date || 0).getTime() - new Date(b.payment_date || 0).getTime());
     }, [payments, selectedCommit]);
 
@@ -897,7 +956,25 @@ const Payments: React.FC = () => {
                                                     <td className="px-3 py-2 text-sm">{commit.commitParticular}</td>
                                                     <td className="px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400">{commit.refDetails}</td>
                                                     <td className="px-3 py-2 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                                                        ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        {(() => {
+                                                            const settlement = settlementNetFor(commit);
+                                                            if (!settlement) {
+                                                                return <>₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</>;
+                                                            }
+                                                            return (
+                                                                <div title="Settlement: bill amount less the advance already paid against the travel/advance commit">
+                                                                    <div className={settlement.net < 0 ? 'text-red-600 dark:text-red-400' : ''}>
+                                                                        {formatNet(settlement.net)}
+                                                                    </div>
+                                                                    <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                                                        Bill {formatNet(settlement.bill)} − advance paid {formatNet(settlement.paidAcrossChain)}
+                                                                    </div>
+                                                                    {settlement.net < 0 && (
+                                                                        <div className="text-[10px] font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">Recover from applicant</div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="flex gap-2 items-center">
@@ -1452,7 +1529,12 @@ const Payments: React.FC = () => {
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                                 You're about to pay{' '}
                                 <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                                    ₹{payConfirm.commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    {(() => {
+                                        const settlement = settlementNetFor(payConfirm.commit);
+                                        return settlement
+                                            ? `${formatNet(settlement.net)} (bill ${formatNet(settlement.bill)} − advance paid ${formatNet(settlement.paidAcrossChain)})`
+                                            : `₹${payConfirm.commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                                    })()}
                                 </span>{' '}
                                 for <span className="font-mono">{payConfirm.commit.frapAppId || payConfirm.commit.projectNumber}</span>.
                                 A comment is required before proceeding.
@@ -1548,10 +1630,11 @@ const Payments: React.FC = () => {
                                 commitData={selectedCommit || undefined}
                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
                                 previousPaid={previousPaidTotal}
+                                settlementNet={selectedSettlementNet}
                                 onSuccess={() => {
-                                    const paidCommitId = selectedCommit?.transactionCommitNumber;
-                                    if (paidCommitId != null) {
-                                        setJustPaidCommitIds(prev => new Set(prev).add(paidCommitId));
+                                    const paidKey = commitKey(selectedCommit?.source, selectedCommit?.transactionCommitNumber);
+                                    if (paidKey != null) {
+                                        setJustPaidCommitIds(prev => new Set(prev).add(paidKey));
                                     }
                                     setPaymentModalOpen(false);
                                     fetchPendingCommits();

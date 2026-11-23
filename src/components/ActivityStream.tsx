@@ -1,3 +1,4 @@
+import { rewriteFrappeLinks } from "@/utils/frappeUrl";
 import React, { useState, forwardRef, useImperativeHandle } from "react";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea";
@@ -120,7 +121,7 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                                         </p>
                                     </div>
                                     <div className="prose prose-sm max-w-none text-sm leading-relaxed text-zinc-700 dark:prose-invert dark:text-zinc-300"
-                                        dangerouslySetInnerHTML={{ __html: item.content || "No content" }}
+                                        dangerouslySetInnerHTML={{ __html: rewriteFrappeLinks(item.content || "No content") }}
                                     />
                                 </div>
                             </div>
