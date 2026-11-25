@@ -1366,6 +1366,87 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         return ids;
     }, [records, resignedMap, getMonthsWorked]);
 
+    // A resignation that is Approved (or already completed) is owed its final salary: that person is payable
+    // for the months up to the last working date, the same way as any other staff. Resignations still in
+    // process stay on the Resigned tab and are not payable.
+    const isApprovedResignation = useCallback((r: { employee_id: string }): boolean => {
+        const info = resignedMap[r.employee_id];
+        if (!info) return false;
+        // "Approved", "Approved by HoS", "Completed" ... count; anything still pending, rejected or cancelled does not
+        const state = (info.state || "").trim();
+        const approvedState = /\b(approved|completed|accepted|relieved)\b/i.test(state) && !/pending|reject|cancel|withdraw|returned/i.test(state);
+        return approvedState || !!info.completed;
+    }, [resignedMap]);
+
+    /** Last working day of an approved resignation, if the data has one */
+    const lastWorkingDateOf = useCallback((r: { employee_id: string }): Date | null => {
+        const info = resignedMap[r.employee_id];
+        const lwd = info?.last_working_date || info?.resignation_date;
+        const d = lwd ? new Date(lwd) : null;
+        return d && !isNaN(d.getTime()) ? d : null;
+    }, [resignedMap]);
+
+    const isPayableResigned = useCallback((r: { employee_id: string }): boolean => {
+        if (!isApprovedResignation(r)) return false;
+        const d = lastWorkingDateOf(r);
+        return !(d && d < new Date(selectedYear, selectedMonth, 1)); // left before this month: pay it in their last month
+    }, [isApprovedResignation, lastWorkingDateOf, selectedYear, selectedMonth]);
+
+    // Payable resigned staff are paid up to their last working date (it replaces the term end if it is earlier)
+    const payRecords = useMemo(() => records.map(r => {
+        if (!isPayableResigned(r)) return r;
+        const info = resignedMap[r.employee_id];
+        const lwd = info?.last_working_date || info?.resignation_date;
+        if (!lwd) return r;
+        const end = r.term_completion_date && new Date(r.term_completion_date) < new Date(lwd) ? r.term_completion_date : lwd;
+        return { ...r, term_completion_date: end };
+    }), [records, resignedMap, isPayableResigned]);
+
+    // ── Approved resignations whose last working month is before the selected one: was that month's salary already paid? ──
+    // paidInLastMonth[empId] = true / false once the Salary Staging document of that month has been read.
+    const [paidInLastMonth, setPaidInLastMonth] = useState<Record<string, boolean>>({});
+    const stagingMonthCache = useRef<Map<string, Set<string>>>(new Map());
+    useEffect(() => {
+        const need: { empId: string; ym: string }[] = [];
+        records.forEach(r => {
+            if (!isApprovedResignation(r) || isPayableResigned(r)) return;
+            const d = lastWorkingDateOf(r);
+            if (!d) return;
+            need.push({ empId: r.employee_id, ym: `${d.getFullYear()}_${MONTHS[d.getMonth()].label.toLowerCase()}` });
+        });
+        if (need.length === 0) return;
+        let cancelled = false;
+        (async () => {
+            const result: Record<string, boolean> = {};
+            for (const ym of [...new Set(need.map(n => n.ym))]) {
+                if (!stagingMonthCache.current.has(ym)) {
+                    const ids = new Set<string>();
+                    try {
+                        const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Salary%20Staging/${encodeURIComponent(ym)}`, { credentials: "include", headers: { Accept: "application/json" } });
+                        if (res.ok) {
+                            const json = await res.json();
+                            const raw = json?.data?.salary_record ?? json?.message?.salary_record ?? "[]";
+                            const arr: any[] = typeof raw === "string" ? JSON.parse(raw) : raw;
+                            arr.forEach(rec => {
+                                const id = rec?.salary_backend_details?.ps_emp_id || rec?.salary_user_details?.employee_id;
+                                if (id) ids.add(id);
+                            });
+                        }
+                        stagingMonthCache.current.set(ym, ids); // a 404 means no payments that month
+                    } catch {
+                        continue; // unknown: leave those rows undecided
+                    }
+                }
+            }
+            need.forEach(n => {
+                const ids = stagingMonthCache.current.get(n.ym);
+                if (ids) result[n.empId] = ids.has(n.empId);
+            });
+            if (!cancelled) setPaidInLastMonth(prev => ({ ...prev, ...result }));
+        })();
+        return () => { cancelled = true; };
+    }, [records, resignedMap, isApprovedResignation, isPayableResigned, lastWorkingDateOf]);
+
     // Sort & filter
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
@@ -1373,8 +1454,8 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         // Filter out employees who are not active in the selected period (working days is 0)
         // Resigned / resignation-in-process staff are not payable (they live on the Resigned tab),
         // unless already paid this period — those stay visible under "Salary Processed".
-        let list = records.filter(r => {
-            if ((resignedMap[r.employee_id] || periodExpiredIds.has(r.employee_id)) && !processedEmployees.has(r.employee_id)) return false;
+        let list = payRecords.filter(r => {
+            if (((resignedMap[r.employee_id] && !isPayableResigned(r)) || periodExpiredIds.has(r.employee_id)) && !processedEmployees.has(r.employee_id)) return false;
             const wd = calcWorkingDaysForPeriod(r.service_start_date || r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             return wd > 0;
         });
@@ -1438,7 +1519,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
         });
         // Consultancy → Research staff always sit at the top, in the chosen sort order within each group.
         return [...sorted.filter(r => isConsultancyToResearchProject(r.project_no)), ...sorted.filter(r => !isConsultancyToResearchProject(r.project_no))];
-    }, [records, search, deptFilter, desigFilter, projectFilter, convertedOnly, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, periodExpiredIds, processedEmployees]);
+    }, [records, search, deptFilter, desigFilter, projectFilter, convertedOnly, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels, resignedMap, periodExpiredIds, processedEmployees, payRecords, isPayableResigned]);
 
     // Staff active in the selected period, before any type/search/dept/etc. filtering —
     // used to decide whether to show the toolbar/table at all (a "no search results" state
@@ -1483,8 +1564,8 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
 
     // Split filtered into pending vs processed (term-ending staff excluded from pending)
     const pendingRecords = useMemo(() =>
-        filtered.filter(r => !processedEmployees.has(r.employee_id) && !termEndingEmpIds.has(r.employee_id) && !resignedMap[r.employee_id]),
-        [filtered, processedEmployees, termEndingEmpIds, resignedMap]);
+        filtered.filter(r => !processedEmployees.has(r.employee_id) && !termEndingEmpIds.has(r.employee_id) && (!resignedMap[r.employee_id] || isPayableResigned(r))),
+        [filtered, processedEmployees, termEndingEmpIds, resignedMap, isPayableResigned]);
 
     // Resigned / resignation-in-process staff for the active Research/Consultancy tab.
     // Built from all records (not period-limited) so people who already left still show up.
@@ -2309,6 +2390,7 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             <th className="px-3 py-2">Service Period</th>
                                                             <th className="px-3 py-2">Resignation</th>
                                                             <th className="px-3 py-2">Status</th>
+                                                            <th className="px-3 py-2 text-right">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -2407,6 +2489,71 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                                         {info?.state && (
                                                                             <span className="mt-0.5 block text-[11px] text-zinc-500 dark:text-zinc-400">{info.state}</span>
                                                                         )}
+                                                                    </td>
+
+                                                                    {/* Action: pay the final salary of an approved resignation */}
+                                                                    <td className="whitespace-nowrap px-3 py-1.5 text-right">
+                                                                        {(() => {
+                                                                            const payRec = filtered.find(x => x.employee_id === r.employee_id);
+                                                                            const alreadyPaid = processedEmployees.has(r.employee_id);
+                                                                            if (!isPayableResigned(r)) {
+                                                                                const lwd = lastWorkingDateOf(r);
+                                                                                if (isApprovedResignation(r) && lwd) {
+                                                                                    // Approved, but they left before the selected month: their final salary belongs to their last month
+                                                                                    const label = lwd.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+                                                                                    if (paidInLastMonth[r.employee_id] === true) {
+                                                                                        return (
+                                                                                            <span title={`Salary for ${label} is already processed`} className="inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                                                                Paid for {label}
+                                                                                            </span>
+                                                                                        );
+                                                                                    }
+                                                                                    if (paidInLastMonth[r.employee_id] === undefined) {
+                                                                                        return <span className="text-[11px] text-zinc-400">Checking {label}…</span>;
+                                                                                    }
+                                                                                    return (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            title={`Last working day ${lwd.toLocaleDateString("en-IN")}: open ${label} to pay the final salary`}
+                                                                                            onClick={() => {
+                                                                                                setSelectedYear(lwd.getFullYear());
+                                                                                                setSelectedMonth(lwd.getMonth());
+                                                                                                setSearch(r.employee_id);
+                                                                                            }}
+                                                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#D97757]/50 bg-[#FFF3EC] px-3 py-1 text-[11.5px] font-bold text-[#B8532F] transition-colors hover:bg-[#D97757] hover:text-white dark:bg-[#D97757]/15 dark:text-[#F0A98C]"
+                                                                                        >
+                                                                                            <IndianRupee className="h-3.5 w-3.5" /> Pay for {label}
+                                                                                        </button>
+                                                                                    );
+                                                                                }
+                                                                                return (
+                                                                                    <span className="text-[11px] text-zinc-400" title="Payable once the resignation is approved">
+                                                                                        Not payable yet{info?.state ? <span className="block text-[10.5px] text-zinc-400/90">resignation: {info.state}</span> : null}
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            if (alreadyPaid) {
+                                                                                return <span className="inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-300">Paid this month</span>;
+                                                                            }
+                                                                            if (!payRec) {
+                                                                                return <span className="text-[11px] text-zinc-400" title="No working days in the selected month">No pay this month</span>;
+                                                                            }
+                                                                            return (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={loadingEmpId === "__bulk__"}
+                                                                                    onClick={() => {
+                                                                                        // Same payment flow as the Pending tab, for this person only
+                                                                                        setActiveTab("pending");
+                                                                                        setSelectedEmpIds(new Set([r.employee_id]));
+                                                                                        void handlePaySelected([payRec]);
+                                                                                    }}
+                                                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#D97757] px-3 py-1 text-[11.5px] font-bold text-white shadow-sm transition-colors hover:bg-[#c66a4e] disabled:cursor-not-allowed disabled:opacity-50"
+                                                                                >
+                                                                                    <IndianRupee className="h-3.5 w-3.5" /> Pay
+                                                                                </button>
+                                                                            );
+                                                                        })()}
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -2830,7 +2977,19 @@ const SalaryModule: React.FC<SalaryModuleProps> = ({ fullPage = false }) => {
                                                             )}
 
                                                             {/* # */}
-                                                            <td className={cn("px-3 py-1 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
+                                                            <td className={cn("px-3 py-1 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                                <span className="flex items-center gap-1">
+                                                                    {i + 1}
+                                                                    {isApprovedResignation(r) && (
+                                                                        <span
+                                                                            title={`Resigned (approved)${resignedMap[r.employee_id]?.last_working_date || resignedMap[r.employee_id]?.resignation_date ? `: last working ${fmtDate(String(resignedMap[r.employee_id]?.last_working_date || resignedMap[r.employee_id]?.resignation_date))}` : ""}`}
+                                                                            className="inline-flex h-[15px] min-w-[15px] items-center justify-center rounded bg-red-600 px-0.5 text-[9px] font-extrabold leading-none text-white"
+                                                                        >
+                                                                            R
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                            </td>
 
                                                             {/* Emp ID */}
                                                             <td className={cn("px-3 py-1 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>

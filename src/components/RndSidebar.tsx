@@ -57,6 +57,7 @@ import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { HelpModule } from "./HelpModule";
 import { AddStudentModal } from "./AddStudentModal";
+import { usePutBackCount, usePutBackNotice } from "@/hooks/usePutBackNotice";
 import { useRecruitmentAdvertisementPending } from "@/hooks/useRecruitmentAdvertisementPending";
 import "@/pages/dashboards/projectStaffDashboard.css";
 import { isProjectStaffApplicant } from "@/hooks/useProjectStaffApplicant";
@@ -197,13 +198,25 @@ export function AppSidebar() {
     // (not just Permanent Employee), since head_approver_1 / Dean, RnD users
     // can also be a PI on some applications.
     const { data: pendingApplicationData } = useFrappeGetCall<{
-        message: { user: string; results: Array<{ name: string }> };
+        message: { user: string; results: Array<{ name: string; doctype?: string }> };
     }>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
         {},
         currentUser && (isPermanentEmployee || isHeadApprover || isDoRnd) ? undefined : null,
     );
     const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
+    // Extensions waiting for this PI that were put back (their latest comment is a "[Put Back]" one)
+    const pendingExtensionNames = React.useMemo(
+        () => (pendingApplicationData?.message?.results ?? []).filter((r) => r.doctype === "Project Staff Extension").map((r) => r.name),
+        [pendingApplicationData],
+    );
+    // The extension that is open right now (/project-staff-extension?edit=...): flag its menu entry when it was put back
+    const openExtensionName =
+        location.pathname.replace(/\/+$/, "") === "/project-staff-extension"
+            ? new URLSearchParams(location.search).get("edit")
+            : null;
+    const openExtensionPutBack = usePutBackNotice("Project Staff Extension", openExtensionName);
+    const putBackExtensionCount = usePutBackCount("Project Staff Extension", pendingExtensionNames, pendingExtensionNames.length > 0);
 
     // Unread "put back" notifications on the user's own forms. mark_read=0 keeps the
     // badge until the user opens "Pending Application (as PI)", which marks them read.
@@ -688,12 +701,13 @@ export function AppSidebar() {
     const getBadge = (label: string): { count: number; tone: "orange" | "red" } | null => {
         const map: Record<string, { count: number; tone: "orange" | "red" }> = {
             "Pending Task (as Approver)": { count: pendingTaskCount, tone: "orange" },
-            "Pending Application (as PI)": returnedIcssCount > 0
+            "Pending Application (as PI)": returnedIcssCount + putBackExtensionCount > 0
                 ? { count: pendingApplicationCount + returnedIcssCount, tone: "red" }
                 : { count: pendingApplicationCount, tone: "orange" },
             "Upload Director PDF": { count: pendingDirectorPdfCount, tone: "orange" },
             "ID Card Management": { count: pendingIdCardCount, tone: "red" },
             "ID Card Request": { count: returnedIdCardCount, tone: "red" },
+            Extension: { count: openExtensionPutBack ? 1 : 0, tone: "red" },
             "Recruitment Advertisement": { count: recruitmentPending.total, tone: "orange" },
         };
         if (label === TASK_GROUP_LABEL) {
