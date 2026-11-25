@@ -83,6 +83,7 @@ import MySalarySlip from './pages/application/MySalarySlip';
 import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
 import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
+import RecruitmentAdvertisement from './pages/RecruitmentAdvertisement.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
@@ -545,6 +546,14 @@ const router = createBrowserRouter(
                             'Permanent Employee'
                         ]}>
                             <PendingTask />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "recruitment-advertisement",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <RecruitmentAdvertisement />
                         </AuthRouteWrapper>
                     ),
                 },

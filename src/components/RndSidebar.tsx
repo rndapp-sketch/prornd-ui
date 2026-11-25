@@ -56,6 +56,7 @@ import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { HelpModule } from "./HelpModule";
 import { AddStudentModal } from "./AddStudentModal";
+import { useRecruitmentAdvertisementPending } from "@/hooks/useRecruitmentAdvertisementPending";
 import "@/pages/dashboards/projectStaffDashboard.css";
 
 // --- LOGIC: Interfaces (Unchanged) ---
@@ -103,6 +104,8 @@ export function AppSidebar() {
     const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
     const isRndStaffRole = roles?.includes("staff, RnD") ?? false;
+    // Approved recruitments not yet published (staff, RnD only), split by project type
+    const recruitmentPending = useRecruitmentAdvertisementPending(isRndStaffRole && !!currentUser);
     const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
     const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
     const isDoRnd = roles?.includes("Dean, RnD") ?? false;
@@ -270,6 +273,7 @@ export function AppSidebar() {
                 "head_approver_1",
             ]),
         },
+        { label: "Recruitment Advertisement", path: "/recruitment-advertisement", visible: hasAnyRole(["staff, RnD"]) },
         { label: "ID Card Management", path: "/hr-id-card-management", visible: hasAnyRole(["staff, RnD"]) },
         { label: "Upload Director PDF", path: "/director-pdf-upload", visible: canUploadDirectorPdf },
         { label: "Faculty Admission PDF Upload", path: "/top-up-fellowship-faculty-admission", visible: canUploadDirectorPdf },
@@ -669,6 +673,7 @@ export function AppSidebar() {
             "Upload Director PDF": { count: pendingDirectorPdfCount, tone: "orange" },
             "ID Card Management": { count: pendingIdCardCount, tone: "red" },
             "ID Card Request": { count: returnedIdCardCount, tone: "red" },
+            "Recruitment Advertisement": { count: recruitmentPending.total, tone: "orange" },
         };
         if (label === TASK_GROUP_LABEL) {
             // Group badge = sum of its entries, so pending work is visible while collapsed
@@ -862,8 +867,28 @@ export function AppSidebar() {
                                                             onClick={() => handleSubMenuItemClick(subItem)}
                                                             className={subButtonClass(isActivePath(subItem.path))}
                                                         >
-                                                            <span className="min-w-0 break-words">{subItem.label}</span>
-                                                            {(() => {
+                                                            {subItem.label === "Recruitment Advertisement" ? (
+                                                                <div className="flex w-full min-w-0 items-center gap-2">
+                                                                    <span className="min-w-0 flex-1 !whitespace-normal [overflow-wrap:normal] [word-break:normal]">{subItem.label}</span>
+                                                                    {(recruitmentPending.research > 0 || recruitmentPending.consultancy > 0) && (
+                                                                        <span className="ml-auto flex shrink-0 flex-col items-center gap-1 whitespace-nowrap">
+                                                                            {recruitmentPending.research > 0 && (
+                                                                                <span title={`${recruitmentPending.research} Research pending`} className="inline-flex h-[18px] min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#6842D9] px-1.5 text-[10px] font-bold leading-none text-white">
+                                                                                    {recruitmentPending.research > 99 ? "99+" : recruitmentPending.research}
+                                                                                </span>
+                                                                            )}
+                                                                            {recruitmentPending.consultancy > 0 && (
+                                                                                <span title={`${recruitmentPending.consultancy} Consultancy pending`} className="inline-flex h-[18px] min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#0DA875] px-1.5 text-[10px] font-bold leading-none text-white">
+                                                                                    {recruitmentPending.consultancy > 99 ? "99+" : recruitmentPending.consultancy}
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="min-w-0 flex-1 break-words">{subItem.label}</span>
+                                                            )}
+                                                            {subItem.label === "Recruitment Advertisement" ? null : (() => {
                                                                 const subBadge = getBadge(subItem.label);
                                                                 return subBadge ? <NavBadge {...subBadge} /> : null;
                                                             })()}

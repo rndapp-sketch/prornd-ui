@@ -7,6 +7,8 @@ import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
+import { FormSelect } from '@/components/FormSelect';
+import '@/pages/dashboards/projectStaffDashboard.css';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
 
@@ -176,7 +178,7 @@ const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'
 const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
+    <div className={cn("psd-card !rounded-xl", className)}>
         {children}
     </div>
 );
@@ -192,12 +194,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm hover:shadow-md",
-            variant === 'ghost' && "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100",
-            variant === 'outline' && "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
-            variant === 'action' && "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm hover:shadow-md",
+            "psd-focus inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-[12px] transition-all duration-200",
+            variant === 'primary' && "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm active:scale-[0.98]",
+            variant === 'ghost' && "bg-transparent text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]",
+            variant === 'outline' && "bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
+            variant === 'action' && "bg-[var(--psd-accent)] text-white hover:brightness-95 shadow-sm active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -714,17 +715,17 @@ const PendingTask: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         const s = status?.toLowerCase();
-        let style = "bg-orange-50 text-orange-700 border-orange-200";
+        let style = "bg-[var(--psd-review-bg)] text-[#B26A00] border-[var(--psd-review)]/40 dark:text-amber-300";
         if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
-            style = "bg-amber-50 text-amber-700 border-amber-200";
+            style = "bg-[var(--psd-review-bg)] text-[#B26A00] border-[var(--psd-review)]/40 dark:text-amber-300";
         } else if (s?.includes("approved")) {
-            style = "bg-emerald-50 text-emerald-700 border-emerald-200";
+            style = "bg-[var(--psd-approved-bg)] text-[#0A8A60] border-[var(--psd-approved)]/40 dark:text-emerald-300";
         } else if (s?.includes("draft")) {
-            style = "bg-zinc-100 text-zinc-600 border-zinc-200";
+            style = "bg-[var(--psd-bg)] text-[var(--psd-body)] border-[var(--psd-border)]";
         } else if (s?.includes("rejected")) {
-            style = "bg-red-50 text-red-700 border-red-200";
+            style = "bg-[var(--psd-returned-bg)] text-[#C02B3D] border-[var(--psd-returned)]/40 dark:text-rose-300";
         }
-        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", style);
+        return cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold", style);
     };
 
     const getPageNumbers = () => {
@@ -746,13 +747,13 @@ const PendingTask: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="psd-root flex h-screen items-center justify-center">
                 <FrappeCard className="p-12 text-center max-w-md w-full">
-                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FaExclamationCircle className="h-6 w-6 text-red-600" />
+                    <div className="w-12 h-12 bg-[var(--psd-returned-bg)] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FaExclamationCircle className="h-6 w-6 text-[var(--psd-returned)]" />
                     </div>
-                    <h2 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Unable to Load Tasks</h2>
-                    <p className="text-zinc-500 dark:text-zinc-400">{error.message}</p>
+                    <h2 className="text-[17px] font-bold text-[var(--psd-heading)] mb-2">Unable to Load Tasks</h2>
+                    <p className="text-[var(--psd-body)]">{error.message}</p>
                     <FrappeButton onClick={() => window.location.reload()} variant="outline" className="mt-6">
                         Retry
                     </FrappeButton>
@@ -763,72 +764,82 @@ const PendingTask: React.FC = () => {
 
     return (
         <>
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
+        <div className="psd-root min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full space-y-2.5">
                 {/* Header */}
-                <div className="mb-3 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
-                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-center gap-3 px-4 py-2.5">
+                <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                    <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                         <button
                             onClick={() => navigate(-1)}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                            className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
                             aria-label="Back to dashboard"
                         >
                             <FaArrowLeft className="h-3.5 w-3.5" />
                         </button>
+                        <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <ActivityIcon className="size-4" strokeWidth={1.8} />
+                        </div>
                         <div className="min-w-0">
-                            <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Tasks</h1>
-                            <p className="truncate text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Manage and track pending approvals.</p>
+                            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Approvals</div>
+                            <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Pending Tasks</h1>
                         </div>
                     </div>
-                </div>
+                    <p className="relative z-10 hidden text-xs text-[var(--psd-body)] md:block">Manage and track pending approvals.</p>
+                </header>
+
+                {isLoading && (
+                    <div role="status" aria-live="polite" className="space-y-1">
+                        <div className="psd-loadbar" />
+                        <p className="text-[11.5px] font-semibold text-[var(--psd-body)]">Fetching pending tasks…</p>
+                    </div>
+                )}
 
                 {/* Info banner */}
-                <div className="mb-3 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800/50 dark:bg-blue-950/30">
-                    <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                        <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <div className="psd-card flex items-center gap-2.5 !rounded-xl border-l-[3px] !border-l-[var(--psd-info)] px-3 py-1.5">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-info-bg)] text-[var(--psd-info)]">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                         </svg>
                     </div>
-                    <div>
-                        <p className="text-[13px] font-bold text-blue-800 dark:text-blue-300">All form processing must be done from this page.</p>
-                        <p className="mt-0.5 text-[12px] font-medium leading-5 text-blue-700 dark:text-blue-400">Approvals, forwarding, and all workflow actions are only available here in Pending Tasks. Open a task and use the action buttons to process it.</p>
-                    </div>
+                    <p className="text-[12px] leading-snug text-[var(--psd-body)]">
+                        <b className="font-bold text-[var(--psd-heading)]">All form processing must be done from this page.</b>{" "}
+                        Approvals, forwarding, and all workflow actions are only available here in Pending Tasks. Open a task and use the action buttons to process it.
+                    </p>
                 </div>
 
                 {/* Project Type Filter */}
-                <div className="mb-3 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35">
-                    <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                <div className="psd-card !rounded-xl px-3 py-2">
+                    <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--psd-body)]">
                         Project Type
                     </div>
                     <div className="flex items-center gap-2 overflow-x-auto">
                         {PROJECT_TYPE_TABS.map((tab) => {
                             const active = selectedProjectType === tab;
                             const tabColors: Record<string, string> = {
-                                Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
-                                Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
-                                Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
-                                Overhead: active ? 'bg-[#FFF7ED] border-[#EA580C] text-[#9A3412] shadow-sm shadow-[#EA580C]/10 dark:bg-[#EA580C]/18 dark:border-[#FB923C] dark:text-[#FED7AA]' : 'border-[#FED7AA] bg-[#FFF7ED]/60 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#EA580C]/30 dark:bg-[#EA580C]/10 dark:text-[#FED7AA]',
+                                Research: active ? 'bg-[#6842D9] border-[#6842D9] text-white shadow-sm' : 'border-[#6842D9]/35 bg-[#6842D9]/8 text-[#5632C5] hover:bg-[#6842D9]/15 dark:text-[#C9B8FA]',
+                                Consultancy: active ? 'bg-[#0DA875] border-[#0DA875] text-white shadow-sm' : 'border-[#0DA875]/35 bg-[#0DA875]/8 text-[#0A8A60] hover:bg-[#0DA875]/15 dark:text-[#7BE0BC]',
+                                Others: active ? 'bg-[#64748B] border-[#64748B] text-white shadow-sm' : 'border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:bg-[var(--psd-bg)]',
+                                Overhead: active ? 'bg-[#F47721] border-[#F47721] text-white shadow-sm' : 'border-[#F47721]/35 bg-[#F47721]/8 text-[#C2570C] hover:bg-[#F47721]/15 dark:text-[#FDBA8C]',
                             };
                             const badgeColors: Record<string, string> = {
-                                Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
-                                Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
-                                Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
-                                Overhead: active ? 'bg-[#EA580C] text-white' : 'bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50',
+                                Research: active ? 'bg-white/25 text-white' : 'bg-white/80 text-[#6842D9] dark:bg-[#18181B]/50',
+                                Consultancy: active ? 'bg-white/25 text-white' : 'bg-white/80 text-[#0A8A60] dark:bg-[#18181B]/50',
+                                Others: active ? 'bg-white/25 text-white' : 'bg-[var(--psd-bg)] text-[var(--psd-body)]',
+                                Overhead: active ? 'bg-white/25 text-white' : 'bg-white/80 text-[#C2570C] dark:bg-[#18181B]/50',
                             };
                             return (
                                 <button
                                     key={tab}
                                     onClick={() => handleProjectTypeChange(tab)}
                                     className={cn(
-                                        "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
+                                        "flex h-8 flex-shrink-0 items-center gap-2 rounded-full border px-3 text-[11px] font-bold uppercase tracking-wide transition-all duration-150",
                                         tabColors[tab]
                                     )}
                                 >
                                     {projectTypeTabLabel(tab, roles)}
-                                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", badgeColors[tab])}>
+                                    <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold leading-none", badgeColors[tab])}>
                                         {tabCounts[tab]}
                                     </span>
                                 </button>
@@ -838,7 +849,7 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Filter Section */}
-                <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
+                <div className="psd-card flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 !rounded-xl px-3 py-2">
                     <div className="flex items-center gap-3">
                         <ModuleFilterSelect
                             value={selectedModule}
@@ -851,12 +862,12 @@ const PendingTask: React.FC = () => {
 
                         {selectedModule !== 'all' && (
                             <>
-                                <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700" />
+                                <div className="h-6 w-px bg-[var(--psd-border)]" />
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{selectedModule}</span>
+                                    <span className="rounded-full bg-[var(--psd-primary-light)] px-2.5 py-0.5 text-[12px] font-bold text-[var(--psd-primary)]">{selectedModule}</span>
                                     <button
                                         onClick={() => handleModuleChange('all')}
-                                        className="ml-1 text-zinc-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 p-0.5"
+                                        className="ml-1 rounded-full p-0.5 text-[var(--psd-muted)] transition-colors hover:bg-[var(--psd-returned-bg)] hover:text-[var(--psd-returned)]"
                                         title="Clear filter"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
@@ -868,7 +879,7 @@ const PendingTask: React.FC = () => {
 
                     <div className="flex items-center gap-3">
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--psd-muted)] pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                             </span>
                             <input
@@ -878,36 +889,38 @@ const PendingTask: React.FC = () => {
                                 placeholder="Search by title, project no., owner…"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
-                                className="h-10 pl-9 pr-9 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 shadow-sm transition-all"
+                                className="h-9 w-56 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] pl-9 pr-9 text-[13px] text-[var(--psd-heading)] placeholder:text-[var(--psd-muted)] transition-all focus:border-[var(--psd-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--psd-primary)]/15"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={handleClearSearch}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--psd-muted)] hover:text-[var(--psd-heading)] transition-colors"
                                     title="Clear search"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                                 </button>
                             )}
                         </div>
-                        <div className="flex items-center gap-3 border-r border-zinc-200 dark:border-zinc-700 pr-3 mr-1">
-                            <span className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap hidden sm:inline">Rows:</span>
-                            <select
-                                value={itemsPerPage}
-                                onChange={(e) => {
-                                    setItemsPerPage(Number(e.target.value));
-                                    setCurrentPage(1);
-                                }}
-                                className="h-8 pl-2 pr-8 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-                            >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
+                        <div className="flex items-center gap-2 border-r border-[var(--psd-border)] pr-3 mr-1">
+                            <span className="hidden whitespace-nowrap text-[12px] font-semibold text-[var(--psd-body)] sm:inline">Rows:</span>
+                            <div className="w-[72px]">
+                                <FormSelect
+                                    compact
+                                    value={String(itemsPerPage)}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                </FormSelect>
+                            </div>
                         </div>
-                        <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
-                            Showing <span className="text-zinc-900 dark:text-zinc-200 font-semibold">{filteredTasks.length}</span> tasks
+                        <div className="whitespace-nowrap text-[12px] font-medium text-[var(--psd-body)]">
+                            Showing <span className="font-bold text-[var(--psd-heading)]">{filteredTasks.length}</span> tasks
                         </div>
                     </div>
                 </div>
@@ -916,24 +929,24 @@ const PendingTask: React.FC = () => {
                 <FrappeCard className="overflow-hidden p-0">
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                            <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                                 <tr>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Status</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Module</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Title/Document ID</th>
                                     {showFundingAgencyColumn && (
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Funding Agency</th>
                                     )}
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                    <th className="px-3 py-2 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Project No.</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Date</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Owner</th>
+                                    <th className="px-3 py-2 text-end text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
+                            <tbody className="divide-y divide-[var(--psd-border)] bg-[var(--psd-surface)] text-xs">
                                 {currentTasks.length > 0 ? (
                                     currentTasks.map((task) => (
-                                        <tr key={task.id} className="even:bg-[#FAFAFA] dark:even:bg-zinc-800/60 hover:bg-[#EEF2FF] dark:hover:bg-zinc-700/50 transition-colors group">
+                                        <tr key={task.id} className="group transition-colors hover:bg-[var(--psd-primary-light)]/40">
                                             <td className="px-3 py-2 align-middle">
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
@@ -969,12 +982,12 @@ const PendingTask: React.FC = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                            <td className="px-3 py-2 align-middle text-[var(--psd-heading)] font-semibold">
                                                 {task.doctype}
                                             </td>
-                                            <td className="px-3 py-2 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                            <td className="px-3 py-2 align-middle font-semibold text-[var(--psd-heading)]">
                                                 <button
-                                                    className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title"
+                                                    className="text-left hover:text-[var(--psd-primary)] transition-colors flex items-center gap-1.5 group/title"
                                                     onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
                                                     title="Click to preview activity log"
                                                 >
@@ -982,11 +995,11 @@ const PendingTask: React.FC = () => {
                                                         const display = psdProjectTitles.get(task.id) || task.title;
                                                         return display.length > 40 ? `${display.substring(0, 40)}...` : display;
                                                     })()}
-                                                    <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
+                                                    <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[var(--psd-primary)] flex-shrink-0 transition-opacity" />
                                                 </button>
                                             </td>
                                             {showFundingAgencyColumn && (
-                                                <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                     {(() => {
                                                         // Resolved through the task's own project, so this works for
                                                         // every application form, not just Project Registration.
@@ -996,12 +1009,12 @@ const PendingTask: React.FC = () => {
                                                     })()}
                                                 </td>
                                             )}
-                                            <td className="px-3 py-2 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
+                                            <td className="px-3 py-2 align-middle font-mono text-[var(--psd-body)] text-xs">
                                                 {task.doctype === "Fund Received" ? (
                                                     <div className="flex flex-col gap-0.5">
                                                         <span>{task.projectNo || "-"}</span>
                                                         {task.depositSlip && (
-                                                            <span className="text-[10px] text-[#D97757] font-semibold">
+                                                            <span className="text-[10px] text-[var(--psd-accent)] font-semibold">
                                                                 Deposit: {task.depositSlip}
                                                             </span>
                                                         )}
@@ -1010,12 +1023,12 @@ const PendingTask: React.FC = () => {
                                                     psdProjectNos.get(task.id) || task.projectNo || task.id
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                                             </td>
-                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">
+                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--psd-primary-light)] text-xs font-bold text-[var(--psd-primary)]">
                                                         {task.owner.charAt(0).toUpperCase()}
                                                     </div>
                                                     <span className="truncate max-w-[100px]">{task.owner}</span>
@@ -1028,7 +1041,7 @@ const PendingTask: React.FC = () => {
                                                         onClick={() => {
                                                             navigate(getPendingTaskRoute(task.doctype, task.id));
                                                         }}
-                                                        className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                        className="!px-3 !py-1 text-xs"
                                                     >
                                                         View
                                                     </FrappeButton>
@@ -1038,7 +1051,7 @@ const PendingTask: React.FC = () => {
                                                         <FrappeButton
                                                             variant="action"
                                                             onClick={() => navigate(`/project-staff-extension/order/${encodeURIComponent(task.id)}`)}
-                                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                            className="!px-3 !py-1 text-xs"
                                                         >
                                                             Generate Ext Order
                                                         </FrappeButton>
@@ -1049,7 +1062,7 @@ const PendingTask: React.FC = () => {
                                                         <FrappeButton
                                                             variant="action"
                                                             onClick={() => handleOrderClick(task.id)}
-                                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                            className="!px-3 !py-1 text-xs"
                                                         >
                                                             More
                                                         </FrappeButton>
@@ -1060,7 +1073,7 @@ const PendingTask: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={showFundingAgencyColumn ? 8 : 7} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
+                                        <td colSpan={showFundingAgencyColumn ? 8 : 7} className="p-12 text-center text-[var(--psd-body)]">
                                             No pending tasks found matching your criteria.
                                         </td>
                                     </tr>
@@ -1070,9 +1083,9 @@ const PendingTask: React.FC = () => {
                     </div>
 
                     {filteredTasks.length > 0 && (
-                        <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
-                            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                                Showing <span className="font-medium text-zinc-900 dark:text-zinc-200">{indexOfFirstTask + 1}</span> to <span className="font-medium text-zinc-900 dark:text-zinc-200">{Math.min(indexOfLastTask, filteredTasks.length)}</span> of {filteredTasks.length} entries
+                        <div className="flex items-center justify-between border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2">
+                            <div className="text-[12px] text-[var(--psd-body)]">
+                                Showing <span className="font-bold text-[var(--psd-heading)]">{indexOfFirstTask + 1}</span> to <span className="font-bold text-[var(--psd-heading)]">{Math.min(indexOfLastTask, filteredTasks.length)}</span> of {filteredTasks.length} entries
                             </div>
                             <div className="flex gap-1">
                                 <FrappeButton
@@ -1089,10 +1102,10 @@ const PendingTask: React.FC = () => {
                                         onClick={() => typeof page === 'number' && handlePageChange(page)}
                                         disabled={typeof page !== 'number'}
                                         className={cn(
-                                            "w-9 h-9 rounded-lg text-sm font-medium transition-colors flex items-center justify-center",
+                                            "flex h-8 w-8 items-center justify-center rounded-lg text-[12px] font-semibold transition-colors",
                                             page === currentPage
-                                                ? "bg-zinc-900 text-white shadow-sm"
-                                                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700",
+                                                ? "bg-[var(--psd-primary)] text-white shadow-sm"
+                                                : "text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)]",
                                             typeof page !== 'number' && "cursor-default hover:bg-transparent"
                                         )}
                                     >
@@ -1219,7 +1232,7 @@ const PendingTask: React.FC = () => {
         {/* Activity Log Peek Panel */}
         {selectedTask && (
             <div
-                className="fixed inset-0 z-40"
+                className="psd-root fixed inset-0 z-40 !bg-transparent"
                 onClick={() => setSelectedTask(null)}
             >
                 <div
