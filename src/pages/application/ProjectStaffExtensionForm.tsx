@@ -13,13 +13,15 @@ import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButto
 import { CommentModal } from "@/components/CommentModal";
 import { usePutBack } from "@/components/PutBack";
 import {
-  User as UserIcon, IdCard, Building2, Briefcase,
+  ArrowLeft, User as UserIcon, IdCard, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
   ChevronDown, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
   UserCheck, TrendingUp, Printer, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DateInputDMY } from "@/components/ui/date-input-dmy";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { openIssuedOrder } from "@/utils/extensionOrderPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
@@ -126,14 +128,20 @@ const getStageStatus = (stageName: string, currentState: string) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** YYYY-MM-DD -> DD/MM/YYYY for display (anything else is returned unchanged). */
+const fmtDmy = (v?: string | null): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v ?? ""));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v ?? "");
+};
+
 const InfoRow = ({
   icon, label, value, wrap = false, className,
 }: { icon: React.ReactNode; label: string; value?: React.ReactNode; wrap?: boolean; className?: string }) => (
-  <div className={cn("flex items-start gap-3 rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-zinc-100 dark:border-zinc-700/60 px-3.5 py-3", className)}>
-    <div className="mt-0.5 flex-shrink-0 text-[#4A6CF7]/70">{icon}</div>
+  <div className={cn("flex items-start gap-3 rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-[var(--psd-border)] px-3.5 py-3", className)}>
+    <div className="mt-0.5 flex-shrink-0 text-[var(--psd-primary)]/70">{icon}</div>
     <div className="min-w-0 flex-1">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
-      <div className={cn("mt-0.5 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]", wrap ? "break-words leading-snug" : "truncate")}>{value || "—"}</div>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--psd-body)]">{label}</p>
+      <div className={cn("mt-0.5 text-sm font-semibold text-[var(--psd-heading)]", wrap ? "break-words leading-snug" : "truncate")}>{value || "—"}</div>
     </div>
   </div>
 );
@@ -143,17 +151,17 @@ const StatTile = ({
   label, value, hint, tone = "default",
 }: { label: string; value: React.ReactNode; hint?: string; tone?: "default" | "success" }) => (
   <div className={cn(
-    "rounded-xl border px-4 py-3 min-w-0",
+    "rounded-lg border px-2.5 py-1.5 min-w-0",
     tone === "success"
-      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
-      : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800",
+      ? "border-[var(--psd-approved)]/40 bg-[var(--psd-approved-bg)]"
+      : "border-[var(--psd-border)] bg-[var(--psd-surface)]",
   )}>
-    <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+    <p className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">{label}</p>
     <p className={cn(
-      "mt-1 text-base font-extrabold leading-tight break-words",
-      tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-[#27272A] dark:text-[#E4E4E7]",
+      "mt-0.5 text-[12.5px] font-bold leading-tight break-words",
+      tone === "success" ? "text-[#0A8A60] dark:text-emerald-300" : "text-[var(--psd-heading)]",
     )}>{value}</p>
-    {hint && <p className="mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] break-words">{hint}</p>}
+    {hint && <p className="mt-0.5 text-[11px] text-[var(--psd-body)] break-words">{hint}</p>}
   </div>
 );
 
@@ -197,29 +205,29 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
           const status = getStageStatus(stage, currentState);
           return (
             <React.Fragment key={stage}>
-              <div className="flex flex-col items-center gap-1.5 min-w-[80px]">
+              <div className="flex flex-col items-center gap-1 min-w-[68px]">
                 <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0",
+                  "w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0",
                   status === "completed" && "bg-emerald-500",
-                  status === "in-progress" && "bg-[#4A6CF7]",
+                  status === "in-progress" && "bg-[var(--psd-primary)]",
                   status === "pending" && "bg-zinc-300 dark:bg-zinc-600",
                   status === "failed" && "bg-red-500",
                 )}>
                   {status === "completed" ? "✓" : status === "failed" ? "✗" : idx + 1}
                 </div>
                 <span className={cn(
-                  "text-[10px] font-medium text-center leading-tight",
-                  status === "in-progress" && "text-[#4A6CF7]",
+                  "text-[9.5px] font-semibold text-center leading-tight",
+                  status === "in-progress" && "text-[var(--psd-primary)]",
                   status === "completed" && "text-emerald-600 dark:text-emerald-400",
                   status === "failed" && "text-red-500",
-                  status === "pending" && "text-[#A1A1AA]",
+                  status === "pending" && "text-[var(--psd-muted)]",
                 )}>
                   {stage}
                 </span>
               </div>
               {idx < stages.length - 1 && (
                 <div className={cn(
-                  "h-0.5 flex-1 mx-2 min-w-[20px]",
+                  "h-0.5 flex-1 mx-1.5 min-w-[16px]",
                   getStageStatus(stages[idx + 1], currentState) !== "pending"
                     ? "bg-emerald-400"
                     : "bg-zinc-200 dark:bg-zinc-700",
@@ -871,7 +879,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
       showToast("error", "Please Click save changes before forwarding");
       return;
     }
-    if (commitRequired) {
+    if (commitRequired && isForwardOrApprove) {
       showToast("error", "Submit a commitment first");
       return;
     }
@@ -910,6 +918,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
       : dateOfJoining || expiryOfTenure
         ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
         : [];
+
+  // The new term this extension gives (final dates, else the system-suggested or previewed ones). It is shown as
+  // an extra row of the tenure table until it already appears in the stored tenure history.
+  const newTermStart = finalNewJoiningDate || computedNewJoiningDate || tenurePreview?.new_joining_date || "";
+  const newTermEnd = finalNewCompletionDate || computedNewCompletionDate || tenurePreview?.new_completion_date || "";
+  const showNewTermRow =
+    !!newTermStart && !!newTermEnd && !tenureRows.some((t) => t.joining_date === newTermStart && t.term_completion_date === newTermEnd);
 
   // The order as R&D Staff issued it — available once it has been printed (Completed).
   const { data: issuedOrderResp } = useFrappeGetCall<{
@@ -1093,7 +1108,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
     !!projectNo &&
     isStaffActor &&
     workflowState === "Pending Staff Approval";
-  const commitRequired = showCommitSection && isCommittedForGate === false;
+  // Until a commitment is confirmed (including while it is still being checked) forwarding is not allowed
+  const commitRequired = showCommitSection && isCommittedForGate !== true;
 
   // Level-based Put To options; refresh the state and actions once a put-back lands.
   const putBack = usePutBack("Project Staff Extension", docName || undefined, () => {
@@ -1117,11 +1133,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
   // Loading state when initial list is fetching and user hasn't selected a doc
   if (!editDocName && listLoading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] flex items-center justify-center">
+      <div className="psd-root min-h-screen flex items-center justify-center">
 
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#4A6CF7]" />
-          <p className="text-sm font-medium text-[#71717A] dark:text-[#A1A1AA]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--psd-primary)]" />
+          <p className="text-sm font-medium text-[var(--psd-body)]">
             Loading Extension Applications...
           </p>
         </div>
@@ -1132,7 +1148,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   // If user has existing applications (Submitted or Draft) and is not opening a specific doc or creating new
   if (!editDocName && !isCreatingNew && userApplications.length > 0) {
     return (
-      <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+      <div className="psd-root min-h-screen">
 
         <main className="flex-1 p-0">
           <div className="w-full">
@@ -1147,13 +1163,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
             </PageHeader>
 
             {/* List Table */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+            <div className="psd-card !rounded-xl overflow-hidden">
+              <div className="p-5 border-b border-[var(--psd-border)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                    <FileText className="h-4 w-4 text-[#4A6CF7]" />
+                  <div className="p-1.5 bg-[var(--psd-primary-light)] rounded-lg">
+                    <FileText className="h-4 w-4 text-[var(--psd-primary)]" />
                   </div>
-                  <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
+                  <h2 className="font-bold text-[var(--psd-heading)] text-sm uppercase tracking-wide">
                     My Extension Applications ({userApplications.length})
                   </h2>
                 </div>
@@ -1161,7 +1177,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-xs font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-700">
+                  <thead className="bg-[var(--psd-bg)] text-xs font-bold text-[var(--psd-body)] uppercase tracking-wider border-b border-[var(--psd-border)]">
                     <tr>
                       <th className="px-5 py-3.5">Application ID</th>
                       <th className="px-5 py-3.5">Project No</th>
@@ -1171,19 +1187,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       <th className="px-5 py-3.5 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                  <tbody className="divide-y divide-[var(--psd-border)]">
                     {userApplications.map((app) => {
                       const stateText = app.workflow_state || (app.docstatus === 1 ? "Submitted" : "Draft");
                       const isDraft = app.docstatus === 0 && (!app.workflow_state || app.workflow_state === "Draft");
                       return (
                         <tr key={app.name} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-700/30 transition-colors">
-                          <td className="px-5 py-4 font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <td className="px-5 py-4 font-semibold text-[var(--psd-heading)]">
                             {app.name}
                           </td>
-                          <td className="px-5 py-4 text-[#71717A] dark:text-[#A1A1AA]">
+                          <td className="px-5 py-4 text-[var(--psd-body)]">
                             {app.ex_proj_no || projectNo || "—"}
                           </td>
-                          <td className="px-5 py-4 text-[#71717A] dark:text-[#A1A1AA]">
+                          <td className="px-5 py-4 text-[var(--psd-body)]">
                             {app.ex_period ? `${app.ex_period} Months` : "—"}
                           </td>
                           <td className="px-5 py-4">
@@ -1194,7 +1210,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               {stateText}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-[#71717A] dark:text-[#A1A1AA] text-xs">
+                          <td className="px-5 py-4 text-[var(--psd-body)] text-xs">
                             {new Date((app as any).modified || (app as any).creation || Date.now()).toLocaleDateString("en-IN", {
                               day: "2-digit",
                               month: "short",
@@ -1210,8 +1226,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               className={cn(
                                 "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm",
                                 isDraft
-                                  ? "text-white bg-[#4A6CF7] hover:bg-[#3b5cf6]"
-                                  : "text-[#3F3F46] dark:text-[#E4E4E7] bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+                                  ? "text-white bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)]"
+                                  : "text-[var(--psd-heading)] bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600"
                               )}
                             >
                               {isDraft ? "Edit" : "View"}
@@ -1235,6 +1251,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
           (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
         );
         const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable || putBack.hasPutBack;
+        // The Actions button is only usable when the document is at this user's step; otherwise it is shown disabled
+        const actionsEnabled = canUserActOnCurrentState && hasWorkflowMenuItems;
 
         const categoriseAction = (action: string) => {
           const a = action.toLowerCase();
@@ -1244,7 +1262,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
         };
         const actionItemStyle = (action: string) => {
           const cat = categoriseAction(action);
-          if (cat === "forward") return "text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15";
+          if (cat === "forward") return "text-[var(--psd-primary)] hover:bg-[var(--psd-primary-light)] dark:hover:bg-[var(--psd-primary)]/15";
           if (cat === "reject") return "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20";
           return "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700";
         };
@@ -1264,7 +1282,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 disabled={isBusy}
                 className={cn(
                   "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
-                  "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
+                  "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                 )}
               >
@@ -1281,7 +1299,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 className={cn(
                   "inline-flex h-9 items-center gap-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wide transition-all",
                   "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                  "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
+                  "text-[var(--psd-heading)] hover:bg-zinc-50 dark:hover:bg-zinc-600",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                 )}
               >
@@ -1290,46 +1308,51 @@ const ProjectStaffExtensionForm: React.FC = () => {
               </button>
             )}
 
-            {hasWorkflowMenuItems && (
+            {(hasWorkflowMenuItems || !canUserActOnCurrentState) && (
               <div className="relative">
                 <button
                   ref={actionsMenuBtnRef}
                   type="button"
                   onClick={toggleActionsMenu}
-                  disabled={isBusy}
+                  disabled={isBusy || !actionsEnabled}
+                  title={actionsEnabled ? undefined : "No action is available for you in this state"}
                   className={cn(
                     "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                    !actionsEnabled && "!cursor-not-allowed !bg-[var(--psd-bg)] !text-[var(--psd-muted)] !border-[var(--psd-border)] hover:!bg-[var(--psd-bg)] hover:!text-[var(--psd-muted)]",
                     actionsMenuOpen
-                      ? "bg-[#4A6CF7] text-white border border-[#3b5cf6]"
-                      : "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#4A6CF7] border border-[#4A6CF7]/40 hover:bg-[#4A6CF7] hover:text-white dark:hover:bg-[#4A6CF7]/30",
+                      ? "bg-[var(--psd-primary)] text-white border border-[#3b5cf6]"
+                      : "bg-[#EEF2FF] dark:bg-[var(--psd-primary)]/15 text-[var(--psd-primary)] border border-[#4A6CF7]/40 hover:bg-[var(--psd-primary)] hover:text-white dark:hover:bg-[var(--psd-primary)]/30",
                   )}
                 >
                   {isBusy ? "Processing…" : "Actions"}
                   <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", actionsMenuOpen && "rotate-180")} />
                 </button>
 
-                {actionsMenuOpen && createPortal(
+                {actionsMenuOpen && actionsEnabled && createPortal(
                   <div
                     ref={actionsMenuPortalRef}
                     style={{ position: "absolute", top: actionsMenuPos.top, bottom: actionsMenuPos.bottom, left: actionsMenuPos.left, zIndex: 9999 }}
-                    className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                    className="psd-root min-w-[210px] !bg-[var(--psd-surface)] border border-[var(--psd-border)] rounded-xl shadow-2xl overflow-hidden"
                   >
-                    <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                    <div className="px-4 py-2 !bg-[var(--psd-bg)] border-b border-[var(--psd-border)]">
                       <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                         Workflow Actions
                       </span>
                     </div>
                     {workflowGroups.map((group, gi) => (
                       <React.Fragment key={gi}>
-                        {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                        {gi > 0 && <div className="h-px bg-[var(--psd-border)] mx-3" />}
                         {group.map((action) => (
                           <button
                             key={action}
                             type="button"
                             onClick={() => openActionModal(action)}
+                            disabled={commitRequired && categoriseAction(action) === "forward"}
+                            title={commitRequired && categoriseAction(action) === "forward" ? "Submit a commitment before forwarding" : undefined}
                             className={cn(
                               "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
                               actionItemStyle(action),
+                              commitRequired && categoriseAction(action) === "forward" && "!cursor-not-allowed !text-[var(--psd-muted)] opacity-60 hover:!bg-transparent",
                             )}
                           >
                             {actionIcon(action)}
@@ -1342,7 +1365,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => openActionModal("Submit", false)}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[var(--psd-primary)] hover:bg-[var(--psd-primary-light)] dark:hover:bg-[var(--psd-primary)]/15 transition-colors"
                       >
                         <CheckCircle className="h-3.5 w-3.5" />
                         Submit
@@ -1355,11 +1378,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
               </div>
             )}
 
-            {!canEdit && !canEditPIFields && !canEditStaffFields && !hasWorkflowMenuItems && !isEditable && (
-              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                No actions available for your role in this state.
-              </p>
-            )}
 
             {commitRequired && (
               <span
@@ -1393,22 +1411,45 @@ const ProjectStaffExtensionForm: React.FC = () => {
       })();
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+    <div className="psd-root min-h-screen">
 
       <main className="flex-1 p-0">
         <div className="w-full">
 
-          <PageHeader
-            title="Extension Form"
-            backFallback="/project-staff-extension"
-            status={workflowState || undefined}
-            projectNumber={projectNo || undefined}
-          >
+          <header className="psd-hero relative mb-2.5 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+            <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+                  else navigate("/project-staff-extension");
+                }}
+                title="Go Back"
+                aria-label="Go Back"
+                className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                <CalendarDays className="size-4" strokeWidth={1.8} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Project Staff</span>
+                  {workflowState && (
+                    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold", stateBadgeClass(workflowState))}>{workflowState}</span>
+                  )}
+                </div>
+                <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Extension Form</h1>
+              </div>
+            </div>
+            <div className="relative z-10 flex flex-wrap items-center gap-2">
+              {projectNo && <span className="hidden font-mono text-xs font-semibold text-[var(--psd-body)] md:block">{projectNo}</span>}
               {workflowState === "Approved" && docName && isRnDStaff && (
                 <button
                   type="button"
                   onClick={() => navigate(`/project-staff-extension/order/${encodeURIComponent(docName)}`)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#3b5cf6]"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[var(--psd-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--psd-primary-hover)]"
                 >
                   <Printer className="h-4 w-4" />
                   Generate Ext Order
@@ -1418,7 +1459,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleViewIssuedOrder}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 text-xs font-bold uppercase tracking-wide text-[#4A6CF7] hover:bg-[#4A6CF7]/10"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--psd-primary)] px-4 text-xs font-bold uppercase tracking-wide text-[var(--psd-primary)] hover:bg-[var(--psd-primary-light)]"
                 >
                   <FileText className="h-4 w-4" />
                   {issuedOrderLabel}
@@ -1431,7 +1472,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 />
               )}
               {headerActionRow}
-          </PageHeader>
+            </div>
+          </header>
 
           {putBack.modal}
 
@@ -1461,17 +1503,17 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-[#4A6CF7]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--psd-primary)]" />
             </div>
           ) : !hasFormData ? (
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-8 text-center">
+            <div className="psd-card !rounded-xl p-8 text-center">
               <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-400" />
-              <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+              <p className="text-sm font-medium text-[var(--psd-heading)]">
                 {isEditMode
                   ? "No extension record could be loaded."
                   : "Project staff details could not be loaded."}
               </p>
-              <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
+              <p className="text-xs text-[var(--psd-body)] mt-1">
                 Contact your administrator if this is incorrect.
               </p>
             </div>
@@ -1479,32 +1521,32 @@ const ProjectStaffExtensionForm: React.FC = () => {
             <>
               {/* Summary hero — who/what at a glance, plus headline figures */}
               {docName && (
-                <section className="mb-5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden">
-                  <div className="p-5 flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="h-12 w-12 flex-shrink-0 rounded-full bg-gradient-to-br from-[#4A6CF7] to-[#2563EB] text-white flex items-center justify-center text-base font-bold shadow-sm">
+                <section className="mb-2.5 psd-card !rounded-xl overflow-hidden">
+                  <div className="px-3.5 py-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-start">
+                    <div className="h-9 w-9 flex-shrink-0 rounded-full bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white flex items-center justify-center text-[13px] font-bold shadow-sm">
                       {(fullName || "?").trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join("")}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="!font-sans text-lg font-extrabold text-[#27272A] dark:text-[#E4E4E7] leading-tight">{fullName || "—"}</h2>
+                        <h2 className="!font-sans text-[15px] font-bold text-[var(--psd-heading)] leading-tight">{fullName || "—"}</h2>
                         {workflowState && (
-                          <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", stateBadgeClass(workflowState))}>
+                          <span className={cn("inline-flex items-center px-2 py-px rounded-full text-[10.5px] font-bold", stateBadgeClass(workflowState))}>
                             {workflowState}
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                      <p className="text-[12px] text-[var(--psd-body)]">
                         {[applicantDesignation, applicantDepartment].filter(Boolean).join(" · ") || "—"}
                       </p>
-                      <p className="mt-2 text-sm text-[#3F3F46] dark:text-[#D4D4D8] leading-snug break-words">
-                        <span className="font-mono text-xs font-semibold text-[#4A6CF7] mr-2">{projectNo}</span>
+                      <p className="mt-1 text-[12px] text-[var(--psd-heading)] leading-snug break-words">
+                        <span className="font-mono text-[11px] font-semibold text-[var(--psd-primary)] mr-2">{projectNo}</span>
                         {projectTitle}
                       </p>
                     </div>
                   </div>
 
-                  <div className="px-5 pb-5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-                    <StatTile label="Current term ends" value={expiryOfTenure || "—"} />
+                  <div className="px-3.5 pb-2.5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+                    <StatTile label="Current term ends" value={fmtDmy(expiryOfTenure) || "—"} />
                     <StatTile label="Sought" value={extensionPeriod ? `${extensionPeriod} Months` : "—"} />
                     <StatTile label="PI suggested" value={extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"} />
                     <StatTile label="Staff allowed" value={extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"} />
@@ -1513,7 +1555,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       tone={isApprovedOrCompleted ? "success" : "default"}
                       value={
                         (finalNewJoiningDate || computedNewJoiningDate) && (finalNewCompletionDate || computedNewCompletionDate)
-                          ? `${finalNewJoiningDate || computedNewJoiningDate} → ${finalNewCompletionDate || computedNewCompletionDate}`
+                          ? `${fmtDmy(finalNewJoiningDate || computedNewJoiningDate)} → ${fmtDmy(finalNewCompletionDate || computedNewCompletionDate)}`
                           : "—"
                       }
                     />
@@ -1521,7 +1563,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                   {isTerminal && (
                     <div className={cn(
-                      "flex items-center gap-2.5 px-5 py-3 text-sm border-t",
+                      "flex items-center gap-2 px-3.5 py-2 text-[12.5px] border-t",
                       isApprovedOrCompleted
                         ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
                         : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
@@ -1544,8 +1586,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                 {/* Workflow Timeline */}
                 {docName && (
-                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide mb-4">
+                  <div className="psd-card !rounded-xl px-4 py-2.5">
+                    <h2 className="font-bold text-[var(--psd-heading)] text-[11px] uppercase tracking-wide mb-1.5">
                       Approval Status
                     </h2>
                     <WorkflowTimeline currentState={workflowState} />
@@ -1553,15 +1595,15 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 )}
 
                 {/* Applicant Details — read-only, prefilled */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                <div className="psd-card !rounded-xl p-5">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                      <UserIcon className="h-4 w-4 text-[#4A6CF7]" />
+                    <div className="p-1.5 bg-[var(--psd-primary-light)] rounded-lg">
+                      <UserIcon className="h-4 w-4 text-[var(--psd-primary)]" />
                     </div>
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
+                    <h2 className="font-bold text-[var(--psd-heading)] text-sm uppercase tracking-wide">
                       Applicant Details
                     </h2>
-                    <span className="ml-auto text-[10px] text-[#A1A1AA] italic">Auto-filled from your profile</span>
+                    <span className="ml-auto text-[10px] text-[var(--psd-muted)] italic">Auto-filled from your profile</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <InfoRow icon={<UserIcon className="h-4 w-4" />} label="Full Name" value={fullName} />
@@ -1582,8 +1624,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   {/* Tenure history — joining & term completion date for each term */}
                   <div className="mt-5">
                     <div className="flex items-center gap-2 mb-2">
-                      <CalendarDays className="h-4 w-4 text-[#A1A1AA]" />
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
+                      <CalendarDays className="h-4 w-4 text-[var(--psd-muted)]" />
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--psd-body)]">
                         Tenure Details
                       </p>
                       {canEditTenures && (
@@ -1594,7 +1636,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 type="button"
                                 onClick={() => setIsEditingTenures(false)}
                                 disabled={savingTenures}
-                                className="px-2.5 py-1 text-xs font-medium rounded-md border border-zinc-200 dark:border-zinc-700 text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50"
+                                className="px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--psd-border)] text-[var(--psd-heading)] hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50"
                               >
                                 Cancel
                               </button>
@@ -1602,7 +1644,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 type="button"
                                 onClick={handleSaveTenures}
                                 disabled={savingTenures}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-[#4A6CF7] text-white hover:bg-[#3B5BE6] disabled:opacity-50"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] disabled:opacity-50"
                               >
                                 {savingTenures && <Loader2 className="h-3 w-3 animate-spin" />}
                                 Save Tenure
@@ -1612,7 +1654,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             <button
                               type="button"
                               onClick={startEditingTenures}
-                              className="px-2.5 py-1 text-xs font-medium rounded-md border border-[#4A6CF7]/40 text-[#4A6CF7] hover:bg-[#4A6CF7]/10"
+                              className="px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--psd-primary)]/40 text-[var(--psd-primary)] hover:bg-[var(--psd-primary-light)]"
                             >
                               Edit
                             </button>
@@ -1620,44 +1662,55 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <div className="overflow-x-auto rounded-lg border border-[var(--psd-border)]">
                       <table className="w-full text-left text-sm">
-                        <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-xs font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-700">
+                        <thead className="bg-[var(--psd-bg)] text-xs font-bold text-[var(--psd-body)] uppercase tracking-wider border-b border-[var(--psd-border)]">
                           <tr>
                             <th className="px-4 py-2.5 w-12">Term</th>
                             <th className="px-4 py-2.5">Date of Joining</th>
                             <th className="px-4 py-2.5">Term Completion Date</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        <tbody className="divide-y divide-[var(--psd-border)]">
                           {isEditingTenures ? (
                             tenureDraft.map((t, idx) => (
-                              <tr key={t.name ?? idx} className="text-[#27272A] dark:text-[#E4E4E7]">
-                                <td className="px-4 py-2 text-[#71717A] dark:text-[#A1A1AA]">{idx + 1}</td>
+                              <tr key={t.name ?? idx} className="text-[var(--psd-heading)]">
+                                <td className="px-4 py-2 text-[var(--psd-body)]">{idx + 1}</td>
                                 {(["joining_date", "term_completion_date"] as const).map((field) => (
                                   <td key={field} className="px-4 py-2">
-                                    <input
-                                      type="date"
+                                    <DateInputDMY
                                       value={t[field] ?? ""}
-                                      onChange={(e) => updateTenureDraft(idx, field, e.target.value)}
+                                      onChange={(iso) => updateTenureDraft(idx, field, iso)}
                                       disabled={savingTenures}
-                                      className="w-full px-2 py-1 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
+                                      className="w-full px-2 py-1 text-sm rounded-md border border-[var(--psd-border)] bg-[var(--psd-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]"
                                     />
                                   </td>
                                 ))}
                               </tr>
                             ))
                           ) : tenureRows.length > 0 ? (
-                            tenureRows.map((t, idx) => (
-                              <tr key={idx} className="text-[#27272A] dark:text-[#E4E4E7]">
-                                <td className="px-4 py-2.5 text-[#71717A] dark:text-[#A1A1AA]">{idx + 1}</td>
-                                <td className="px-4 py-2.5 font-medium">{t.joining_date || "—"}</td>
-                                <td className="px-4 py-2.5 font-medium">{t.term_completion_date || "—"}</td>
-                              </tr>
-                            ))
+                            <>
+                              {tenureRows.map((t, idx) => (
+                                <tr key={idx} className="text-[var(--psd-heading)]">
+                                  <td className="px-4 py-2.5 text-[var(--psd-body)]">{idx + 1}</td>
+                                  <td className="px-4 py-2.5 font-medium">{fmtDmy(t.joining_date) || "—"}</td>
+                                  <td className="px-4 py-2.5 font-medium">{fmtDmy(t.term_completion_date) || "—"}</td>
+                                </tr>
+                              ))}
+                              {showNewTermRow && (
+                                <tr className="bg-[var(--psd-approved-bg)] text-[var(--psd-heading)]">
+                                  <td className="px-4 py-2.5 text-[var(--psd-body)]">{tenureRows.length + 1}</td>
+                                  <td className="px-4 py-2.5 font-semibold">
+                                    {fmtDmy(newTermStart)}
+                                    <span className="ml-2 rounded-full bg-[var(--psd-approved)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">New</span>
+                                  </td>
+                                  <td className="px-4 py-2.5 font-semibold">{fmtDmy(newTermEnd)}</td>
+                                </tr>
+                              )}
+                            </>
                           ) : (
                             <tr>
-                              <td colSpan={3} className="px-4 py-3 text-center text-[#A1A1AA]">
+                              <td colSpan={3} className="px-4 py-3 text-center text-[var(--psd-muted)]">
                                 No tenure records found.
                               </td>
                             </tr>
@@ -1666,9 +1719,9 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       </table>
                     </div>
                     {tenureRows.length > 0 && (
-                      <p className="mt-1.5 text-[11px] text-[#A1A1AA]">
+                      <p className="mt-1.5 text-[11px] text-[var(--psd-muted)]">
                         Current term completion date:{" "}
-                        <strong className="text-[#71717A] dark:text-[#A1A1AA]">{expiryOfTenure || "—"}</strong>
+                        <strong className="text-[var(--psd-body)]">{fmtDmy(expiryOfTenure) || "—"}</strong>
                         {" "}— extension eligibility is based on this date.
                       </p>
                     )}
@@ -1676,12 +1729,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 </div>
 
                 {/* Extension Details — editable in Draft only */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                <div className="psd-card !rounded-xl p-5">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                      <CalendarDays className="h-4 w-4 text-[#4A6CF7]" />
+                    <div className="p-1.5 bg-[var(--psd-primary-light)] rounded-lg">
+                      <CalendarDays className="h-4 w-4 text-[var(--psd-primary)]" />
                     </div>
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
+                    <h2 className="font-bold text-[var(--psd-heading)] text-sm uppercase tracking-wide">
                       Extension Details
                     </h2>
                   </div>
@@ -1724,32 +1777,31 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           Date of Last Extension
                         </label>
                         {canEdit ? (
-                          <input
-                            type="date"
+                          <DateInputDMY
                             value={lastExtensionDate}
-                            onChange={(e) => setLastExtensionDate(e.target.value)}
+                            onChange={(iso) => setLastExtensionDate(iso)}
                             disabled={isBusy}
                             className={cn(
                               "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                              "border-[var(--psd-border)]",
+                              "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                               "disabled:opacity-60 disabled:cursor-not-allowed",
                             )}
                           />
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
-                            {lastExtensionDate || "—"}
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
+                            {fmtDmy(lastExtensionDate) || "—"}
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           Number of Months Worked
                         </label>
                         {canEdit ? (
@@ -1763,16 +1815,16 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               maxLength={INT_MAX_LENGTH}
                               className={cn(
                                 "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                                "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                                "border-zinc-200 dark:border-zinc-700",
-                                "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                                "border-[var(--psd-border)]",
+                                "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                                 "disabled:opacity-60 disabled:cursor-not-allowed",
                               )}
                             />
                             <CharLimitAlert value={noOfMonthsWorked} maxLength={INT_MAX_LENGTH} className="mt-1" />
                           </>
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                             {noOfMonthsWorked || "—"}
                           </p>
                         )}
@@ -1780,7 +1832,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                       {((noOfMonthsWorked && parseInt(noOfMonthsWorked, 10) < 1) || noOfMonthsWorked === "0" || !noOfMonthsWorked) && (
                         <div>
-                          <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                          <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                             Number of Days Worked
                           </label>
                           {canEdit ? (
@@ -1794,16 +1846,16 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 maxLength={INT_MAX_LENGTH}
                                 className={cn(
                                   "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                                  "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                                  "border-zinc-200 dark:border-zinc-700",
-                                  "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                  "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                                  "border-[var(--psd-border)]",
+                                  "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                                   "disabled:opacity-60 disabled:cursor-not-allowed",
                                 )}
                               />
                               <CharLimitAlert value={noOfDaysWorked} maxLength={INT_MAX_LENGTH} className="mt-1" />
                             </>
                           ) : (
-                            <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                            <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                               {noOfDaysWorked || "—"}
                             </p>
                           )}
@@ -1812,7 +1864,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                      <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                         Period Of Re-Engagement / Extension Sought (Months)
                         {canEdit && <span className="text-red-500 ml-0.5">*</span>}
                       </label>
@@ -1824,9 +1876,9 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           required
                           className={cn(
                             "w-full sm:w-64 px-3 py-2 text-sm rounded-lg border transition-colors",
-                            "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                            "border-zinc-200 dark:border-zinc-700",
-                            "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                            "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                            "border-[var(--psd-border)]",
+                            "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                             "disabled:opacity-60 disabled:cursor-not-allowed",
                           )}
                         >
@@ -1838,12 +1890,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           ))}
                         </select>
                       ) : (
-                        <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                        <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                           {extensionPeriod ? `${extensionPeriod} Months` : "—"}
                         </p>
                       )}
                       {canEdit && !serviceCapReached && isWithinApplicationWindow && (
-                        <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                        <p className="mt-1.5 text-[11px] text-[var(--psd-body)]">
                           Maximum allowed: {maxExtensionAllowed} month(s) — {maxExtensionReason}.
                         </p>
                       )}
@@ -1853,19 +1905,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                 {/* PI Evaluation — visible if not in Draft state or if it already has values */}
                 {(workflowState !== "Draft" || extensionPeriodPI || incrementPI || isEditing) && (
-                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                  <div className="psd-card !rounded-xl p-5">
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                        <UserCheck className="h-4 w-4 text-[#4A6CF7]" />
+                      <div className="p-1.5 bg-[var(--psd-primary-light)] rounded-lg">
+                        <UserCheck className="h-4 w-4 text-[var(--psd-primary)]" />
                       </div>
-                      <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
+                      <h2 className="font-bold text-[var(--psd-heading)] text-sm uppercase tracking-wide">
                         PI Recommendation / Evaluation
                       </h2>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           Period Of Re-Engagement / Extension Suggested by PI (Months)
                           {canEditPIFields && <span className="text-red-500 ml-0.5">*</span>}
                         </label>
@@ -1877,9 +1929,9 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             required
                             className={cn(
                               "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                              "border-[var(--psd-border)]",
+                              "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                               "disabled:opacity-60 disabled:cursor-not-allowed",
                             )}
                           >
@@ -1891,19 +1943,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                             {extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"}
                           </p>
                         )}
                         {canEditPIFields && (
-                          <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                          <p className="mt-1.5 text-[11px] text-[var(--psd-body)]">
                             Maximum grantable: {maxExtensionAllowed} month(s) ({maxExtensionReason}).{isReEngagement && " This is a re-engagement."}
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           Increment Recommended by PI (Rs.)
                         </label>
                         {canEditPIFields ? (
@@ -1918,15 +1970,15 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               maxLength={CURRENCY_MAX_LENGTH}
                               className={cn(
                                 "w-full pl-7 pr-3 py-2 text-sm rounded-lg border transition-colors",
-                                "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                                "border-zinc-200 dark:border-zinc-700",
-                                "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                                "border-[var(--psd-border)]",
+                                "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                                 "disabled:opacity-60 disabled:cursor-not-allowed",
                               )}
                             />
                           </div>
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                             {incrementPI ? `₹${incrementPI}` : "—"}
                           </p>
                         )}
@@ -1937,14 +1989,14 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     </div>
 
                     {canEditPIFields && (
-                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end">
+                      <div className="mt-4 pt-4 border-t border-[var(--psd-border)] flex justify-end">
                         <button
                           type="button"
                           onClick={handleSave}
                           disabled={isBusy}
                           className={cn(
                             "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
-                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6]",
+                            "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)]",
                             "disabled:opacity-50 disabled:cursor-not-allowed",
                           )}
                         >
@@ -1958,19 +2010,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                 {/* Staff Evaluation — visible if not in Draft/Pending PI states or if it already has values */}
                 {((workflowState !== "Draft" && workflowState !== "Pending PI Approval") || extensionPeriodStaff || incrementStaff || isEditing) && (
-                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                  <div className="psd-card !rounded-xl p-5">
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                        <TrendingUp className="h-4 w-4 text-[#4A6CF7]" />
+                      <div className="p-1.5 bg-[var(--psd-primary-light)] rounded-lg">
+                        <TrendingUp className="h-4 w-4 text-[var(--psd-primary)]" />
                       </div>
-                      <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
+                      <h2 className="font-bold text-[var(--psd-heading)] text-sm uppercase tracking-wide">
                         R&D Staff Decision / Evaluation
                       </h2>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           Period Of Re-Engagement / Extension Allowed by Staff (Months)
                           {canEditStaffFields && <span className="text-red-500 ml-0.5">*</span>}
                         </label>
@@ -1982,9 +2034,9 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             required
                             className={cn(
                               "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                              "border-[var(--psd-border)]",
+                              "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                               "disabled:opacity-60 disabled:cursor-not-allowed",
                             )}
                           >
@@ -1996,19 +2048,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                             {extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"}
                           </p>
                         )}
                         {canEditStaffFields && (
-                          <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                          <p className="mt-1.5 text-[11px] text-[var(--psd-body)]">
                             Maximum grantable: {maxExtensionAllowed} month(s) ({maxExtensionReason}).{isReEngagement && " This is a re-engagement."}
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           Increment Allowed by Staff (Rs.)
                         </label>
                         {canEditStaffFields ? (
@@ -2023,15 +2075,15 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               maxLength={CURRENCY_MAX_LENGTH}
                               className={cn(
                                 "w-full pl-7 pr-3 py-2 text-sm rounded-lg border transition-colors",
-                                "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                                "border-zinc-200 dark:border-zinc-700",
-                                "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                                "border-[var(--psd-border)]",
+                                "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                                 "disabled:opacity-60 disabled:cursor-not-allowed",
                               )}
                             />
                           </div>
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                             {incrementStaff ? `₹${incrementStaff}` : "—"}
                           </p>
                         )}
@@ -2042,7 +2094,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                       {!isFieldHidden("ex_scr_id") && (
                       <div>
-                        <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                        <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                           New Selection Committee Report ID
                         </label>
                         {canEditStaffFields ? (
@@ -2054,19 +2106,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             placeholder="e.g. SCR-2026-00123"
                             className={cn(
                               "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                              "border-[var(--psd-border)]",
+                              "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                               "disabled:opacity-60 disabled:cursor-not-allowed",
                             )}
                           />
                         ) : (
-                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
                             {committeeId || "—"}
                           </p>
                         )}
                         {canEditStaffFields && (
-                          <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                          <p className="mt-1.5 text-[11px] text-[var(--psd-body)]">
                             The committee that authorized this extension — recorded on the staff record once approved.
                           </p>
                         )}
@@ -2079,12 +2131,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         card's own visibility), editable only for staff at
                         Pending Staff Approval. */}
                     {(extensionPeriodStaff || computedNewJoiningDate || finalNewJoiningDate) && (
-                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                      <div className="mt-4 pt-4 border-t border-[var(--psd-border)]">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="p-1.5 bg-emerald-500/10 rounded-lg">
                             <CalendarDays className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                           </div>
-                          <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-xs uppercase tracking-wide">
+                          <h3 className="font-bold text-[var(--psd-heading)] text-xs uppercase tracking-wide">
                             New Tenure
                           </h3>
                         </div>
@@ -2092,7 +2144,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         {canEditStaffFields && (
                           <div className="mb-3">
                             {tenurePreviewLoading ? (
-                              <div className="flex items-center gap-2 text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                              <div className="flex items-center gap-2 text-sm text-[var(--psd-body)]">
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 Computing probable new term…
                               </div>
@@ -2104,9 +2156,9 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ) : tenurePreview ? (
                               <div className="px-3 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-800 dark:text-emerald-300">
                                 Probable new term:{" "}
-                                <span className="font-semibold">{tenurePreview.new_joining_date}</span>
+                                <span className="font-semibold">{fmtDmy(tenurePreview.new_joining_date)}</span>
                                 {" → "}
-                                <span className="font-semibold">{tenurePreview.new_completion_date}</span>
+                                <span className="font-semibold">{fmtDmy(tenurePreview.new_completion_date)}</span>
                                 , new basic{" "}
                                 <span className="font-semibold">₹{tenurePreview.new_basic_salary.toLocaleString("en-IN")}</span>
                               </div>
@@ -2116,61 +2168,59 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                            <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                               New Term Start (Final)
                             </label>
                             {canEditStaffFields ? (
-                              <input
-                                type="date"
+                              <DateInputDMY
                                 value={finalNewJoiningDate}
-                                onChange={(e) => setFinalNewJoiningDate(e.target.value)}
+                                onChange={(iso) => setFinalNewJoiningDate(iso)}
                                 disabled={isBusy}
                                 className={cn(
                                   "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                                  "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                                  "border-zinc-200 dark:border-zinc-700",
-                                  "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                  "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                                  "border-[var(--psd-border)]",
+                                  "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                                   "disabled:opacity-60 disabled:cursor-not-allowed",
                                 )}
                               />
                             ) : (
-                              <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
-                                {finalNewJoiningDate || computedNewJoiningDate || "—"}
+                              <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
+                                {fmtDmy(finalNewJoiningDate || computedNewJoiningDate) || "—"}
                               </p>
                             )}
                             {computedNewJoiningDate && computedNewJoiningDate !== finalNewJoiningDate && (
-                              <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                System-suggested: {computedNewJoiningDate}
+                              <p className="mt-1.5 text-[11px] text-[var(--psd-body)]">
+                                System-suggested: {fmtDmy(computedNewJoiningDate)}
                               </p>
                             )}
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                            <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1.5">
                               New Term End (Final)
                             </label>
                             {canEditStaffFields ? (
-                              <input
-                                type="date"
+                              <DateInputDMY
                                 value={finalNewCompletionDate}
-                                onChange={(e) => setFinalNewCompletionDate(e.target.value)}
+                                onChange={(iso) => setFinalNewCompletionDate(iso)}
                                 disabled={isBusy}
                                 className={cn(
                                   "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
-                                  "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                                  "border-zinc-200 dark:border-zinc-700",
-                                  "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                  "bg-[var(--psd-surface)] text-[var(--psd-heading)]",
+                                  "border-[var(--psd-border)]",
+                                  "focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]",
                                   "disabled:opacity-60 disabled:cursor-not-allowed",
                                 )}
                               />
                             ) : (
-                              <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
-                                {finalNewCompletionDate || computedNewCompletionDate || "—"}
+                              <p className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2 text-sm font-semibold text-[var(--psd-heading)]">
+                                {fmtDmy(finalNewCompletionDate || computedNewCompletionDate) || "—"}
                               </p>
                             )}
                             {computedNewCompletionDate && computedNewCompletionDate !== finalNewCompletionDate && (
-                              <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                System-suggested: {computedNewCompletionDate}
+                              <p className="mt-1.5 text-[11px] text-[var(--psd-body)]">
+                                System-suggested: {fmtDmy(computedNewCompletionDate)}
                               </p>
                             )}
                           </div>
@@ -2179,14 +2229,14 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     )}
 
                     {canEditStaffFields && (
-                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end">
+                      <div className="mt-4 pt-4 border-t border-[var(--psd-border)] flex justify-end">
                         <button
                           type="button"
                           onClick={handleSave}
                           disabled={isBusy}
                           className={cn(
                             "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
-                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6]",
+                            "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)]",
                             "disabled:opacity-50 disabled:cursor-not-allowed",
                           )}
                         >

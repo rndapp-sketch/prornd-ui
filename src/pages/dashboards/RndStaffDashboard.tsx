@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { getPendingTaskRoute } from "@/utils/applicationRoutes";
+import { vendorPaymentAPI } from "@/services/apiService";
 import {
   FolderKanban, ClipboardList, Layers, Activity,
   AlertCircle, Zap, BarChart3, ChevronRight, Search,
   Filter, X, ArrowRight, FileText, Banknote,
-  Receipt, Clock, TrendingUp, CheckCircle2, Eye,
+  Receipt, Clock, TrendingUp, CheckCircle2, Eye, IndianRupee,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -24,6 +25,10 @@ interface CategorizedTaskRow {
   owner: string; doctype: string; name: string; mod_vis: number | null; deposit_slip?: string;
 }
 interface PendingTaskResponse { message: { research: CategorizedTaskRow[]; consultancy: CategorizedTaskRow[]; others: CategorizedTaskRow[] }; }
+interface VendorPaymentRow {
+  name: string; project_number?: string; name_of_vendor?: string; invoice_bill_no?: string;
+  workflow_state?: string; total_amount?: number; modified: string;
+}
 interface TaskRegistryResponse { message: { results: TaskGroup[]; pagination: unknown; filters: unknown }; }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -124,6 +129,12 @@ export function RndStaffDashboard() {
   const { data: registryData, isLoading: registryLoading } = useFrappeGetCall<TaskRegistryResponse>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry", { page_name: "task-registry" }
   );
+
+  // Vendor Payments waiting on this user — for staff, the ones to commit before forwarding.
+  const { data: vendorPaymentData, isLoading: vendorPaymentLoading } = useFrappeGetCall<{ message: VendorPaymentRow[] }>(
+    vendorPaymentAPI.getPending, { page_length: 50 }, "dashboard-vendor-payments-pending"
+  );
+  const vendorPayments = vendorPaymentData?.message ?? [];
 
   const [liveTime, setLiveTime] = useState(new Date());
   const [search, setSearch]           = useState("");
@@ -537,6 +548,52 @@ export function RndStaffDashboard() {
 
           {/* ─── Right Sidebar ─── */}
           <div className="space-y-3">
+
+            {/* Vendor Payment — commit window */}
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 bg-orange-50 dark:bg-orange-950/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IndianRupee className="h-3.5 w-3.5 text-[#D97757]" />
+                  </div>
+                  <span className="text-[13px] font-bold text-[#27272A] dark:text-[#F4F4F5] truncate">Vendor Payments to Commit</span>
+                </div>
+                <button onClick={() => navigate("/vendor-payment")} className="text-[11px] font-semibold text-[#D97757] hover:underline flex-shrink-0">
+                  View all
+                </button>
+              </div>
+              {vendorPaymentLoading ? <Spinner /> : vendorPayments.length === 0 ? (
+                <EmptyState icon={IndianRupee} message="Nothing to commit" />
+              ) : (
+                <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
+                  {vendorPayments.slice(0, 5).map(vp => (
+                    <button
+                      key={vp.name}
+                      onClick={() => navigate(`/vendor-payment/${encodeURIComponent(vp.name)}`)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-[#FAFAF9] dark:hover:bg-[#1C1C1F] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-semibold text-[#27272A] dark:text-[#F4F4F5] truncate">{vp.name_of_vendor || vp.name}</p>
+                        <p className="text-[11px] text-[#A1A1AA] dark:text-[#71717A] truncate mt-0.5">
+                          {vp.project_number || "—"} · {vp.workflow_state}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
+                          ₹{(Number(vp.total_amount) || 0).toLocaleString("en-IN")}
+                        </p>
+                        <p className="text-[10px] text-[#A1A1AA] dark:text-[#71717A] font-mono">{fmtTime(vp.modified)}</p>
+                      </div>
+                    </button>
+                  ))}
+                  {vendorPayments.length > 5 && (
+                    <button onClick={() => navigate("/vendor-payment")} className="w-full px-4 py-2 text-[11px] font-semibold text-[#71717A] hover:text-[#D97757] text-center">
+                      +{vendorPayments.length - 5} more
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Quick Actions */}
             <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">

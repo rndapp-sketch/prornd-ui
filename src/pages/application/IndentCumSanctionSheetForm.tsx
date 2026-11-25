@@ -61,6 +61,8 @@ import { commonAPI } from "@/services/apiService";
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
+import { useProjectStaffApplicant } from "@/hooks/useProjectStaffApplicant";
+import { ProjectStaffPiNotice } from "@/components/ProjectStaffPiNotice";
 import {
   generatePOHtml,
   getAmcPoGrandTotal,
@@ -1757,8 +1759,30 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     searchParams.get("other_pi") !== "1" &&
     Boolean(projectParam || projectNoParam || projectRefParam);
 
+  // Project staff raise the indent as an Other-PI one for their PI, who picks the
+  // project and account head at the "Pending Other PI" step.
+  const projectStaff = useProjectStaffApplicant();
+  const staffMode = projectStaff.isProjectStaff;
+  const staffLockedFields = React.useMemo(
+    () =>
+      staffMode
+        ? [
+            "project_ref",
+            "project_no",
+            "icss_account_head",
+            "icss_other_account_head",
+            "account_head",
+            "budget_head",
+            ...(projectStaff.piEmail
+              ? ["icss_applying_for_mail", "icss_other_pi_id"]
+              : []),
+          ]
+        : [],
+    [staffMode, projectStaff.piEmail],
+  );
+
   const lockSelfOtherFields =
-    searchParams.get("other_pi") === "1" || lockProjectFields;
+    searchParams.get("other_pi") === "1" || lockProjectFields || staffMode;
 
   const displayBaseFields = React.useMemo(() => {
     return baseFields.map((field) => {
@@ -1816,6 +1840,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       // Project picked from the project page: reference and number are fixed too.
       if (
         (lockSelfOtherFields && isApplyingForField) ||
+        staffLockedFields.includes(field.fieldname) ||
         (lockProjectFields &&
           (field.fieldname === "project_ref" ||
             field.fieldname === "project_no"))
@@ -1839,7 +1864,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
       return field;
     });
-  }, [baseFields, isEditMode, lockProjectFields, lockSelfOtherFields]);
+  }, [baseFields, isEditMode, lockProjectFields, lockSelfOtherFields, staffLockedFields]);
   const [computationRules, setComputationRules] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
@@ -1985,6 +2010,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           };
         }
 
+        if (staffLockedFields.includes(field.fieldname)) {
+          return { ...field, read_only: 1, read_only_depends_on: undefined };
+        }
+
         // In edit mode, clear backend-supplied read_only from field and its child columns
         if (isEditMode) {
           return {
@@ -2001,7 +2030,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
         return field;
       });
-  }, [formData, isEditMode, subFormFields]);
+  }, [formData, isEditMode, subFormFields, staffLockedFields]);
   const linkOptionsRef = React.useRef<Record<string, any[]>>({});
   const [isLoadingFields, setIsLoadingFields] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -4392,6 +4421,29 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     ],
   );
 
+  const staffPrefilled = React.useRef(false);
+  useEffect(() => {
+    if (!staffMode || projectStaff.isLoading || isLoadingFields || editDocName || staffPrefilled.current) return;
+    staffPrefilled.current = true;
+    // Same as an Other-PI launch, with the staff member's PI as the Other PI.
+    const applyingForField = baseFields.find(
+      (f) =>
+        /^applying\s*for$/i.test(String(f.label || "").trim()) &&
+        f.fieldtype !== "Section Break",
+    );
+    setFormData((prev) => ({
+      ...prev,
+      icss_other_pi: "Other",
+      [applyingForField?.fieldname || "icss_applying_for"]: "Other",
+      icss_other_pi_id: projectStaff.piEmail || prev.icss_other_pi_id || "",
+      project_ref: "",
+      project_no: "",
+      icss_account_head: "",
+    }));
+    // Goes through the side-effect handler so the PI's name / department fill in.
+    if (projectStaff.piEmail) handleFieldChangeWithSideEffects("icss_applying_for_mail", projectStaff.piEmail);
+  }, [staffMode, projectStaff.isLoading, projectStaff.piEmail, isLoadingFields, editDocName, baseFields, handleFieldChangeWithSideEffects]);
+
   const handleFileChange = useCallback(
     (fieldname: string, file: File | null) => {
       setFormData((prev) => ({ ...prev, [fieldname]: file }));
@@ -6451,6 +6503,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     )}
                   </div>
                   <div className="p-8" id="icss-printable-details">
+                    {staffMode && isEditMode && docStatus === 0 && (
+                      <ProjectStaffPiNotice piEmail={projectStaff.piEmail} />
+                    )}
                     <DynamicFormRenderer
                       overheadFund={isOverheadProject}
                       fields={displayBaseFields}

@@ -3,12 +3,14 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { ArrowLeft, Save, Loader2, FileText, ArrowRight, Users, Upload, CheckCircle2, ShieldCheck, ClipboardList, ChevronDown } from "lucide-react";
 import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
+import RegistrationSummary from "@/components/forms/RegistrationSummary";
 import {
     universalRegistrationAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 interface UniversalRegistrationFormProps {
     isFundingAgency?: boolean;
@@ -80,7 +82,6 @@ export default function UniversalRegistrationForm({
     const [isSaving, setIsSaving] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(id || null);
     const [step, setStep] = useState<'instructions' | 'form'>(id ? 'form' : 'instructions');
-
     // Sync step/savedDocName when the URL id param changes (e.g. after "View My Registration"
     // navigate, or starting a fresh registration from an existing one via the shared
     // /universal-registration/:id? route — the component instance is reused, so this must
@@ -100,6 +101,7 @@ export default function UniversalRegistrationForm({
     const [myRegError, setMyRegError] = useState(false);
     const [myRegistrations, setMyRegistrations] = useState<any[] | null>(null);
     const [myRegListCollapsed, setMyRegListCollapsed] = useState(false);
+    const [guideTab, setGuideTab] = useState<'guide' | 'mine'>('guide');
     const { call: listRegistrationsCall } = useFrappePostCall<{ message: any }>(
         universalRegistrationAPI.list,
     );
@@ -1618,29 +1620,31 @@ export default function UniversalRegistrationForm({
     // ── Step 1: Instructions screen ─────────────────────────────────────────
     if (step === 'instructions') {
         return (
-            <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
+            <div className="psd-root flex-1 w-full min-h-screen">
                 <div className="w-full px-0 py-0">
 
                     {/* Page header */}
-                    <div className="flex items-center gap-3 mb-3">
-                        <button onClick={() => navigate(-1)}
-                            className="p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors">
-                            <ArrowLeft className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
-                        </button>
-                        <div>
-                            <h1 className="text-[18px] font-extrabold text-[#18181B] dark:text-[#FAFAFA] leading-tight">Stakeholder Registration</h1>
-                            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">Read this guide before filling the form</p>
+                    <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                        <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                            <button onClick={() => navigate(-1)} aria-label="Go back" className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]">
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Registry</div>
+                                <h1 className="mt-0.5 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Stakeholder Registration</h1>
+                            </div>
                         </div>
-                    </div>
+                        <p className="relative z-10 hidden text-xs text-[var(--psd-body)] sm:block">Read this guide before filling the form</p>
+                    </header>
 
                     {/* My Registration banner */}
-                    <div className="mb-4 rounded-xl border border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 px-4 py-3">
+                    <div className="psd-card mb-2.5 !rounded-xl border-l-[3px] !border-l-[var(--psd-info)] px-3 py-1.5">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
-                                <ClipboardList className="h-5 w-5 shrink-0 text-[#4A6CF7]" />
+                                <ClipboardList className="h-5 w-5 shrink-0 text-[var(--psd-info)]" />
                                 <div>
-                                    <p className="text-[13px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE]">Already registered?</p>
-                                    <p className="text-[11px] font-medium text-[#3730A3] dark:text-[#A5B4FC]">
+                                    <p className="text-[13px] font-bold text-[var(--psd-heading)]">Already registered?</p>
+                                    <p className="text-[11.5px] text-[var(--psd-body)]">
                                         {myRegError
                                             ? "Couldn't check your registration right now. Please try again."
                                             : myRegNotFound
@@ -1650,226 +1654,216 @@ export default function UniversalRegistrationForm({
                                 </div>
                             </div>
                             <button
-                                onClick={handleViewMyRegistration}
+                                onClick={() => {
+                                    setGuideTab('mine');
+                                    void handleViewMyRegistration();
+                                }}
                                 disabled={myRegLoading}
-                                className="flex shrink-0 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-extrabold text-white shadow-sm hover:bg-[#3558E8] disabled:opacity-60 transition-colors"
+                                className="flex shrink-0 items-center gap-2 rounded-lg bg-[var(--psd-primary)] px-3.5 py-2 text-[12px] font-bold text-white shadow-sm transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98] disabled:opacity-60"
                             >
                                 {myRegLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardList className="h-3.5 w-3.5" />}
                                 {myRegLoading ? "Searching…" : "View My Registration"}
                             </button>
                         </div>
 
-                        {myRegistrations && myRegistrations.length > 0 && (
-                          <>
-                            <button
-                                onClick={() => setMyRegListCollapsed((c) => !c)}
-                                className="mt-3 flex w-full items-center justify-between gap-2 text-[11px] font-bold text-[#3730A3] dark:text-[#A5B4FC] hover:text-[#1E3A8A] dark:hover:text-[#C7D2FE] transition-colors"
-                            >
-                                <span>
-                                    Found {myRegistrations.length} registration{myRegistrations.length > 1 ? "s" : ""} for your account
-                                </span>
-                                <ChevronDown
+                    </div>
+
+                    {/* Tabs: guide / my registrations */}
+                    <div role="tablist" aria-label="Registration" className="mb-2.5 flex items-center gap-1.5">
+                        {([
+                            { id: 'guide', label: 'Registration Guide', icon: FileText },
+                            { id: 'mine', label: 'My Registrations', icon: ClipboardList },
+                        ] as const).map((t) => {
+                            const on = guideTab === t.id;
+                            return (
+                                <button
+                                    key={t.id}
+                                    role="tab"
+                                    aria-selected={on}
+                                    onClick={() => {
+                                        setGuideTab(t.id);
+                                        if (t.id === 'mine' && myRegistrations === null && !myRegNotFound && !myRegError && !myRegLoading) void handleViewMyRegistration();
+                                    }}
                                     className={cn(
-                                        "h-3.5 w-3.5 shrink-0 transition-transform",
-                                        !myRegListCollapsed && "rotate-180",
+                                        "psd-focus flex h-9 items-center gap-2 rounded-full border px-3.5 text-[12.5px] font-bold transition-all duration-200",
+                                        on
+                                            ? "border-transparent bg-[var(--psd-primary)] text-white shadow-sm"
+                                            : "border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
                                     )}
-                                />
-                            </button>
-                            {!myRegListCollapsed && (
-                            <div className="mt-2 divide-y divide-[#4A6CF7]/15 rounded-lg border border-[#4A6CF7]/20 bg-white dark:bg-[#18181B] overflow-hidden">
-                                {myRegistrations.map((reg) => (
-                                    <button
-                                        key={reg.name}
-                                        onClick={() => navigate(`/universal-registration/${reg.name}?view=1`)}
-                                        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-[#EEF2FF] dark:hover:bg-[#1E3A8A]/25 transition-colors"
-                                    >
-                                        <div className="min-w-0">
-                                            <p className="text-[12px] font-bold text-[#18181B] dark:text-[#FAFAFA] truncate">
-                                                {reg.full_name_u_r || reg.org_name_u_r || reg.name}
-                                            </p>
-                                            <p className="text-[10.5px] text-[#71717A] dark:text-[#A1A1AA] truncate">
-                                                {reg.profile_type_u_r || "—"} · {reg.email_address_u_r || "—"} · {reg.name}
-                                            </p>
-                                        </div>
-                                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#4A6CF7]" />
-                                    </button>
+                                >
+                                    <t.icon className="h-3.5 w-3.5" />
+                                    {t.label}
+                                    {t.id === 'mine' && myRegistrations && (
+                                        <span className={cn("rounded-full px-1.5 text-[11px] leading-[18px]", on ? "bg-white/25" : "bg-[var(--psd-bg)]")}>{myRegistrations.length}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {guideTab === 'mine' && (
+                        <div className="psd-card overflow-hidden !rounded-xl">
+                            <div className="flex items-center gap-2 border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-info)] bg-[var(--psd-bg)] px-3 py-2">
+                                <ClipboardList className="h-4 w-4 text-[var(--psd-info)]" />
+                                <p className="text-[13px] font-bold text-[var(--psd-heading)]">
+                                    My Registrations
+                                    {myRegistrations && <span className="ml-1.5 text-[11.5px] font-normal text-[var(--psd-body)]">{myRegistrations.length} found for your account</span>}
+                                </p>
+                            </div>
+                            {myRegLoading ? (
+                                <div className="flex items-center justify-center gap-2 py-10 text-[12.5px] text-[var(--psd-body)]">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+                                </div>
+                            ) : myRegistrations && myRegistrations.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-[12.5px]">
+                                        <thead>
+                                            <tr className="bg-[var(--psd-bg)] text-left text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">
+                                                <th className="px-3 py-2">#</th>
+                                                <th className="px-3 py-2">Name</th>
+                                                <th className="px-3 py-2">Profile Type</th>
+                                                <th className="px-3 py-2">Email</th>
+                                                <th className="px-3 py-2">Registration ID</th>
+                                                <th className="px-3 py-2">Status</th>
+                                                <th className="px-3 py-2 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[var(--psd-border)]">
+                                            {myRegistrations.map((reg, i) => (
+                                                <tr key={reg.name} className="cursor-pointer transition-colors hover:bg-[var(--psd-bg)]" onClick={() => navigate(`/universal-registration/${reg.name}?view=1`)}>
+                                                    <td className="px-3 py-2 text-[var(--psd-muted)]">{i + 1}</td>
+                                                    <td className="px-3 py-2 font-bold text-[var(--psd-heading)]">{reg.full_name_u_r || reg.org_name_u_r || reg.name}</td>
+                                                    <td className="px-3 py-2 text-[var(--psd-body)]">{reg.profile_type_u_r || "—"}</td>
+                                                    <td className="px-3 py-2 text-[var(--psd-body)]">{reg.email_address_u_r || "—"}</td>
+                                                    <td className="px-3 py-2 font-mono text-[11.5px] text-[var(--psd-body)]">{reg.name}</td>
+                                                    <td className="px-3 py-2 text-[var(--psd-body)]">{reg.status_u_r || reg.docstatus_label || "—"}</td>
+                                                    <td className="px-3 py-2 text-right">
+                                                        <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--psd-primary)] px-2.5 py-1 text-[11.5px] font-bold text-white">
+                                                            Open <ArrowRight className="h-3 w-3" />
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="px-4 py-10 text-center text-[12.5px] text-[var(--psd-body)]">
+                                    {myRegError ? "Couldn't check your registration right now. Please try again." : "No registration found for your account."}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {guideTab === 'guide' && (
+                    <>
+                    {/* Row 1 — who is this for, and what to keep ready */}
+                    <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
+                        {[
+                            {
+                                key: "ind", title: "Individual", badge: "For Honorarium", accent: "var(--psd-info)", badgeCls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+                                desc: "Invited to take part in academic or research activities and receiving honorarium.",
+                                eg: ["Guest lecturers, keynote speakers, workshop facilitators", "External experts, consultants, or reviewers", "Jury members, evaluators, or examiners"],
+                                docs: "Aadhaar + PAN (Indian) or valid government ID (foreign), bank account details.",
+                            },
+                            {
+                                key: "pi", title: "PI / Co-PI", badge: "External only", accent: "#7D5BEA", badgeCls: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+                                desc: "PI or Co-PI employed at another institute or university, collaborating on a project registered here.",
+                                eg: ["Faculty or researchers from other institutes", "Scientists from CSIR, DRDO, ISRO or similar labs", "International collaborators holding a PI/Co-PI role"],
+                                docs: "Aadhaar + PAN (Indian) or valid government ID (foreign), institutional affiliation details, bank account details.",
+                            },
+                        ].map((c) => (
+                            <div key={c.key} className="psd-card flex flex-col overflow-hidden !rounded-xl">
+                                <div className="flex items-center gap-2 border-b border-l-[3px] border-b-[var(--psd-border)] bg-[var(--psd-bg)] px-3 py-2" style={{ borderLeftColor: c.accent }}>
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--psd-primary)] text-[11px] font-bold text-white">1</span>
+                                    <Users className="h-3.5 w-3.5 shrink-0" style={{ color: c.accent }} />
+                                    <p className="text-[13px] font-bold text-[var(--psd-heading)]">{c.title}</p>
+                                    <span className={`ml-auto rounded-full px-2 py-px text-[10px] font-bold ${c.badgeCls}`}>{c.badge}</span>
+                                </div>
+                                <div className="flex flex-1 flex-col gap-1.5 px-3 py-2 text-[11.5px] leading-snug text-[var(--psd-body)]">
+                                    <p>{c.desc}</p>
+                                    <ul className="space-y-0.5">
+                                        {c.eg.map((e) => (
+                                            <li key={e} className="flex gap-1.5"><span className="shrink-0 font-bold" style={{ color: c.accent }}>→</span>{e}</li>
+                                        ))}
+                                    </ul>
+                                    <p className="mt-auto flex items-start gap-1.5 rounded-lg bg-[var(--psd-bg)] px-2 py-1.5 font-semibold">
+                                        <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" style={{ color: c.accent }} />
+                                        <span><strong className="text-[var(--psd-heading)]">Documents:</strong> {c.docs}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Documents checklist */}
+                        <div className="psd-card overflow-hidden !rounded-xl">
+                            <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-3 py-2">
+                                <p className="text-[13px] font-bold text-[var(--psd-heading)]">Documents Checklist <span className="ml-1 text-[11px] font-normal text-[var(--psd-body)]">keep ready before you begin</span></p>
+                            </div>
+                            <div className="space-y-1.5 px-3 py-2">
+                                {[
+                                    { label: "Indian Nationals", dot: "bg-[var(--psd-info)]", docs: ["Aadhaar Card", "PAN Card", "Bank account details (account number & IFSC)"] },
+                                    { label: "Foreign Nationals", dot: "bg-violet-500", docs: ["Valid government-issued photo ID", "Bank account details"] },
+                                    { label: "PI / Co-PI (External), additional", dot: "bg-emerald-500", docs: ["Institutional affiliation letter or ID card"] },
+                                ].map((g, i) => (
+                                    <div key={g.label} className={i ? "border-t border-[var(--psd-border)] pt-1.5" : ""}>
+                                        <p className="mb-0.5 text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">{g.label}</p>
+                                        {g.docs.map((doc) => (
+                                            <div key={doc} className="flex items-center gap-2 text-[11.5px] font-semibold text-[var(--psd-heading)]">
+                                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${g.dot}`} />
+                                                {doc}
+                                            </div>
+                                        ))}
+                                    </div>
                                 ))}
                             </div>
-                            )}
-                          </>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-
-                        {/* LEFT — Steps */}
-                        <div className="lg:col-span-3 space-y-4">
-
-                            {/* Step 1 — Profile type */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-[#4A6CF7] px-5 py-3.5 flex items-center gap-2.5">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[12px] font-extrabold">1</span>
-                                    <div>
-                                        <p className="text-[13px] font-extrabold text-white leading-tight">Select Your Profile Type</p>
-                                        <p className="text-[10px] text-blue-100 mt-0.5">Choose the category that best describes you</p>
-                                    </div>
-                                </div>
-
-                                {/* Individual */}
-                                <div className="border-b border-[#F4F4F5] dark:border-[#2E2E30] px-5 py-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/20 mt-0.5">
-                                            <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <p className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">Individual</p>
-                                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">For Honorarium</span>
-                                            </div>
-                                            <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed mb-2">For individuals invited to participate in academic or research activities who will receive honorarium payments.</p>
-                                            <div className="space-y-1 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
-                                                <p>→ Guest lecturers, keynote speakers, workshop facilitators</p>
-                                                <p>→ External subject-matter experts, consultants, or reviewers</p>
-                                                <p>→ Jury members, evaluators, or examiners</p>
-                                            </div>
-                                            <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-[#F4F4F5] dark:bg-[#2E2E30] px-3 py-2">
-                                                <ShieldCheck className="h-3.5 w-3.5 text-[#4A6CF7] shrink-0 mt-0.5" />
-                                                <p className="text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA]"><strong className="text-[#27272A] dark:text-[#E4E4E7]">Documents required:</strong> Aadhaar + PAN (Indian nationals) or valid government-issued ID (foreign nationals), bank account details.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* PI / Co-PI */}
-                                <div className="px-5 py-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-900/20 mt-0.5">
-                                            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <p className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">PI / Co-PI</p>
-                                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">External only</span>
-                                            </div>
-                                            <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed mb-2">For Principal Investigators or Co-PIs employed at another institute/university collaborating on a project registered here.</p>
-                                            <div className="space-y-1 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
-                                                <p>→ Faculty members or researchers from other universities/institutes</p>
-                                                <p>→ Scientists from CSIR, DRDO, ISRO, or similar government labs</p>
-                                                <p>→ International collaborators holding a PI/Co-PI role on a funded project</p>
-                                            </div>
-                                            <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-[#F4F4F5] dark:bg-[#2E2E30] px-3 py-2">
-                                                <ShieldCheck className="h-3.5 w-3.5 text-violet-600 shrink-0 mt-0.5" />
-                                                <p className="text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA]"><strong className="text-[#27272A] dark:text-[#E4E4E7]">Documents required:</strong> Aadhaar + PAN (Indian nationals) or valid government-issued ID (foreign nationals), institutional affiliation details, bank account details.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Steps 2–4 */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-emerald-600 px-5 py-3.5 flex items-center gap-2.5">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[12px] font-extrabold">→</span>
-                                    <div>
-                                        <p className="text-[13px] font-extrabold text-white leading-tight">How to Complete the Form</p>
-                                        <p className="text-[10px] text-emerald-100 mt-0.5">Follow these steps to register successfully</p>
-                                    </div>
-                                </div>
-                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
-                                    {[
-                                        { num: "2", icon: FileText, bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", color: "text-[#4A6CF7]", title: "Fill in the required details", body: "Complete all fields marked with a red asterisk *. These are mandatory for successful registration. Double-check names, ID numbers, and bank details for accuracy." },
-                                        { num: "3", icon: Upload, bg: "bg-orange-50 dark:bg-orange-900/20", color: "text-orange-600", title: "Upload supporting documents", body: "Attach required identification — Aadhaar & PAN for Indian nationals, or a valid government-issued ID for foreign nationals. Ensure documents are clear and readable." },
-                                        { num: "4", icon: CheckCircle2, bg: "bg-emerald-50 dark:bg-emerald-900/20", color: "text-emerald-600", title: "Submit your registration", body: "Once all details are filled and documents are uploaded, click Save & Submit at the bottom of the form to complete your registration." },
-                                    ].map((s) => (
-                                        <div key={s.num} className="flex gap-4 px-5 py-4">
-                                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl mt-0.5 ${s.bg}`}>
-                                                <s.icon className={`h-4 w-4 ${s.color}`} />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <span className="text-[10px] font-extrabold text-[#A1A1AA] dark:text-[#71717A] uppercase tracking-wide">Step {s.num}</span>
-                                                    <span className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
-                                                </div>
-                                                <p className="text-[13px] font-medium leading-relaxed text-[#52525B] dark:text-[#A1A1AA]">{s.body}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* RIGHT — Quick info */}
-                        <div className="lg:col-span-2 space-y-4">
-
-                            {/* Documents checklist */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-[#F4F4F5] dark:border-[#2E2E30] bg-slate-100 dark:bg-slate-800/50">
-                                    <p className="text-[13px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">Documents Checklist</p>
-                                    <p className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">Keep these ready before you begin</p>
-                                </div>
-                                <div className="px-5 py-4 space-y-3">
-                                    <div>
-                                        <p className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">Indian Nationals</p>
-                                        <div className="space-y-1.5">
-                                            {["Aadhaar Card", "PAN Card", "Bank account details (account number & IFSC)"].map((doc) => (
-                                                <div key={doc} className="flex gap-2 items-center text-[12px] font-semibold text-[#27272A] dark:text-[#E4E4E7]">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-[#4A6CF7] shrink-0" />
-                                                    {doc}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-[#F4F4F5] dark:border-[#2E2E30] pt-3">
-                                        <p className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">Foreign Nationals</p>
-                                        <div className="space-y-1.5">
-                                            {["Valid government-issued photo ID", "Bank account details"].map((doc) => (
-                                                <div key={doc} className="flex gap-2 items-center text-[12px] font-semibold text-[#27272A] dark:text-[#E4E4E7]">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shrink-0" />
-                                                    {doc}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-[#F4F4F5] dark:border-[#2E2E30] pt-3">
-                                        <p className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">PI / Co-PI (External) — Additional</p>
-                                        <div className="space-y-1.5">
-                                            {["Institutional affiliation letter or ID card"].map((doc) => (
-                                                <div key={doc} className="flex gap-2 items-center text-[12px] font-semibold text-[#27272A] dark:text-[#E4E4E7]">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                                    {doc}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Quick tips */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] px-5 py-4">
-                                <p className="text-[13px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2.5">Quick Tips</p>
-                                <ul className="space-y-2">
-                                    {[
-                                        "Fields marked with * are mandatory — do not leave them blank.",
-                                        "Ensure your name matches exactly as it appears on your ID documents.",
-                                        "Upload clear, readable scans or photos of your documents.",
-                                        "Bank details must belong to the same person being registered.",
-                                    ].map((tip, i) => (
-                                        <li key={i} className="flex gap-2 items-start text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
-                                            <span className="text-[#4A6CF7] mt-0.5 shrink-0 font-extrabold">→</span>
-                                            {tip}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
                         </div>
                     </div>
+
+                    {/* Row 2 — how to complete the form, plus tips */}
+                    <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-4">
+                        {[
+                            { num: "2", icon: FileText, bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", color: "text-[var(--psd-info)]", title: "Fill in the details", body: "Complete all fields marked with a red asterisk *. Double-check names, ID numbers and bank details." },
+                            { num: "3", icon: Upload, bg: "bg-orange-50 dark:bg-orange-900/20", color: "text-orange-600", title: "Upload documents", body: "Attach Aadhaar & PAN (Indian) or a government ID (foreign). Make sure scans are clear and readable." },
+                            { num: "4", icon: CheckCircle2, bg: "bg-emerald-50 dark:bg-emerald-900/20", color: "text-emerald-600", title: "Submit", body: "Click Save & Submit at the bottom of the form once everything is filled and uploaded." },
+                        ].map((st) => (
+                            <div key={st.num} className="psd-card flex gap-2.5 !rounded-xl px-3 py-2">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${st.bg}`}>
+                                    <st.icon className={`h-4 w-4 ${st.color}`} />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[12.5px] font-bold text-[var(--psd-heading)]"><span className="mr-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--psd-muted)]">Step {st.num}</span>{st.title}</p>
+                                    <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--psd-body)]">{st.body}</p>
+                                </div>
+                            </div>
+                        ))}
+                        <div className="psd-card !rounded-xl px-3 py-2">
+                            <p className="mb-1 text-[12.5px] font-bold text-[var(--psd-heading)]">Quick Tips</p>
+                            <ul className="space-y-0.5">
+                                {[
+                                    "Fields marked * are mandatory.",
+                                    "Name must match your ID documents exactly.",
+                                    "Upload clear, readable scans or photos.",
+                                    "Bank details must belong to the same person.",
+                                ].map((tip, i) => (
+                                    <li key={i} className="flex items-start gap-1.5 text-[11.5px] font-semibold leading-snug text-[var(--psd-body)]">
+                                        <span className="shrink-0 font-extrabold text-[var(--psd-info)]">→</span>
+                                        {tip}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+
+                    </>
+                    )}
 
                     {/* Floating CTA */}
                     <div className="fixed bottom-6 right-8 z-50">
                         <button
                             onClick={() => (savedDocName ? navigate('/universal-registration') : setStep('form'))}
                             disabled={isLoadingFields}
-                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#4A6CF7] hover:bg-[#3558E8] text-white text-[13px] font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)] text-white text-[13px] font-extrabold shadow-lg shadow-[var(--psd-primary)]/35 transition-all disabled:opacity-50"
                         >
                             {isLoadingFields ? (
                                 <>
@@ -1891,19 +1885,17 @@ export default function UniversalRegistrationForm({
 
     // ── Step 2: The Registration Form ────────────────────────────────────────
     return (
-        <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
+        <div className={"psd-root flex-1 w-full min-h-screen"}>
             <div className="w-full px-0 py-0 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
                 {/* --- Header Section --- */}
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-3 mt-0">
-                    <div className="flex items-start gap-4">
-                        <button
-                            onClick={() => setStep('instructions')}
-                            className="mt-0.5 p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 transition-all flex-shrink-0"
-                        >
-                            <ArrowLeft className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                    <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                        <button onClick={() => setStep('instructions')} aria-label="Back to guide" className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]">
+                            <ArrowLeft className="h-4 w-4" />
                         </button>
-                        <div>
-                            <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1 flex items-center gap-3">
+                        <div className="min-w-0">
+                            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Registry</div>
+                            <h1 className="mt-0.5 flex items-center gap-2 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">
                                 Stakeholder Registration
                                 {formData.status_u_r && (
                                     <span className="status-progress text-[9px]">
@@ -1911,45 +1903,46 @@ export default function UniversalRegistrationForm({
                                     </span>
                                 )}
                             </h1>
-                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium max-w-2xl">
-                                {savedDocName
-                                    ? isViewMode && !forceEdit
-                                        ? `Viewing registration details for ${savedDocName}`
-                                        : `Editing universal registration document ${savedDocName}`
-                                    : "Select your profile type below, then fill in the required details."}
-                            </p>
                         </div>
                     </div>
-                    {isViewMode && !forceEdit && !isLocked && (
-                        <button
-                            onClick={() => setForceEdit(true)}
-                            className="flex shrink-0 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-extrabold text-white shadow-sm hover:bg-[#3558E8] transition-colors"
-                        >
-                            Edit Registration
-                        </button>
-                    )}
-                </div>
+                    <div className="relative z-10 flex items-center gap-3">
+                        <p className="hidden max-w-md truncate text-xs text-[var(--psd-body)] md:block">
+                            {savedDocName
+                                ? isViewMode && !forceEdit
+                                    ? `Viewing registration details for ${savedDocName}`
+                                    : `Editing universal registration document ${savedDocName}`
+                                : "Select your profile type below, then fill in the required details."}
+                        </p>
+                        {isViewMode && !forceEdit && !isLocked && (
+                            <button onClick={() => setForceEdit(true)} className="flex shrink-0 items-center gap-2 rounded-lg bg-[var(--psd-primary)] px-3.5 py-2 text-[12px] font-bold text-white shadow-sm transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98]">
+                                Edit Registration
+                            </button>
+                        )}
+                    </div>
+                </header>
 
                 {/* --- Main Application Form Card --- */}
-                <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-lg shadow-sm overflow-visible">
-                    {/* Card header accent */}
-                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
+                <div className="psd-card !rounded-xl overflow-visible">
                     {/* Section header */}
-                    <div className="section-header-lg">
-                        <div className="section-header-lg-accent" />
-                        <div className="section-header-lg-icon">
+                    <div className="flex items-center gap-2.5 rounded-t-xl border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-4 py-2.5">
+                        <span className="grid size-7 place-items-center rounded-lg bg-[var(--psd-accent)]/15 text-[var(--psd-accent)]">
                             <FileText className="h-4 w-4" />
-                        </div>
+                        </span>
                         <div>
-                            <div className="section-header-lg-title">Registration Details</div>
-                            <div className="section-header-lg-subtitle">
-                                Fields marked with a red asterisk <span className="text-red-500">*</span> are mandatory.
+                            <div className="text-[13px] font-bold leading-tight text-[var(--psd-heading)]">Registration Details</div>
+                            <div className="text-[11.5px] text-[var(--psd-body)]">
+                                {isViewMode && !forceEdit ? "Summary of your saved details. Use Edit Registration to change them." : <>Fields marked with a red asterisk <span className="text-red-500">*</span> are mandatory.</>}
                             </div>
                         </div>
                     </div>
 
                     <div className="p-0">
-                        <div className="p-5">
+                        {isViewMode && !forceEdit ? (
+                            <div className="psd-uform p-3">
+                                <RegistrationSummary fields={filteredFields as any} formData={formData} linkOptions={linkOptions} />
+                            </div>
+                        ) : (
+                        <div className="psd-uform p-3">
                             <DynamicFormRenderer
                                 fields={filteredFields}
                                 formData={formData}
@@ -1980,10 +1973,11 @@ export default function UniversalRegistrationForm({
                                 }
                             />
                         </div>
+                        )}
 
                         {/* Sticky Action Footer */}
                         {!isReadOnly && (
-                            <div className="form-action-bar">
+                            <div className="psd-uform form-action-bar">
                                 <div className="flex items-center gap-3">
                                     <button
                                         onClick={() => navigate(-1)}

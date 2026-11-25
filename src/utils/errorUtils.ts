@@ -44,5 +44,7 @@ export function parseFrappeError(...sources: any[]): string {
         messages.push("Unknown Error");
     }
 
-    return messages.filter(Boolean).join("\n\n");
+    // Callers often pass the same failure twice (the hook's error state and the caught
+    // error), so each message is shown once.
+    return [...new Set(messages.filter(Boolean))].join("\n\n");
 }

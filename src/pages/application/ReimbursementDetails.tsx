@@ -22,6 +22,7 @@ import {
   Pencil as PencilIcon,
   AlertTriangle,
   Printer as PrinterIcon,
+  Clock as ClockIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -41,6 +42,9 @@ import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import { CancellationStatusBanner } from "../../components/CancellationStatusBanner";
 import { BorderBeam } from "border-beam";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { IndianRupee, Paperclip, ListChecks } from "lucide-react";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -82,20 +86,15 @@ const FrappeCard = ({
   children: React.ReactNode;
   className?: string;
 }) => (
-  <div
-    className={cn(
-      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden",
-      className,
-    )}
-  >
+  <div className={cn("psd-card overflow-hidden", className)}>
     {title && (
-      <div className="px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
-        <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
+      <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] px-4 py-2.5 dark:bg-zinc-800/60">
+        <h3 className="text-[12px] font-bold uppercase tracking-wider text-[var(--psd-heading)]">
           {title}
         </h3>
       </div>
     )}
-    <div className="p-[18px] md:p-6">{children}</div>
+    <div className="p-4">{children}</div>
   </div>
 );
 
@@ -116,16 +115,14 @@ const FrappeButton = ({
     onClick={onClick}
     disabled={disabled}
     className={cn(
-      "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
-      "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-      variant === "primary" &&
-      "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-[13px] transition-all duration-150 active:scale-[0.98]",
+      "psd-focus",
+      (variant === "primary" || variant === "action") &&
+        "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm",
       variant === "ghost" &&
-      "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
+        "bg-transparent text-[var(--psd-heading)] hover:bg-[var(--psd-primary-light)]",
       variant === "outline" &&
-      "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
-      variant === "action" &&
-      "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+        "bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className,
     )}
@@ -135,13 +132,13 @@ const FrappeButton = ({
 );
 
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-  <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">
+  <label className="block text-[10.5px] font-semibold uppercase tracking-wide text-[var(--psd-body)] mb-0.5">
     {children}
   </label>
 );
 
 const FieldValue = ({ children }: { children: React.ReactNode }) => (
-  <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+  <div className="text-[13px] font-semibold text-[var(--psd-heading)]">
     {children}
   </div>
 );
@@ -176,7 +173,7 @@ const CommentModal = ({
         </h3>
         {extra}
         <textarea
-          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/20 focus:border-[var(--psd-primary)]"
           rows={4}
           placeholder="Enter your comment..."
           maxLength={FIELD_CHAR_LIMITS.Text}
@@ -371,8 +368,8 @@ const ActionsDropdown = ({
     const cat = categorise(action);
     if (cat === "forward") return {
       icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
-      cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
-      iconCls: "text-[#D97757]",
+      cls: "text-[var(--psd-primary)] hover:bg-[var(--psd-primary-light)]",
+      iconCls: "text-[var(--psd-primary)]",
     };
     if (cat === "reject") return {
       icon: <XCircleIcon className="h-3.5 w-3.5" />,
@@ -398,8 +395,8 @@ const ActionsDropdown = ({
           className={cn(
             "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
             dropdownOpen
-              ? "bg-[#D97757] text-white border border-[#c66a4e]"
-              : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+              ? "bg-[var(--psd-primary)] text-white border border-[var(--psd-primary-hover)]"
+              : "bg-[var(--psd-primary-light)] dark:bg-[var(--psd-primary)]/15 text-[var(--psd-primary)] border border-[var(--psd-primary)]/40 hover:bg-[var(--psd-primary)] hover:text-white dark:hover:bg-[var(--psd-primary)]/30",
           )}
         >
           {isLoading ? "Processing…" : "Actions"}
@@ -438,9 +435,9 @@ const ActionsDropdown = ({
                 <button
                   onClick={() => { setDropdownOpen(false); onSubmit(); }}
                   disabled={isSubmitting}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[var(--psd-primary)] hover:bg-[var(--psd-primary-light)] transition-colors disabled:opacity-50"
                 >
-                  <span className="text-[#D97757]"><CheckCircleIcon className="h-3.5 w-3.5" /></span>
+                  <span className="text-[var(--psd-primary)]"><CheckCircleIcon className="h-3.5 w-3.5" /></span>
                   Submit
                 </button>
               </>
@@ -1233,7 +1230,7 @@ const ReimbursementDetails: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+      <div className="psd-root min-h-screen">
         <main className="flex-1 p-0">
           <FrappeCard className="text-center py-16">
             <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
@@ -1249,7 +1246,7 @@ const ReimbursementDetails: React.FC = () => {
   }
 
   return (
-    <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+    <div className="psd-root min-h-screen">
       <GlobalLoader isLoading={isSubmitting} />
       <main className="flex-1 p-0">
         {/* Header */}
@@ -1263,13 +1260,13 @@ const ReimbursementDetails: React.FC = () => {
             <ViewProjectButton doctype="Reimbursement" data={data} />
             <button
               onClick={handleDownload}
-              className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-colors"
+              className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] shadow-sm transition-colors"
               title="Print / PDF"
             >
               <PrinterIcon className="w-3.5 h-3.5" />
               Print / PDF
             </button>
-            <div className="text-right text-sm text-[#3F3F46] dark:text-[#E4E4E7] hidden md:block">
+            <div className="text-right text-[12px] text-[var(--psd-body)] hidden md:block">
               <div className="flex items-center gap-1 font-medium justify-end">
                 <CalendarIcon className="w-4 h-4" />
                 Created: {formatDate(data.creation)}
@@ -1346,11 +1343,38 @@ const ReimbursementDetails: React.FC = () => {
             currentUser={currentUser}
           />
         )}
+        {/* Claim summary */}
+        {data.table_bosk && data.table_bosk.length > 0 && (
+          <section aria-label="Claim summary" className="mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <KpiCard
+              compact
+              bigText
+              title="Total Amount"
+              valueText={`₹${data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(String(item.amount ?? "").replace(/,/g, "")) || 0), 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+              description="Sum of all claimed items"
+              icon={IndianRupee}
+              tone="violet"
+            />
+            <KpiCard
+              compact
+              bigText title="Items" value={data.table_bosk.length} description="Line items in this claim" icon={ListChecks} tone="blue" />
+            <KpiCard
+              compact
+              bigText
+              title="Attachments"
+              valueText={`${data.table_bosk.filter((i: any) => i.uploads).length} / ${data.table_bosk.length}`}
+              description="Items with a file attached"
+              icon={Paperclip}
+              tone="emerald"
+            />
+          </section>
+        )}
+
         {/* Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
           {/* Main Content (3 cols) */}
-          <div className="xl:col-span-3 space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="xl:col-span-3 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Applicant Details */}
               <FrappeCard
                 title="Applicant Details"
@@ -1360,7 +1384,7 @@ const ReimbursementDetails: React.FC = () => {
                     : ""
                 }
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <FieldLabel>Name</FieldLabel>
                     <FieldValue>{resolvedNames.applicant_name || data.applicant_webmail || "-"}</FieldValue>
@@ -1385,7 +1409,7 @@ const ReimbursementDetails: React.FC = () => {
               {/* Reimbursement For */}
               {showReimbursementFor && (
                 <FrappeCard title="Reimbursement For">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel>Webmail ID</FieldLabel>
                       <FieldValue>{data.reimbursement_for_id || "-"}</FieldValue>
@@ -1406,7 +1430,7 @@ const ReimbursementDetails: React.FC = () => {
 
               {/* Bank Details */}
               <FrappeCard title="Bank Details">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <FieldLabel>Bank Name</FieldLabel>
                     <FieldValue>{data.bank_name || "-"}</FieldValue>
@@ -1432,7 +1456,7 @@ const ReimbursementDetails: React.FC = () => {
 
               {/* Project Details */}
               <FrappeCard title="Project Details">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <FieldLabel>Project Number</FieldLabel>
                     <FieldValue>{data.project_number || "-"}</FieldValue>
@@ -1461,20 +1485,20 @@ const ReimbursementDetails: React.FC = () => {
               {/* Expenditure Table */}
               {data.table_bosk && data.table_bosk.length > 0 && (
                 <FrappeCard title="Particulars of Items" className="lg:col-span-2">
-                  <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
-                    <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                      <thead className="bg-[#FAFAF9] dark:bg-[#18181B]">
-                        <tr className="divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Date</th>
-                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Vendor's Name</th>
-                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Particulars</th>
-                          <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Amount</th>
-                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Attachment</th>
+                  <div className="overflow-x-auto border border-[var(--psd-border)] rounded-xl">
+                    <table className="min-w-full divide-y divide-[var(--psd-border)]">
+                      <thead className="bg-[var(--psd-bg)]">
+                        <tr className="divide-x divide-[var(--psd-border)]">
+                          <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">Date</th>
+                          <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">Vendor's Name</th>
+                          <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">Particulars</th>
+                          <th className="px-4 py-3 text-right text-[10.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">Amount</th>
+                          <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">Attachment</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
+                      <tbody className="divide-y divide-[var(--psd-border)] bg-[var(--psd-surface)]">
                         {data.table_bosk.map((item: any, index: number) => (
-                          <tr key={item.name || index} className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                          <tr key={item.name || index} className="hover:bg-[var(--psd-primary-light)]/40 divide-x divide-[var(--psd-border)]">
                             <td className="px-4 py-3 text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-mono">
                               {item.r_date ? new Date(item.r_date).toLocaleDateString("en-IN") : "-"}
                             </td>
@@ -1485,7 +1509,7 @@ const ReimbursementDetails: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {item.uploads ? (
-                                <a href={getFileUrl(item.uploads)} target="_blank" rel="noopener noreferrer" className="text-[#D97757] font-bold hover:underline">
+                                <a href={getFileUrl(item.uploads)} target="_blank" rel="noopener noreferrer" className="text-[var(--psd-primary)] font-bold hover:underline">
                                   View File
                                 </a>
                               ) : (
@@ -1495,7 +1519,7 @@ const ReimbursementDetails: React.FC = () => {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-[#FAFAF9] dark:bg-[#18181B] border-t-2 border-[#E4E4E7] dark:border-[#3F3F46]">
+                      <tfoot className="bg-[var(--psd-bg)] border-t-2 border-[var(--psd-border)]">
                         <tr>
                           <td colSpan={3} className="px-4 py-3 text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right uppercase tracking-wider">
                             Total Amount:
@@ -1522,46 +1546,13 @@ const ReimbursementDetails: React.FC = () => {
 
               {/* Declarations */}
               <div className="lg:col-span-2">
-                <DeclarationFields doctype="Reimbursement" />
+                <DeclarationFields doctype="Reimbursement" variant="psd" />
               </div>
-
-              {/* Meta Information */}
-              <FrappeCard title="Meta Information" className="lg:col-span-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <FieldLabel>Created</FieldLabel>
-                    <FieldValue>
-                      <span className="flex items-center gap-2">
-                        <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                        {formatDate(data.creation)}
-                      </span>
-                    </FieldValue>
-                  </div>
-                  <div>
-                    <FieldLabel>Last Modified</FieldLabel>
-                    <FieldValue>
-                      <span className="flex items-center gap-2">
-                        <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                        {formatDate(data.modified)}
-                      </span>
-                    </FieldValue>
-                  </div>
-                  <div>
-                    <FieldLabel>Owner</FieldLabel>
-                    <FieldValue>
-                      <span className="flex items-center gap-2">
-                        <UserIcon className="w-4 h-4 text-zinc-400" />
-                        {data.owner}
-                      </span>
-                    </FieldValue>
-                  </div>
-                </div>
-              </FrappeCard>
             </div>
           </div>
 
           {/* Right Sidebar */}
-          <aside className="xl:col-span-1 space-y-6">
+          <aside className="xl:col-span-1 space-y-4">
             {/* Commit & Payment (Staff only) */}
             {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && (
               <>
@@ -1579,13 +1570,13 @@ const ReimbursementDetails: React.FC = () => {
                 />
 
                 {!cancellationFrozen && isCommitted && (
-                <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                  <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
+                <div className="psd-card p-4">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-[var(--psd-heading)] mb-3 border-l-[3px] border-[var(--psd-accent)] pl-2.5">
                     Record Payment
                   </h3>
                   {isCommitted ? (
                     <div className="space-y-4">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800 flex flex-col gap-1">
+                      <div className="bg-[var(--psd-info-bg)] p-3 rounded-xl border border-[var(--psd-info)]/20 flex flex-col gap-1">
                         <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wide">
                           Linked Commitment
                         </p>
@@ -1600,7 +1591,7 @@ const ReimbursementDetails: React.FC = () => {
                         <FieldLabel>Payment Amount (₹)</FieldLabel>
                         <input
                           type="number"
-                          className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] mt-1"
+                          className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/25 focus:border-[var(--psd-primary)] mt-1"
                           placeholder="e.g., 5000"
                           value={paymentAmount}
                           onChange={(e) => setPaymentAmount(e.target.value)}
@@ -1625,37 +1616,23 @@ const ReimbursementDetails: React.FC = () => {
               </>
             )}
 
-            {/* Meta Info (sidebar) */}
-            <FrappeCard>
-              <div className="space-y-4">
-                <div>
-                  <FieldLabel>Created On</FieldLabel>
-                  <FieldValue>
-                    <span className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                      {formatDate(data.creation)}
-                    </span>
-                  </FieldValue>
-                </div>
-                <div>
-                  <FieldLabel>Last Modified</FieldLabel>
-                  <FieldValue>
-                    <span className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                      {formatDate(data.modified)}
-                    </span>
-                  </FieldValue>
-                </div>
-                <div>
-                  <FieldLabel>Owner</FieldLabel>
-                  <FieldValue>
-                    <span className="flex items-center gap-2">
-                      <UserIcon className="w-4 h-4 text-zinc-400" />
-                      {data.owner}
-                    </span>
-                  </FieldValue>
-                </div>
-              </div>
+            {/* Record info (sidebar) */}
+            <FrappeCard title="Record Info">
+              <ul className="space-y-3">
+                {([
+                  { icon: <CalendarIcon className="size-3.5" />, label: "Created On", value: formatDate(data.creation), tile: "bg-[#F0EBFF] text-[#6842D9] dark:bg-violet-500/20 dark:text-violet-300" },
+                  { icon: <ClockIcon className="size-3.5" />, label: "Last Modified", value: formatDate(data.modified), tile: "bg-[#EEF3FF] text-[#4775E8] dark:bg-blue-500/20 dark:text-blue-300" },
+                  { icon: <UserIcon className="size-3.5" />, label: "Owner", value: data.owner, tile: "bg-[#E3F7EF] text-[#0DA875] dark:bg-emerald-500/20 dark:text-emerald-300" },
+                ]).map((row) => (
+                  <li key={row.label} className="flex items-start gap-2.5">
+                    <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg", row.tile)}>{row.icon}</span>
+                    <div className="min-w-0">
+                      <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--psd-body)]">{row.label}</div>
+                      <div className="break-words text-[13px] font-semibold text-[var(--psd-heading)]">{row.value || "-"}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </FrappeCard>
           </aside>
         </div>

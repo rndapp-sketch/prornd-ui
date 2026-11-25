@@ -125,3 +125,49 @@
     transform: none;
   }
 }
+
+/* Compact variant: one slim line (icon, title, value). Colours are kept. */
+.kpi-card[data-compact="true"] {
+  min-height: 38px;
+  padding: 4px 10px;
+  gap: 8px;
+  border-radius: 9px;
+}
+.kpi-card[data-compact="true"] .kpi-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+.kpi-card[data-compact="true"] .kpi-value {
+  font-size: 16px;
+}
+.kpi-card[data-compact="true"] .kpi-title {
+  font-size: 12px;
+}
+.kpi-card[data-compact="true"] .kpi-desc:not([data-error]) {
+  display: none;
+}
+.kpi-card[data-compact="true"]::before {
+  width: 48px;
+  height: 48px;
+  right: -14px;
+  bottom: -26px;
+}
+.kpi-card[data-compact="true"]::after {
+  display: none;
+}
+
+/* Compact + larger text: slim card, easier-to-read title and value */
+.kpi-card[data-compact="true"][data-bigtext="true"] {
+  min-height: 42px;
+}
+.kpi-card[data-compact="true"][data-bigtext="true"] .kpi-title {
+  font-size: 14.5px;
+}
+.kpi-card[data-compact="true"][data-bigtext="true"] .kpi-value {
+  font-size: 22px;
+}
+.kpi-card[data-compact="true"][data-bigtext="true"] .kpi-icon {
+  width: 28px;
+  height: 28px;
+}

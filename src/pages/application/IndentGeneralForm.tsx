@@ -57,6 +57,8 @@ const SubmitConfirmModal: React.FC<{
 );
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
+import { useProjectStaffApplicant } from '@/hooks/useProjectStaffApplicant';
+import { ProjectStaffPiNotice } from '@/components/ProjectStaffPiNotice';
 
 // --- UI Helpers ---
 const GroupCard = ({
@@ -624,7 +626,32 @@ const IndentGeneralForm: React.FC = () => {
     };
 
     const isReadOnly = docStatus === 1 || docStatus === 2;
-    const effectiveFields = getEffectiveFields(fields, formData);
+    // Project staff raise the indent as an Other-PI one charged to their PI, who
+    // picks the project and account head at the "Pending Other PI" step.
+    const projectStaff = useProjectStaffApplicant();
+    const staffMode = projectStaff.isProjectStaff;
+    const staffPrefilled = React.useRef(false);
+    useEffect(() => {
+        if (!staffMode || projectStaff.isLoading || loading || editDocName || staffPrefilled.current) return;
+        staffPrefilled.current = true;
+        setFormData(prev => ({
+            ...prev,
+            igf_other_pi: "Other",
+            igf_other_pi_id: projectStaff.piEmail || prev.igf_other_pi_id || "",
+            igf_project_title: "",
+            igf_project_code: "",
+            igf_account_head: "",
+            budget_head: "",
+        }));
+    }, [staffMode, projectStaff.isLoading, projectStaff.piEmail, loading, editDocName]);
+    const staffLockedFields = staffMode
+        ? ["igf_other_pi", "igf_project_title", "igf_project_code", "igf_account_head", "budget_head",
+            ...(projectStaff.piEmail ? ["igf_other_pi_id"] : [])]
+        : [];
+
+    const effectiveFields = getEffectiveFields(fields, formData).map((f) =>
+        staffLockedFields.includes(f.fieldname) ? { ...f, read_only: 1, read_only_depends_on: undefined } : f,
+    );
 
     // Project-scoped Account Heads are applied when rendering, so they win over whatever link options the
     // form loaded (and over the full "Budget Head" list DynamicFormRenderer merges in by doctype name).
@@ -703,6 +730,7 @@ const IndentGeneralForm: React.FC = () => {
                 )}
 
                 <div className="mt-6 space-y-5">
+                    {staffMode && !isReadOnly && <ProjectStaffPiNotice piEmail={projectStaff.piEmail} />}
                     {/* Indenter & Project Details */}
                     <GroupCard label="Purchase General Form — Indenter &amp; Project Details">
                         <DynamicFormRenderer

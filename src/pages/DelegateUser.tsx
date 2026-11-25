@@ -18,6 +18,8 @@ import {
 import { delegateUserAPI } from "@/services/apiService";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { cn } from "@/lib/utils";
+import { FormSelect } from "@/components/FormSelect";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 type DelegateUserOption = {
     label: string;
@@ -94,10 +96,10 @@ const removeFromJsonApplicationArray = (raw: string | DelegationApplication[] | 
     );
 
 const inputClasses =
-    "h-10 rounded-lg border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#18181B] px-3 text-[13px] font-medium text-[#18181B] dark:text-[#E4E4E7] outline-none transition-colors focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 placeholder:text-[#A1A1AA]";
+    "h-10 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 text-[13px] font-medium text-[var(--psd-heading)] outline-none transition-colors focus:border-[var(--psd-primary)] focus:ring-[3px] focus:ring-[var(--psd-primary)]/15 placeholder:text-[var(--psd-muted)]";
 
 const cardClasses =
-    "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm";
+    "psd-card !rounded-xl";
 
 const parseJsonStringArray = (raw?: string | string[]): string[] => {
     if (!raw) return [];
@@ -497,25 +499,22 @@ const DelegateUser: React.FC = () => {
     if (loading) return <GlobalLoader isLoading delay={0} />;
 
     return (
-        <div className="space-y-5">
-            <header className={cn(cardClasses, "overflow-hidden")}>
-                <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <div className="mb-2 flex items-center gap-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
-                                <UserCheck className="h-4 w-4 text-[#4A6CF7] dark:text-[#93C5FD]" />
-                            </span>
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">Delegation</span>
+        <div className="psd-root space-y-2.5">
+            <header className="psd-hero relative overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box]">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <UserCheck className="size-4" strokeWidth={1.8} />
                         </div>
-                        <h1 className="text-[22px] font-extrabold tracking-normal text-[#18181B] dark:text-[#E4E4E7]">
-                            Delegate User Access
-                        </h1>
-                        <p className="mt-1 max-w-3xl text-[13px] font-medium leading-6 text-[#71717A] dark:text-[#A1A1AA]">
-                            Delegate your projects and applications to another user. Visibility follows the visible-as model: your delegate can only see the items you select.
-                        </p>
+                        <div className="min-w-0">
+                            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Delegation</div>
+                            <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Delegate User Access</h1>
+                        </div>
                     </div>
-                    <div className="rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-[12px] font-semibold text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
+                    <p className="hidden max-w-xl text-xs text-[var(--psd-body)] lg:block">
+                        Delegate your projects and applications to another user. Visibility follows the visible-as model: your delegate can only see the items you select.
+                    </p>
+                    <div className="rounded-lg border border-[var(--psd-info)]/30 bg-[var(--psd-info-bg)] px-2.5 py-1 text-[11.5px] font-semibold text-[var(--psd-info)]">
                         Signed in as {currentUser}
                     </div>
                 </div>
@@ -524,35 +523,36 @@ const DelegateUser: React.FC = () => {
             {(error || success) && (
                 <div
                     className={cn(
-                        "rounded-xl border px-4 py-3 text-[13px] font-semibold",
+                        "rounded-xl border px-3.5 py-2 text-[12.5px] font-semibold",
                         error
-                            ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400",
+                            ? "border-[var(--psd-returned)]/40 bg-[var(--psd-returned-bg)] text-[#C02B3D] dark:text-rose-300"
+                            : "border-[var(--psd-approved)]/40 bg-[var(--psd-approved-bg)] text-[#0A8A60] dark:text-emerald-300",
                     )}
                 >
                     {error || success}
                 </div>
             )}
 
-            <section className="grid gap-4 md:grid-cols-3">
+            <section className="grid gap-2.5 md:grid-cols-3">
                 <SummaryCard icon={Users} label="Active Delegates" value={enrichedActiveDelegations.length} />
                 <SummaryCard icon={FolderKanban} label="Delegated Projects" value={totalDelegatedProjects} />
                 <SummaryCard icon={FileText} label="Delegated Applications" value={totalDelegatedApplications} />
             </section>
 
-            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-                <div className={cn(cardClasses, "p-5")}>
-                    <div className="mb-5">
-                        <h2 className="text-[15px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+            <section className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+                <div className={cn(cardClasses, "overflow-hidden")}>
+                    <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-4 py-2.5">
+                        <h2 className="text-[13.5px] font-bold text-[var(--psd-heading)]">
                             Create or Update Delegation
                         </h2>
-                        <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                        <p className="text-[11.5px] text-[var(--psd-body)]">
                             Pick a user, choose the access level, then select the projects and/or applications to share.
                         </p>
                     </div>
+                    <div className="p-4">
                     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
                         <div>
-                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                                 Delegate to user
                             </label>
                             <AutocompleteEmail
@@ -560,6 +560,7 @@ const DelegateUser: React.FC = () => {
                                 value={delegateEmail}
                                 onChange={setDelegateEmail}
                                 className={inputClasses}
+                                variant="psd"
                                 placeholder="Search user by name or email"
                                 searchByLabel
                                 showAllOnFocus
@@ -567,30 +568,31 @@ const DelegateUser: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                                 Permission
                             </label>
-                            <select className={cn(inputClasses, "w-full")} value={delegationType} onChange={(e) => setDelegationType(e.target.value as any)}>
-                                <option>View Only</option>
-                                <option>View and Edit</option>
-                                <option>Workflow Action</option>
-                            </select>
+                            <FormSelect value={delegationType} onChange={(e) => setDelegationType(e.target.value as any)}>
+                                <option value="View Only">View Only</option>
+                                <option value="View and Edit">View and Edit</option>
+                                <option value="Workflow Action">Workflow Action</option>
+                            </FormSelect>
                         </div>
                     </div>
                     <div className="mt-4">
-                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                        <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                             Scope
                         </label>
-                        <select
-                            className={cn(inputClasses, "w-full sm:w-64")}
-                            value={scopeType}
-                            onChange={(e) => setScopeType(e.target.value as "all" | "project" | "application")}
-                        >
-                            <option value="all">All Projects &amp; Applications</option>
-                            <option value="project">Selected Projects</option>
-                            <option value="application">Selected Applications</option>
-                        </select>
-                        <p className="mt-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                        <div className="w-full sm:w-72">
+                            <FormSelect
+                                value={scopeType}
+                                onChange={(e) => setScopeType(e.target.value as "all" | "project" | "application")}
+                            >
+                                <option value="all">All Projects &amp; Applications</option>
+                                <option value="project">Selected Projects</option>
+                                <option value="application">Selected Applications</option>
+                            </FormSelect>
+                        </div>
+                        <p className="mt-1.5 text-[11.5px] text-[var(--psd-body)]">
                             {scopeType === "all"
                                 ? "The delegate will see everything you own."
                                 : scopeType === "project"
@@ -600,7 +602,7 @@ const DelegateUser: React.FC = () => {
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                                 Valid from
                             </label>
                             <input
@@ -611,7 +613,7 @@ const DelegateUser: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                                 Valid to
                             </label>
                             <input
@@ -624,9 +626,9 @@ const DelegateUser: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="mt-5 flex flex-col gap-3 border-t border-[#E4E4E7] pt-4 dark:border-[#3F3F46] sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mt-4 flex flex-col gap-3 border-t border-[var(--psd-border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="relative w-full sm:max-w-sm">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A1A1AA]" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--psd-muted)]" />
                             <input
                                 className={cn(inputClasses, "w-full pl-9")}
                                 value={query}
@@ -637,7 +639,7 @@ const DelegateUser: React.FC = () => {
                         <button
                             onClick={handleDelegate}
                             disabled={saving}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#4A6CF7] px-4 text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-[#3558E8] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--psd-primary)] px-5 text-[12.5px] font-bold text-white shadow-sm transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                             Delegate
@@ -656,18 +658,18 @@ const DelegateUser: React.FC = () => {
                                 <EmptyState label="No projects found" />
                             ) : (
                                 filteredProjects.map((project) => (
-                                    <label key={project.name} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] p-3 transition-colors hover:bg-white dark:border-[#3F3F46] dark:bg-[#18181B] dark:hover:bg-[#27272A]">
+                                    <label key={project.name} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-2.5 transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40">
                                         <input
                                             type="checkbox"
                                             checked={selectedProjects.has(project.name)}
                                             onChange={() => toggleProject(project.name)}
-                                            className="mt-1 h-4 w-4 accent-[#4A6CF7]"
+                                            className="mt-1 h-4 w-4 accent-[#6842D9]"
                                         />
                                         <div className="min-w-0">
-                                            <div className="truncate text-[13px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
+                                            <div className="truncate text-[13px] font-bold text-[var(--psd-heading)]">
                                                 {project.project_title || project.name}
                                             </div>
-                                            <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                            <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] font-semibold text-[var(--psd-body)]">
                                                 <span>{project.project_no || project.name}</span>
                                                 {project.workflow_state && <span>{project.workflow_state}</span>}
                                             </div>
@@ -693,18 +695,18 @@ const DelegateUser: React.FC = () => {
                                 filteredApplications.map((app) => {
                                     const key = applicationKey(app);
                                     return (
-                                        <label key={key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] p-3 transition-colors hover:bg-white dark:border-[#3F3F46] dark:bg-[#18181B] dark:hover:bg-[#27272A]">
+                                        <label key={key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-2.5 transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedApplications.has(key)}
                                                 onChange={() => toggleApplication(key)}
-                                                className="mt-1 h-4 w-4 accent-[#4A6CF7]"
+                                                className="mt-1 h-4 w-4 accent-[#6842D9]"
                                             />
                                             <div className="min-w-0">
-                                                <div className="truncate text-[13px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
+                                                <div className="truncate text-[13px] font-bold text-[var(--psd-heading)]">
                                                     {app.title || app.name}
                                                 </div>
-                                                <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                                <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] font-semibold text-[var(--psd-body)]">
                                                     <span>{app.doctype}</span>
                                                     <span>{app.name}</span>
                                                     {(app.project_no || app.project_name) && <span>{app.project_no || app.project_name}</span>}
@@ -718,15 +720,16 @@ const DelegateUser: React.FC = () => {
                         </ScopePanel>
                     </div>
                     )}
+                    </div>
                 </div>
 
                 <aside className={cn(cardClasses, "h-fit overflow-hidden")}>
-                    <div className="border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                        <h2 className="flex items-center gap-2 text-[13px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
-                            <Users className="h-4 w-4 text-[#4A6CF7]" />
+                    <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-primary)] bg-[var(--psd-bg)] px-4 py-2.5">
+                        <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--psd-heading)]">
+                            <Users className="h-4 w-4 text-[var(--psd-primary)]" />
                             Active Delegations
                         </h2>
-                        <p className="mt-1 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                        <p className="text-[11.5px] text-[var(--psd-body)]">
                             Click a delegate to manage shared items.
                         </p>
                     </div>
@@ -745,21 +748,21 @@ const DelegateUser: React.FC = () => {
                                         type="button"
                                         onClick={() => setSelectedDelegationName(delegation.name)}
                                         className={cn(
-                                            "w-full rounded-xl border p-3 text-left transition-all",
+                                            "w-full rounded-xl border p-2.5 text-left transition-all",
                                             active
-                                                ? "border-[#4A6CF7] bg-[#EEF2FF] shadow-sm dark:bg-[#4A6CF7]/15"
-                                                : "border-[#E4E4E7] bg-[#FAFAF9] hover:bg-white dark:border-[#3F3F46] dark:bg-[#18181B] dark:hover:bg-[#27272A]",
+                                                ? "border-[var(--psd-primary)] bg-[var(--psd-primary-light)] shadow-sm"
+                                                : "border-[var(--psd-border)] bg-[var(--psd-surface)] hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40",
                                         )}
                                     >
                                         <div className="flex items-start gap-2.5">
-                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#4A6CF7] dark:bg-[#27272A] dark:text-[#93C5FD]">
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
                                                 <UserCheck className="h-4 w-4" />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="truncate text-[12px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+                                                <div className="truncate text-[12.5px] font-bold text-[var(--psd-heading)]">
                                                     {delegation.delegate_user_name || delegation.delegate_user}
                                                 </div>
-                                                <div className="truncate text-[10px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                                <div className="truncate text-[10.5px] font-semibold text-[var(--psd-body)]">
                                                     {delegation.delegate_user}
                                                 </div>
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -818,19 +821,18 @@ const DelegationDetailsModal = ({
     const applicationItems = parseJsonApplicationArray(delegation.applications);
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-[2px]">
-            <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl dark:border-[#3F3F46] dark:bg-[#27272A]">
-                <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                <div className="flex items-start justify-between gap-4 border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-4 dark:border-[#3F3F46] dark:bg-[#18181B]">
+        <div className="psd-root fixed inset-0 z-[9999] flex items-center justify-center !bg-black/45 px-4 py-6 backdrop-blur-[2px]">
+            <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[var(--psd-border)] bg-[var(--psd-surface)] shadow-2xl">
+                <div className="m-2 flex items-start justify-between gap-4 rounded-lg border-[2.5px] border-transparent px-3.5 py-2.5 [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box]">
                     <div className="flex min-w-0 items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
-                            <UserCheck className="h-5 w-5" />
+                        <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <UserCheck className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="truncate text-[16px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+                            <h2 className="truncate text-[15px] font-bold text-[var(--psd-heading)]">
                                 {delegation.delegate_user_name || delegation.delegate_user}
                             </h2>
-                            <p className="mt-0.5 truncate text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                            <p className="mt-0.5 truncate text-[12px] font-semibold text-[var(--psd-body)]">
                                 {delegation.delegate_user}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
@@ -844,30 +846,30 @@ const DelegationDetailsModal = ({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-2 text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#18181B] dark:hover:bg-[#3F3F46] dark:hover:text-[#E4E4E7]"
+                        className="rounded-lg p-2 text-[var(--psd-muted)] transition-colors hover:bg-[var(--psd-bg)] hover:text-[var(--psd-heading)]"
                         title="Close"
                     >
                         <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                <div className="space-y-5 overflow-y-auto p-5">
+                <div className="space-y-3 overflow-y-auto p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-4 py-3 dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15">
-                            <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide text-[#1E3A8A] dark:text-[#C7D2FE]">
+                        <div className="rounded-xl border border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-primary)] bg-[var(--psd-surface)] px-3.5 py-2">
+                            <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">
                                 <FolderKanban className="h-4 w-4" />
                                 Delegated Projects
                             </div>
-                            <div className="mt-2 text-[24px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+                            <div className="mt-1 text-[22px] font-bold leading-tight tabular-nums text-[var(--psd-heading)]">
                                 {projectNames.length || delegation.project_count || 0}
                             </div>
                         </div>
-                        <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-4 py-3 dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15">
-                            <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide text-[#1E3A8A] dark:text-[#C7D2FE]">
+                        <div className="rounded-xl border border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-primary)] bg-[var(--psd-surface)] px-3.5 py-2">
+                            <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">
                                 <FileText className="h-4 w-4" />
                                 Delegated Applications
                             </div>
-                            <div className="mt-2 text-[24px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+                            <div className="mt-1 text-[22px] font-bold leading-tight tabular-nums text-[var(--psd-heading)]">
                                 {applicationItems.length || delegation.application_count || 0}
                             </div>
                         </div>
@@ -913,17 +915,17 @@ const DelegationDetailsModal = ({
                 </div>
 
                 {(delegation.valid_from || delegation.valid_to) && (
-                    <div className="mx-5 mb-4 flex items-center gap-1.5 rounded-lg bg-[#F4F4F5] px-3 py-2 text-[11px] font-semibold text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]">
+                    <div className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-[var(--psd-bg)] px-3 py-2 text-[11.5px] font-semibold text-[var(--psd-body)]">
                         <Clock className="h-3.5 w-3.5" />
                         {formatDelegationDateTime(delegation.valid_from) || "Now"} to {formatDelegationDateTime(delegation.valid_to) || "No expiry"}
                     </div>
                 )}
 
-                <div className="flex justify-end gap-2 border-t border-[#E4E4E7] px-5 py-4 dark:border-[#3F3F46]">
+                <div className="flex justify-end gap-2 border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="h-9 rounded-lg border border-[#D4D4D8] bg-white px-4 text-[12px] font-bold text-[#3F3F46] transition-colors hover:bg-[#F4F4F5] dark:border-[#52525B] dark:bg-[#18181B] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
+                        className="h-9 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-4 text-[12px] font-bold text-[var(--psd-heading)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
                     >
                         Close
                     </button>
@@ -931,7 +933,7 @@ const DelegationDetailsModal = ({
                         type="button"
                         onClick={onRevoke}
                         disabled={saving}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-red-600 px-4 text-[12px] font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--psd-returned)] px-4 text-[12px] font-bold text-white transition-all hover:brightness-90 active:scale-[0.98] disabled:opacity-50"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                         Revoke Delegation
@@ -951,13 +953,13 @@ const SummaryCard = ({
     label: string;
     value: number;
 }) => (
-    <div className={cn(cardClasses, "flex items-center gap-3 p-4")}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
-            <Icon className="h-5 w-5" />
+    <div className={cn(cardClasses, "flex items-center gap-3 border-l-[3px] !border-l-[var(--psd-primary)] px-3 py-2")}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+            <Icon className="h-[18px] w-[18px]" />
         </div>
         <div>
-            <div className="text-[20px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">{value}</div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">{label}</div>
+            <div className="text-[19px] font-bold leading-tight tabular-nums text-[var(--psd-heading)]">{value}</div>
+            <div className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">{label}</div>
         </div>
     </div>
 );
@@ -975,24 +977,24 @@ const DelegatedDetailList = ({
     emptyLabel: string;
     onRemove?: (id: string) => void;
 }) => (
-    <div className="overflow-hidden rounded-xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-        <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-            <div className="flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#D4D4D8]">
-                <Icon className="h-4 w-4 text-[#4A6CF7]" />
+    <div className="overflow-hidden rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)]">
+        <div className="flex items-center justify-between border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-3.5 py-2">
+            <div className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-[var(--psd-heading)]">
+                <Icon className="h-4 w-4 text-[var(--psd-accent)]" />
                 {title}
             </div>
-            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#71717A] dark:bg-[#27272A] dark:text-[#A1A1AA]">
+            <span className="rounded-full bg-[var(--psd-surface)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--psd-body)] ring-1 ring-[var(--psd-border)]">
                 {items.length}
             </span>
         </div>
         <div className="max-h-[22rem] overflow-y-auto">
             {items.length === 0 ? (
-                <div className="m-3 rounded-lg border border-dashed border-[#D4D4D8] px-3 py-8 text-center text-[12px] font-semibold text-[#A1A1AA] dark:border-[#52525B]">
+                <div className="m-3 rounded-lg border border-dashed border-[var(--psd-border)] px-3 py-8 text-center text-[12px] font-semibold text-[var(--psd-muted)]">
                     {emptyLabel}
                 </div>
             ) : (
                 <div className="min-w-full">
-                    <div className="grid grid-cols-[minmax(12rem,1.5fr)_minmax(12rem,1fr)_minmax(8rem,0.8fr)_3rem] border-b border-[#E4E4E7] bg-white px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#A1A1AA]">
+                    <div className="grid grid-cols-[minmax(12rem,1.5fr)_minmax(12rem,1fr)_minmax(8rem,0.8fr)_3rem] border-b border-[#9DAE85]/50 bg-[#DCE6CD] px-4 py-1.5 text-[10.5px] font-bold uppercase tracking-wider text-[#33441F] dark:bg-[#34402B] dark:text-[#D5E2C2]">
                         <div>Name</div>
                         <div>Reference</div>
                         <div>Details</div>
@@ -1001,20 +1003,20 @@ const DelegatedDetailList = ({
                     {items.map((item) => (
                         <div
                             key={item.id}
-                            className="grid grid-cols-[minmax(12rem,1.5fr)_minmax(12rem,1fr)_minmax(8rem,0.8fr)_3rem] items-center border-b border-[#F4F4F5] px-4 py-3 last:border-b-0 dark:border-[#3F3F46]/80"
+                            className="grid grid-cols-[minmax(12rem,1.5fr)_minmax(12rem,1fr)_minmax(8rem,0.8fr)_3rem] items-center border-b border-[var(--psd-border)] px-4 py-2 last:border-b-0 even:bg-[var(--psd-bg)]/50 hover:bg-[var(--psd-primary-light)]/40"
                         >
                             <div className="min-w-0 pr-3">
-                                <div className="truncate text-[13px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
+                                <div className="truncate text-[13px] font-bold text-[var(--psd-heading)]">
                                     {item.title}
                                 </div>
                             </div>
                             <div className="min-w-0 pr-3">
-                                <div className="truncate font-mono text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                <div className="truncate font-mono text-[11px] font-semibold text-[var(--psd-body)]">
                                     {item.id}
                                 </div>
                             </div>
                             <div className="min-w-0 pr-3">
-                                <div className="truncate text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                <div className="truncate text-[11px] font-semibold text-[var(--psd-body)]">
                                     {item.meta || "-"}
                                 </div>
                             </div>
@@ -1023,7 +1025,7 @@ const DelegatedDetailList = ({
                                     <button
                                         type="button"
                                         onClick={() => onRemove(item.id)}
-                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#A1A1AA] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
+                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--psd-muted)] transition-colors hover:bg-[var(--psd-returned-bg)] hover:text-[var(--psd-returned)]"
                                         title="Remove from delegation"
                                     >
                                         <X className="h-4 w-4" />
@@ -1053,32 +1055,32 @@ const ScopePanel = ({
     muted?: boolean;
     children: React.ReactNode;
 }) => (
-    <div className={cn("rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]", muted && "opacity-55")}>
-        <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-            <h2 className="flex items-center gap-2 text-[13px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
-                <Icon className="h-4 w-4 text-[#4A6CF7]" />
+    <div className={cn("overflow-hidden rounded-xl border border-[var(--psd-border)]", muted && "opacity-55")}>
+        <div className="flex items-center justify-between border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-info)] bg-[var(--psd-bg)] px-3.5 py-2">
+            <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--psd-heading)]">
+                <Icon className="h-4 w-4 text-[var(--psd-info)]" />
                 {title}
             </h2>
-            <div className="flex items-center gap-2 text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-[var(--psd-body)]">
                 <span>{count}</span>
-                <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
+                <span className="rounded-full bg-[var(--psd-primary-light)] px-2 py-0.5 text-[var(--psd-primary)]">
                     {selectedCount} selected
                 </span>
             </div>
         </div>
-        <div className="max-h-[34rem] space-y-2 overflow-y-auto p-3">{children}</div>
+        <div className="max-h-[34rem] space-y-1.5 overflow-y-auto p-2.5">{children}</div>
     </div>
 );
 
 const EmptyState = ({ label }: { label: string }) => (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed border-[#D4D4D8] bg-[#FAFAF9] p-4 text-center dark:border-[#52525B] dark:bg-[#18181B]">
-        <CheckCircle2 className="mb-2 h-5 w-5 text-[#A1A1AA]" />
-        <p className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed border-[var(--psd-border)] bg-[var(--psd-bg)] p-4 text-center">
+        <CheckCircle2 className="mb-2 h-5 w-5 text-[var(--psd-muted)]" />
+        <p className="text-[12px] font-semibold text-[var(--psd-body)]">{label}</p>
     </div>
 );
 
 const Badge = ({ children }: { children: React.ReactNode }) => (
-    <span className="rounded-full border border-[#C7D2FE] bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
+    <span className="rounded-full border border-[var(--psd-primary)]/30 bg-[var(--psd-primary-light)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--psd-primary)]">
         {children}
     </span>
 );

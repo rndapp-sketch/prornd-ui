@@ -31,6 +31,7 @@ import Login from './pages/Login.tsx';
 import LandingPage from './pages/landing.tsx';
 import Home from './pages/Home.tsx';
 import PiHomePage from './pages/PiHomePage.tsx';
+import PiFinancialDashboard from './pages/PiFinancialDashboard.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
 import ProjectRegistration from './pages/ProjectRegistration.tsx';
@@ -82,6 +83,7 @@ import MySalarySlip from './pages/application/MySalarySlip';
 import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
 import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
+import RecruitmentAdvertisement from './pages/RecruitmentAdvertisement.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
@@ -105,6 +107,9 @@ import { UC_REQUEST_ENABLED } from './config/features';
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
+import VendorPaymentList from './pages/application/VendorPaymentList.tsx';
+import VendorPaymentForm from './pages/application/VendorPaymentForm.tsx';
+import VendorPaymentDetails from './pages/application/VendorPaymentDetails.tsx';
 import AccHeadToHeadTransferForm from './pages/application/AccHeadToHeadTransferForm.tsx';
 import AccHeadToHeadTransferDetails from './pages/application/AccHeadToHeadTransferDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
@@ -198,6 +203,15 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <Home />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    // PI's account-wise financial dashboard and ledger records across all their projects
+                    path: "pi-financial-dashboard",
+                    element: (
+                        <AuthRouteWrapper allowedRole="Permanent Employee">
+                            <PiFinancialDashboard />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -539,6 +553,14 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    path: "recruitment-advertisement",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <RecruitmentAdvertisement />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
                     path: "pending-application",
                     element: (
                         <AuthRouteWrapper allowedRole={[
@@ -825,6 +847,30 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MiscellaneousCommitDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "vendor-payment",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <VendorPaymentList />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "vendor-payment-form",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <VendorPaymentForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "vendor-payment/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <VendorPaymentDetails />
                         </AuthRouteWrapper>
                     )
                 },

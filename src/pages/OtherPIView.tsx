@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { isTravelAdvancePaid, travelRequestedAdvance } from "@/services/travelSettlement";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,6 +36,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 interface OtherPIFormDoc {
     name: string;
@@ -337,89 +337,97 @@ export function OtherPIView() {
 
     const getStatusBadge = (state: string) => {
         const lower = state.toLowerCase();
-        const base = "text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap";
-        if (lower.includes("approved")) {
-            return <Badge className={cn(base, "bg-emerald-50 text-emerald-700 border-emerald-200")}>Approved</Badge>;
-        }
-        if (lower.includes("rejected")) {
-            return <Badge className={cn(base, "bg-rose-50 text-rose-700 border-rose-200")}>Rejected</Badge>;
-        }
-        if (lower.includes("pending other pi") || lower.includes("pending pi")) {
-            return <Badge className={cn(base, "bg-purple-50 text-purple-700 border-purple-200")}>{state}</Badge>;
-        }
-        if (lower.includes("pending")) {
-            return <Badge className={cn(base, "bg-amber-50 text-amber-700 border-amber-200")}>{state}</Badge>;
-        }
-        return <Badge variant="outline" className={base}>{state}</Badge>;
+        const pill = (tone: string, dot: string, label: string) => (
+            <span className={cn("inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", tone)}>
+                <span className={cn("size-1.5 rounded-full", dot)} />
+                {label}
+            </span>
+        );
+        if (lower.includes("approved")) return pill("bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300", "bg-[var(--psd-approved)]", "Approved");
+        if (lower.includes("rejected")) return pill("bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300", "bg-[var(--psd-returned)]", "Rejected");
+        if (lower.includes("pending other pi") || lower.includes("pending pi")) return pill("bg-[var(--psd-primary-light)] text-[var(--psd-primary)]", "bg-[var(--psd-primary)]", state);
+        if (lower.includes("pending")) return pill("bg-[var(--psd-review-bg)] text-[#B45309] dark:text-amber-300", "bg-[var(--psd-review)]", state);
+        return pill("bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300", "bg-[var(--psd-info)]", state);
     };
 
     const thClass =
-        "px-3 py-2 h-9 whitespace-nowrap text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE] border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25 last:border-r-0";
-    const tdClass = "px-3 py-2 text-[12px] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 last:border-r-0";
+        "relative px-3 py-1.5 h-8 whitespace-nowrap text-[10.5px] font-bold uppercase tracking-wider text-[#33441F] dark:text-[#D5E2C2] after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D] last:after:hidden";
+    const tdClass =
+        "relative px-3 py-2 text-[12.5px] after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDE3D2] dark:after:bg-[#3F4A36] last:after:hidden";
+
+    // One colour per application type for the quick-apply cards
+    const TYPE_HEX: Record<string, string> = {
+        travel: "#4775E8",
+        reimbursement: "#0DA875",
+        igf: "#E99A16",
+        icss: "#6842D9",
+        direct_purchase: "#E94B60",
+    };
 
     return (
-        <div className="w-full space-y-3 animate-in fade-in duration-500">
+        <div className="psd-root w-full space-y-3 animate-in fade-in duration-500">
             {/* Header */}
-            <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
-                <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                <div className="flex flex-col gap-2 px-4 py-2.5 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-start gap-3 min-w-0">
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15">
-                            <UserCheck className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Other PI Projects</span>
-                            <h1 className="font-sans text-[18px] font-extrabold leading-tight text-[#3F3F46] dark:text-[#E4E4E7]">
-                                Other PI Applications &amp; Forms
-                            </h1>
-                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                Submit and track applications charged to another Principal Investigator's project.
-                            </p>
-                        </div>
+            <header className="psd-hero relative flex flex-col gap-2 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2 md:flex-row md:items-center md:justify-between">
+                <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                    <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                        <UserCheck className="size-4" strokeWidth={1.8} />
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRefreshAll}
-                        disabled={isLoading}
-                        className="h-8 self-start gap-2 text-[12px] md:self-auto"
-                    >
-                        <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-                        Refresh
-                    </Button>
+                    <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Other PI Projects</div>
+                        <h1 className="mt-0.5 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">
+                            Other PI Applications &amp; Forms
+                        </h1>
+                    </div>
                 </div>
-            </div>
+                <p className="relative z-10 hidden text-xs text-[var(--psd-body)] lg:block">
+                    Submit and track applications charged to another Principal Investigator's project.
+                </p>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshAll}
+                    disabled={isLoading}
+                    className="psd-focus relative z-10 h-8 gap-2 self-start border-[var(--psd-border)] bg-[var(--psd-surface)] text-[12px] font-semibold hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] md:self-auto"
+                >
+                    <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+                    Refresh
+                </Button>
+            </header>
 
             {/* Quick apply */}
             <div className="space-y-2">
-                <h2 className="flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">
-                    <PlusCircle className="h-4 w-4 text-[#4A6CF7]" />
+                <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--psd-body)]">
+                    <PlusCircle className="h-4 w-4 text-[var(--psd-primary)]" />
                     Create new "Other PI" application
+                    <span className="h-px flex-1 bg-[var(--psd-border)]" />
                 </h2>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     {FORM_TYPES.map((item) => {
                         const Icon = item.icon;
+                        const c = TYPE_HEX[item.key] ?? "#6842D9";
                         return (
                             <button
                                 key={item.key}
                                 type="button"
                                 onClick={() => navigate(item.route)}
-                                className={cn(
-                                    "group flex flex-col gap-2 rounded-lg border bg-gradient-to-br p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
-                                    item.color,
-                                )}
+                                // Same tinted gradient as the PI Home quick-action cards (mixed with the surface, so it suits dark mode too)
+                                style={{
+                                    backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${c} 16%, var(--psd-surface)), color-mix(in srgb, ${c} 32%, var(--psd-surface)))`,
+                                    borderColor: `color-mix(in srgb, ${c} 45%, transparent)`,
+                                }}
+                                className="psd-focus group flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                             >
-                                <div className="flex items-center gap-2">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-md border bg-background/80">
-                                        <Icon className="h-4 w-4" />
-                                    </div>
-                                    <span className="text-[13px] font-bold leading-tight text-[#3F3F46] dark:text-[#E4E4E7]">{item.label}</span>
-                                </div>
-                                <p className="line-clamp-2 text-[12px] leading-snug text-[#52525B] dark:text-[#A1A1AA]">{item.desc}</p>
-                                <span className={cn("mt-auto inline-flex h-7 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-semibold", item.btnColor)}>
-                                    Apply Now
-                                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                                <span
+                                    className="grid size-8 shrink-0 place-items-center rounded-md bg-[var(--psd-surface)] shadow-sm transition-transform duration-200 group-hover:scale-110"
+                                    style={{ color: c }}
+                                >
+                                    <Icon className="h-4 w-4" />
                                 </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-[12.5px] font-bold leading-tight text-[var(--psd-heading)]">{item.label}</span>
+                                    <span className="line-clamp-2 text-[10.5px] font-medium leading-snug text-[var(--psd-heading)]/75">{item.desc}</span>
+                                </span>
+                                <ChevronRightIcon className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: c }} />
                             </button>
                         );
                     })}
@@ -427,16 +435,16 @@ export function OtherPIView() {
             </div>
 
             {/* Registry */}
-            <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-                <div className="flex flex-col gap-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="psd-card overflow-hidden !rounded-xl">
+                <div className="flex flex-col gap-2 border-b border-[var(--psd-border)] px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
-                        <h2 className="text-[14px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                        <h2 className="text-[14px] font-bold text-[var(--psd-heading)]">
                             Other PI Applications Registry
-                            <span className="ml-2 rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
+                            <span className="ml-2 rounded-full bg-[var(--psd-primary-light)] px-2 py-0.5 text-[11px] font-bold tabular-nums text-[var(--psd-primary)]">
                                 {filteredDocs.length}
                             </span>
                         </h2>
-                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                        <p className="text-[12px] text-[var(--psd-body)]">
                             Forms where travel or expenditure is charged to another PI's project.
                         </p>
                     </div>
@@ -447,11 +455,11 @@ export function OtherPIView() {
                                 placeholder="Search by ID, applicant, or PI..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="h-8 bg-[#FAFAF9] pl-8 text-[12px] dark:bg-[#18181B]"
+                                className="h-8 border-[var(--psd-border)] bg-[var(--psd-surface)] pl-8 text-[12px] focus-visible:border-[var(--psd-primary)] focus-visible:ring-[var(--psd-primary)]/20"
                             />
                         </div>
                         <Select value={selectedDocType} onValueChange={setSelectedDocType}>
-                            <SelectTrigger className="h-8 w-[150px] bg-[#FAFAF9] text-[12px] dark:bg-[#18181B]">
+                            <SelectTrigger className="h-8 w-[150px] border-[var(--psd-border)] bg-[var(--psd-surface)] text-[12px]">
                                 <SelectValue placeholder="Form Type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -464,7 +472,7 @@ export function OtherPIView() {
                             </SelectContent>
                         </Select>
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="h-8 w-[130px] bg-[#FAFAF9] text-[12px] dark:bg-[#18181B]">
+                            <SelectTrigger className="h-8 w-[130px] border-[var(--psd-border)] bg-[var(--psd-surface)] text-[12px]">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -478,8 +486,8 @@ export function OtherPIView() {
                 </div>
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                            <TableRow className="border-b border-[#C7D2FE] hover:bg-transparent dark:border-[#4A6CF7]/30">
+                        <TableHeader className="bg-[#DCE6CD] dark:bg-[#34402B]">
+                            <TableRow className="border-b border-[#BBC9A4] hover:bg-transparent dark:border-[#4B5A3E]">
                                 <TableHead className={cn(thClass, "w-[140px]")}>Document ID</TableHead>
                                 <TableHead className={cn(thClass, "w-[180px]")}>Form Type</TableHead>
                                 <TableHead className={thClass}>Applicant</TableHead>
@@ -494,7 +502,7 @@ export function OtherPIView() {
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-24 text-center text-[#71717A]">
                                         <div className="flex items-center justify-center gap-2 text-[13px]">
-                                            <RefreshCw className="h-4 w-4 animate-spin text-[#4A6CF7]" />
+                                            <RefreshCw className="h-4 w-4 animate-spin text-[var(--psd-primary)]" />
                                             <span>Loading Other PI applications...</span>
                                         </div>
                                     </TableCell>
@@ -515,19 +523,19 @@ export function OtherPIView() {
                                 filteredDocs.map((doc) => (
                                     <TableRow
                                         key={doc.name}
-                                        className="cursor-pointer border-b border-[#E4E4E7] even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:border-[#3F3F46] dark:even:bg-[#27272A]/60 dark:hover:bg-[#3F3F46]/40"
+                                        className="cursor-pointer border-b border-[var(--psd-border)] transition-colors hover:bg-[var(--psd-primary-light)]/40"
                                         onClick={() => navigate(doc.detailRoute)}
                                     >
-                                        <TableCell className={cn(tdClass, "font-mono font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap")}>{doc.name}</TableCell>
+                                        <TableCell className={cn(tdClass, "bg-[#F1E8F9] font-mono font-bold text-[#7A46AE] dark:bg-[#33243F] dark:text-[#D3B4F0] whitespace-nowrap")}>{doc.name}</TableCell>
                                         <TableCell className={tdClass}>
-                                            <Badge variant="secondary" className="text-[11px] font-medium whitespace-nowrap">
+                                            <span className="inline-flex whitespace-nowrap rounded-md bg-[var(--psd-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--psd-body)] ring-1 ring-[var(--psd-border)]">
                                                 {doc.doctype}
-                                            </Badge>
+                                            </span>
                                         </TableCell>
-                                        <TableCell className={cn(tdClass, "font-medium text-[#3F3F46] dark:text-[#E4E4E7]")}>{doc.applicant}</TableCell>
-                                        <TableCell className={cn(tdClass, "text-[#52525B] dark:text-[#A1A1AA]")}>{doc.other_pi}</TableCell>
+                                        <TableCell className={cn(tdClass, "font-semibold text-[var(--psd-heading)]")}>{doc.applicant}</TableCell>
+                                        <TableCell className={cn(tdClass, "text-[var(--psd-body)]")}>{doc.other_pi}</TableCell>
                                         <TableCell className={tdClass}>{getStatusBadge(doc.workflow_state)}</TableCell>
-                                        <TableCell className={cn(tdClass, "whitespace-nowrap text-[#52525B] dark:text-[#A1A1AA]")}>
+                                        <TableCell className={cn(tdClass, "whitespace-nowrap text-[var(--psd-body)]")}>
                                             {doc.creation ? format(new Date(doc.creation), "dd MMM yyyy") : "N/A"}
                                         </TableCell>
                                         <TableCell className={cn(tdClass, "text-right whitespace-nowrap")}>
@@ -535,7 +543,7 @@ export function OtherPIView() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#D97757]"
+                                                    className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#B45309]"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         const projectNo = travelByName[doc.name]?.travel_project_number || "";
@@ -550,7 +558,7 @@ export function OtherPIView() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA]"
+                                                    className="h-7 gap-1 px-2 text-[12px] font-semibold text-[var(--psd-body)]"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         navigate(`/ta-da-settlement?edit=${encodeURIComponent(settlementByTravel[doc.name])}`);
@@ -562,7 +570,7 @@ export function OtherPIView() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#4A6CF7]"
+                                                className="h-7 gap-1 px-2 text-[12px] font-semibold text-[var(--psd-primary)]"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(doc.detailRoute);

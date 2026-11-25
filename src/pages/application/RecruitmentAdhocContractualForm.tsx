@@ -11,11 +11,13 @@ import {
 import {
     recruitmentAdhocContractualAPI,
     prepareFormDataForApi,
+    recruitmentAdvertismentAPI,
 } from "@/services/apiService";
 import { Loader2, ArrowLeft, Save, Send, CheckCircle2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
@@ -119,7 +121,7 @@ const CommentModal = ({
 const FrappeCard = ({ children, className }: any) => (
     <Card
         className={cn(
-            "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] shadow-sm rounded-xl overflow-hidden",
+            "psd-card !rounded-xl overflow-visible",
             className,
         )}
     >
@@ -1264,6 +1266,30 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         }
     };
 
+    // Advertisement status (Recruitment Advertisment): published when a record with publish = Yes exists
+    const { data: adResp, mutate: reloadAd } = useFrappeGetCall<{ message: { published: boolean; status: string; record: { modified?: string; project_no?: string } | null } }>(
+        recruitmentAdvertismentAPI.get,
+        currentDocName ? { recruitment_adhoc_contractual: currentDocName } : undefined,
+        currentDocName && activeWorkflowState === "Approved" ? undefined : null,
+    );
+    const adStatus = adResp?.message;
+    const { call: saveAdvertisement } = useFrappePostCall<{ message: any }>(recruitmentAdvertismentAPI.save);
+    const [adBusy, setAdBusy] = useState(false);
+    const [adError, setAdError] = useState<string | null>(null);
+    const publishAdvertisement = async () => {
+        setAdBusy(true);
+        setAdError(null);
+        try {
+            const res = await saveAdvertisement({ recruitment_adhoc_contractual: currentDocName, publish: "Yes", ...(projectCode ? { project_no: projectCode } : {}) });
+            if (res?.message?.status && res.message.status !== "success") throw new Error(res.message.message || "Could not publish");
+            await reloadAd();
+        } catch (e: any) {
+            setAdError(String(e?.message || "Could not publish").replace(/<[^>]+>/g, ""));
+        } finally {
+            setAdBusy(false);
+        }
+    };
+
     // --- RENDER HELPERS ---
     const isFormReadOnly = workflowState !== "Draft" && workflowState !== "Pending";
     const isReadOnly = isFormReadOnly;
@@ -1271,9 +1297,10 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
     if (isLoadingFields) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <Loader2 className="w-8 h-8 animate-spin text-[#D97757]" />
-                <p className="text-zinc-500 font-medium">
+            <div className="psd-root flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="psd-loadbar w-56" />
+                <Loader2 className="w-7 h-7 animate-spin text-[var(--psd-primary)]" />
+                <p className="text-[var(--psd-body)] font-medium">
                     Loading form configuration...
                 </p>
             </div>
@@ -1281,68 +1308,124 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
-                <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex min-w-0 items-start gap-3">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] text-[#71717A] transition-colors hover:border-[#C7D2FE] hover:bg-[#EEF2FF] hover:text-[#2563EB] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:bg-[#1E3A8A]/18 dark:hover:text-[#C7D2FE]"
-                                aria-label="Go back"
-                            >
-                                <ArrowLeft className="h-5 w-5" />
-                            </button>
-                            <div className="min-w-0">
-                                <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
-                                        Application Form
-                                    </span>
-                                    {(editDocName || savedDocName) && (
-                                        <span
-                                            className={cn(
-                                                "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide",
-                                                workflowState === "Approved"
-                                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300"
-                                                    : workflowState === "Draft"
-                                                        ? "border-[#E4E4E7] bg-[#F4F4F5] text-[#52525B] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#D4D4D8]"
-                                                        : "border-[#C7D2FE] bg-[#EEF2FF] text-[#1E3A8A] dark:border-[#4A6CF7]/40 dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]",
-                                            )}
-                                        >
-                                            {workflowState}
-                                        </span>
-                                    )}
-                                </div>
-                                <h1 className="text-[22px] font-extrabold leading-tight tracking-normal text-[#27272A] dark:text-[#F4F4F5]">
-                                    Recruitment Adhoc Contractual
-                                </h1>
-                                <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                    {editDocName || savedDocName
-                                        ? `Application ID: ${editDocName || savedDocName}`
-                                        : "New Application"}
-                                </p>
-                            </div>
+        <div className="psd-root min-h-screen">
+            <main className="max-w-8xl mx-auto p-0 w-full space-y-2.5">
+                <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                    <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                        </button>
+                        <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <Send className="size-4" strokeWidth={1.8} />
                         </div>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Application Form</span>
+                                {(editDocName || savedDocName) && (
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
+                                            workflowState === "Approved"
+                                                ? "border-[var(--psd-approved)]/40 bg-[var(--psd-approved-bg)] text-[#0A8A60] dark:text-emerald-300"
+                                                : workflowState === "Draft"
+                                                    ? "border-[var(--psd-border)] bg-[var(--psd-bg)] text-[var(--psd-body)]"
+                                                    : "border-[var(--psd-review)]/40 bg-[var(--psd-review-bg)] text-[#B26A00] dark:text-amber-300",
+                                        )}
+                                    >
+                                        {workflowState}
+                                    </span>
+                                )}
+                                {adStatus && (
+                                    <span
+                                        title={adStatus.record?.modified ? `Advertisement updated ${new Date(adStatus.record.modified).toLocaleString("en-IN")}` : "No advertisement record yet"}
+                                        className={cn(
+                                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
+                                            adStatus.published
+                                                ? "border-[var(--psd-approved)]/40 bg-[var(--psd-approved-bg)] text-[#0A8A60] dark:text-emerald-300"
+                                                : "border-[var(--psd-review)]/40 bg-[var(--psd-review-bg)] text-[#B26A00] dark:text-amber-300",
+                                        )}
+                                    >
+                                        <span className={cn("size-1.5 rounded-full", adStatus.published ? "bg-[var(--psd-approved)]" : "bg-[var(--psd-review)]")} />
+                                        {adStatus.status}
+                                    </span>
+                                )}
+                            </div>
+                            <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">
+                                Recruitment Adhoc Contractual
+                            </h1>
+                        </div>
+                    </div>
+                    <div className="relative z-10 flex items-center gap-3">
+                        <p className="hidden font-mono text-xs text-[var(--psd-body)] md:block">
+                            {editDocName || savedDocName ? `Application ID: ${editDocName || savedDocName}` : "New Application"}
+                        </p>
                         {currentDocName && (
                             <button
                                 type="button"
                                 onClick={() => setIsPrintOpen(true)}
-                                className="inline-flex items-center gap-2 rounded-xl border border-[#E4E4E7] bg-white px-4 py-2 text-sm font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                className="psd-focus inline-flex items-center gap-1.5 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-[12px] font-bold text-[var(--psd-heading)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
                                 title="Print this document"
                             >
-                                <Printer className="h-4 w-4" />
+                                <Printer className="h-3.5 w-3.5" />
                                 Print
                             </button>
                         )}
                     </div>
-                </div>
+                </header>
 
-                <div className="grid grid-cols-1 gap-6">
+                {adStatus && (
+                    <div
+                        role="status"
+                        className={cn(
+                            "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-l-[4px] px-4 py-3",
+                            adStatus.published
+                                ? "border-[var(--psd-approved)]/40 border-l-[var(--psd-approved)] bg-[var(--psd-approved-bg)]"
+                                : "border-[var(--psd-review)]/40 border-l-[var(--psd-review)] bg-[var(--psd-review-bg)]",
+                        )}
+                    >
+                        <div className="flex min-w-0 items-center gap-3">
+                            <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg text-white", adStatus.published ? "bg-[var(--psd-approved)]" : "bg-[var(--psd-review)]")}>
+                                {adStatus.published ? <CheckCircle2 className="h-5 w-5" /> : <Send className="h-5 w-5" />}
+                            </span>
+                            <div className="min-w-0">
+                                <p className={cn("text-[14px] font-bold", adStatus.published ? "text-[#0A8A60] dark:text-emerald-300" : "text-[#B26A00] dark:text-amber-300")}>
+                                    Advertisement: {adStatus.status}
+                                </p>
+                                <p className="text-[12px] text-[var(--psd-body)]">
+                                    {adStatus.published
+                                        ? `This recruitment has been advertised${adStatus.record?.modified ? ` (updated ${new Date(adStatus.record.modified).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })})` : ""}.`
+                                        : "This recruitment is approved but its advertisement has not been published yet."}
+                                </p>
+                                {adError && <p className="mt-1 text-[12px] font-semibold text-[var(--psd-returned)]">{adError}</p>}
+                            </div>
+                        </div>
+                        {showCommitSection && !adStatus.published && (
+                            <button
+                                type="button"
+                                onClick={publishAdvertisement}
+                                disabled={adBusy}
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--psd-approved)] px-4 py-2 text-[12.5px] font-bold text-white shadow-sm transition-all hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
+                            >
+                                {adBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Publish
+                            </button>
+                        )}
+                        {showCommitSection && adStatus.published && (
+                            <button type="button" onClick={() => navigate("/recruitment-advertisement")} className="shrink-0 text-[12px] font-bold text-[var(--psd-primary)] hover:underline">
+                                Manage in Recruitment Advertisement →
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                <div className={cn("grid grid-cols-1 gap-2.5", showCommitSection && "xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-start")}>
                     {/* Main Form Content */}
-                    <div className="space-y-6">
+                    <div className="space-y-2.5">
                         <FrappeCard>
-                            <div className="p-8">
+                            <div className="psd-uform p-3">
                                 <DynamicFormRenderer
                                                                         overheadFund={isOverheadProject}
                                     fields={(() => {
@@ -1377,8 +1460,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             </div>
 
                             {/* Action Bar */}
-                            <div className="bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800 p-6 flex items-center justify-between">
-                                <div className="text-sm text-zinc-500">
+                            <div className="flex items-center justify-between gap-3 rounded-b-xl border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2.5">
+                                <div className="text-[12px] text-[var(--psd-body)]">
                                     {(editDocName || savedDocName) &&
                                         `Last updated: ${new Date().toLocaleTimeString()}`}
                                 </div>
@@ -1389,7 +1472,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                             variant="outline"
                                             onClick={handleUpdateChairperson}
                                             disabled={isUpdatingChairperson}
-                                            className="bg-white dark:bg-zinc-800 shadow-sm"
+                                            className="!bg-[var(--psd-surface)] !border-[var(--psd-border)] !text-[var(--psd-heading)] shadow-sm hover:!border-[var(--psd-primary)] hover:!text-[var(--psd-primary)]"
                                         >
                                             {isUpdatingChairperson ? (
                                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1405,7 +1488,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                                 variant="outline"
                                                 onClick={handleSave}
                                                 disabled={isSubmitting || isActionLoading}
-                                                className="bg-white dark:bg-zinc-800 shadow-sm"
+                                                className="!bg-[var(--psd-surface)] !border-[var(--psd-border)] !text-[var(--psd-heading)] shadow-sm hover:!border-[var(--psd-primary)] hover:!text-[var(--psd-primary)]"
                                             >
                                                 {isSubmitting ? (
                                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1420,7 +1503,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                                 <FrappeButton
                                                     onClick={() => handleWorkflowAction("Submit")}
                                                     disabled={isSubmitting || isActionLoading}
-                                                    className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
+                                                    className="!bg-[var(--psd-primary)] hover:!bg-[var(--psd-primary-hover)] !text-white shadow-sm"
                                                 >
                                                     {isActionLoading ? (
                                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1437,7 +1520,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                                         isActionLoading ||
                                                         !(savedDocName || editDocName)
                                                     }
-                                                    className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
+                                                    className="!bg-[var(--psd-primary)] hover:!bg-[var(--psd-primary-hover)] !text-white shadow-sm"
                                                 >
                                                     {isSubmitting ? (
                                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1452,7 +1535,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                         /* Any Other Workflow Actions */
                                         <>
                                             {commitRequired && (
-                                                <div className="w-full text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-medium">
+                                                <div className="w-full rounded-lg border border-[var(--psd-review)]/40 bg-[var(--psd-review-bg)] p-2 text-xs font-medium text-[#B26A00] dark:text-amber-300">
                                                     A commitment must be submitted before forwarding this application.
                                                 </div>
                                             )}
@@ -1468,10 +1551,10 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                                             commitRequired
                                                                 ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
                                                                 : action === "Approve"
-                                                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                    ? "!bg-[var(--psd-approved)] hover:brightness-95 !text-white"
                                                                     : action === "Reject"
-                                                                        ? "bg-red-600 hover:bg-red-700 text-white"
-                                                                        : "bg-[#D97757] hover:opacity-90 text-white",
+                                                                        ? "!bg-[var(--psd-returned)] hover:brightness-95 !text-white"
+                                                                        : "!bg-[var(--psd-primary)] hover:!bg-[var(--psd-primary-hover)] !text-white",
                                                         )}
                                                     >
                                                         {isActionLoading ? (
@@ -1490,7 +1573,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
                     {/* Commit Payment — visible to staff, RnD only */}
                     {showCommitSection && (
-                        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                        <div className="flex flex-col gap-2.5 xl:sticky xl:top-3">
                             {/* Commit Payment — centralised component handles staging check + form/display card */}
                             <CommitPayment
                                 doctype="Recruitment Adhoc Contractual"
@@ -1505,87 +1588,24 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
                             {/* Commitment Details */}
                             {isCommitted && (
-                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                <div className="psd-card !rounded-xl overflow-hidden">
+                                    <h3 className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-4 py-2 text-[12px] font-bold uppercase tracking-wider text-[var(--psd-heading)]">
                                         Commitment Details
                                     </h3>
-                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                    <div className="m-3 flex flex-col gap-1 rounded-lg border border-[var(--psd-info)]/30 bg-[var(--psd-info-bg)] p-3">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--psd-info)]">
                                             Linked Commitment
                                         </p>
                                         <div className="flex justify-between items-end">
-                                            <p className="text-sm font-medium text-blue-900">
+                                            <p className="text-sm font-medium text-[var(--psd-heading)]">
                                                 <BudgetHeadName id={displayCommitment?.head || ""} />
                                             </p>
-                                            <p className="text-lg font-bold text-blue-700">
+                                            <p className="text-lg font-bold text-[var(--psd-info)]">
                                                 ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
-                            )}
-
-                            {/* Record Payment */}
-                            {!cancellationFrozen && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                    Record Payment
-                                </h3>
-                                {isCommitted ? (
-                                    <div className="space-y-4">
-                                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                                                Linked Commitment
-                                            </p>
-                                            <div className="flex justify-between items-end">
-                                                <p className="text-sm font-medium text-blue-900">
-                                                    {displayCommitment?.head}
-                                                </p>
-                                                <p className="text-lg font-bold text-blue-700">
-                                                    ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                                Payment Amount (₹)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                                                placeholder="e.g., 5000"
-                                                value={paymentAmount}
-                                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                                max={displayCommitment?.committed}
-                                            />
-                                            <p className="text-xs text-zinc-500 mt-1">
-                                                Max: ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
-                                            </p>
-                                        </div>
-                                        <FrappeButton
-                                            className="w-full"
-                                            variant="outline"
-                                            onClick={handlePayment}
-                                            disabled={
-                                                isPaying ||
-                                                !paymentAmount ||
-                                                parseFloat(paymentAmount) > (displayCommitment?.committed || 0)
-                                            }
-                                        >
-                                            {isPaying ? "Processing..." : "Submit Payment"}
-                                        </FrappeButton>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
-                                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            Commitment Required
-                                        </p>
-                                        <p className="text-xs text-zinc-500 mt-1">
-                                            Make a commitment above before recording payment.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
                             )}
 
                         </div>
@@ -1650,7 +1670,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                     </Button>
                                     <Button
                                         variant="default"
-                                        className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
+                                        className="!bg-[var(--psd-primary)] hover:!bg-[var(--psd-primary-hover)] !text-white shadow-sm"
                                         onClick={handleRacQuickEntrySave}
                                         disabled={!racQuickEntry.pendingValue.trim() || racQuickEntry.isSubmitting}
                                     >

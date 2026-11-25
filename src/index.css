@@ -2068,3 +2068,32 @@
 .ledger-notes-prose p.is-editor-empty:first-child::before {
   content: attr(data-placeholder); color: #A1A1AA; float: left; height: 0; pointer-events: none;
 }
+
+/* Eye comfort (header toggle): a gentle warm, lower-glare tone over the whole app, including header and sidebar */
+html.eye-comfort {
+  /* --eye-level is 0..1, set from the slider in the header (default 0.7) */
+  filter: sepia(calc(var(--eye-level, 0.7) * 0.32)) saturate(calc(1 - var(--eye-level, 0.7) * 0.14)) brightness(calc(1 - var(--eye-level, 0.7) * 0.07)) contrast(calc(1 + var(--eye-level, 0.7) * 0.05));
+}
+
+/* Eye comfort (light theme): the pale grey card/section borders would fade into the warm tone, so give them a
+   visible, slightly darker warm grey. Colour of lines only; nothing else changes. */
+/* --eye-border is set from the "Border darkness" slider (see useEyeComfort) */
+html.eye-comfort:not(.dark) .psd-root { --psd-border: var(--eye-border); }
+html.eye-comfort:not(.dark) [class*="border-[#E4E4E7]"],
+html.eye-comfort:not(.dark) [class*="border-[#E5E7EF]"],
+html.eye-comfort:not(.dark) [class*="border-[#E2E8F0]"],
+html.eye-comfort:not(.dark) [class*="border-[#F4F4F5]"],
+html.eye-comfort:not(.dark) [class*="border-zinc-100"],
+html.eye-comfort:not(.dark) [class*="border-zinc-200"],
+html.eye-comfort:not(.dark) [class*="border-gray-200"],
+html.eye-comfort:not(.dark) [class*="border-slate-200"],
+html.eye-comfort:not(.dark) .border-border,
+html.eye-comfort:not(.dark) .form-section-card,
+html.eye-comfort:not(.dark) .form-section-header {
+  border-color: var(--eye-border) !important;
+}
+html.eye-comfort:not(.dark) [class*="divide-[#E4E4E7]"] > :not([hidden]) ~ :not([hidden]),
+html.eye-comfort:not(.dark) [class*="divide-[#F4F4F5]"] > :not([hidden]) ~ :not([hidden]),
+html.eye-comfort:not(.dark) [class*="divide-zinc-100"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--eye-border) !important;
+}
