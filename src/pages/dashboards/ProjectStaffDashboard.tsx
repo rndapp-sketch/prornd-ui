@@ -365,6 +365,9 @@ const initialsOf = (name: string) =>
   name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "PS";
 
 // --- Application Module Groups ---
+// Purchase, travel and reimbursement forms go through the "Other PI" route: the staff member
+// leaves project number / account head empty and their PI fills them in. Temporary
+// Advance and Advance Settlement have no such route yet, so they are not offered.
 const applicationGroups = [
   {
     group: "Purchase",
@@ -380,15 +383,14 @@ const applicationGroups = [
     ],
   },
   {
-    group: "Advance",
-    icon: Wallet,
+    group: "Travel",
+    icon: Plane,
     color: {
-      icon: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-50 dark:bg-amber-900/20",
+      icon: "text-sky-600 dark:text-sky-400",
+      bg: "bg-sky-50 dark:bg-sky-900/20",
     },
     items: [
-      { label: "Temporary Advance", description: "Apply for a temporary advance", icon: Wallet, path: "/temporary-advance" },
-      { label: "Advance Settlement", description: "Settle a previously taken advance", icon: RotateCcw, path: "/advance-settlement" },
+      { label: "Travel", description: "Apply for official travel", icon: Plane, path: "/travel" },
     ],
   },
   {
@@ -994,20 +996,18 @@ export function ProjectStaffDashboard() {
             <LayoutGrid className="size-4" strokeWidth={1.75} />
             Overview
           </button>
-          {/* New Application tab — commented out, keep code for later re-enable.
           <button
             onClick={() => navigate("/project-staff-dashboard?tab=quick-actions")}
             className={cn(
-              "px-5 py-2.5 text-sm font-semibold border-b-2 transition-all duration-200 flex items-center gap-2",
+              "psd-focus inline-flex items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-semibold transition-all duration-200",
               activeTab === "quick-actions"
-                ? "border-[#4A6CF7] text-[#4A6CF7] font-bold"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:border-zinc-300"
+                ? "bg-[var(--psd-primary)] text-white shadow-sm"
+                : "text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]"
             )}
           >
-            <Layers className="h-4 w-4" />
-            New Application
+            <Layers className="size-4" strokeWidth={1.75} />
+            Applications
           </button>
-          */}
           <button
             onClick={() => navigate("/project-staff-dashboard?tab=tracking")}
             className={cn(
@@ -1314,95 +1314,74 @@ export function ProjectStaffDashboard() {
           </div>
         )}
 
-          {/* Tab Content: New Application — commented out (disabled via `false &&`
-              rather than a block comment, since this JSX contains nested
-              {/* ... *\/} comments that would otherwise prematurely close a
-              wrapping comment). Remove `false && ` to re-enable. */}
-          {false && activeTab === "quick-actions" && (
-            <section className="mb-6 space-y-6">
-              {/* Intro + Search */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                <div>
-                  <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm">
-                    Start a new application
-                  </h2>
-                  <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                    {totalActionsCount} application types across {applicationGroups.length} categories
-                  </p>
-                </div>
-                <div className="relative w-full md:max-w-xs shrink-0">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search application types..."
-                    value={actionSearch}
-                    onChange={(e) => setActionSearch(e.target.value)}
-                    className="pl-9 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-sm h-9 rounded-lg"
-                  />
-                </div>
+        {/* Tab Content: Applications */}
+        {activeTab === "quick-actions" && (
+          <section className="mb-2 space-y-4">
+            {/* Intro + Search */}
+            <div className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-3 md:flex-row md:items-center">
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--psd-heading)]">Start a new application</h2>
+                <p className="mt-0.5 text-xs text-[var(--psd-body)]">
+                  {totalActionsCount} application types across {applicationGroups.length} categories.
+                  {" "}Project number and account head are selected by your PI when the application reaches them.
+                </p>
               </div>
+              <div className="relative w-full shrink-0 md:max-w-xs">
+                <Search className="absolute left-3 top-2.5 size-4 text-[var(--psd-muted)]" />
+                <Input
+                  type="text"
+                  placeholder="Search application types..."
+                  value={actionSearch}
+                  onChange={(e) => setActionSearch(e.target.value)}
+                  className="h-9 rounded-lg border-[var(--psd-border)] bg-[var(--psd-surface)] pl-9 text-sm"
+                />
+              </div>
+            </div>
 
-              {filteredApplicationGroups.length === 0 ? (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm py-12 text-center text-[#A1A1AA]">
-                  <Layers className="h-10 w-10 mx-auto mb-3 text-[#D4D4D8]" />
-                  <p className="text-sm font-semibold">No matching application types</p>
-                  <p className="text-xs mt-1">Try a different search term.</p>
-                </div>
-              ) : (
-                filteredApplicationGroups.map((group) => (
-                  <div key={group.group}>
-                    {/* Section header */}
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className={cn("size-6 flex items-center justify-center rounded-md shrink-0", group.color.bg)}>
-                        <group.icon className={cn("size-3.5", group.color.icon)} />
-                      </div>
-                      <span className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.1em] whitespace-nowrap">
-                        {group.group}
-                      </span>
-                      <span className="text-[10px] font-semibold text-[#A1A1AA] bg-zinc-100 dark:bg-zinc-700/50 rounded-full px-1.5 py-0.5">
-                        {group.items.length}
-                      </span>
-                      <div className="flex-1 h-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+            {filteredApplicationGroups.length === 0 ? (
+              <div className="rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] py-12 text-center">
+                <Layers className="mx-auto mb-3 size-10 text-[var(--psd-muted)]" strokeWidth={1.5} />
+                <p className="text-sm font-semibold text-[var(--psd-heading)]">No matching application types</p>
+                <p className="mt-1 text-xs text-[var(--psd-body)]">Try a different search term.</p>
+              </div>
+            ) : (
+              filteredApplicationGroups.map((group) => (
+                <div key={group.group}>
+                  <div className="mb-2 flex items-center gap-2.5">
+                    <div className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", group.color.bg)}>
+                      <group.icon className={cn("size-3.5", group.color.icon)} />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {group.items.map((item) => (
-                        <div
-                          key={item.label}
-                          className="group relative bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all cursor-pointer"
-                          onClick={() => {
-                            const projectNo = basic?.project_no;
-                            const params = new URLSearchParams();
-                            if (projectNo) params.set("project", projectNo);
-                            if (item.path === "/direct-purchase") params.set("from_project_staff", "1");
-                            const qs = params.toString() ? `?${params.toString()}` : "";
-                            navigate(`${item.path}${qs}`);
-                          }}
-                        >
-                          <button className="w-full text-left p-5 flex items-start gap-4 h-full">
-                            <div className={cn(
-                              "p-2.5 rounded-lg transition-colors shrink-0 group-hover:bg-[#4A6CF7]/10",
-                              group.color.bg
-                            )}>
-                              <item.icon className={cn("h-5 w-5 group-hover:text-[#4A6CF7]", group.color.icon)} />
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">
-                                {item.label}
-                              </h3>
-                              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                                {item.description}
-                              </p>
-                            </div>
-                            <ChevronRight className="h-4 w-4 ml-auto mt-1 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all shrink-0" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--psd-body)]">
+                      {group.group}
+                    </span>
+                    <span className="rounded-full bg-[var(--psd-primary-light)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--psd-primary)]">
+                      {group.items.length}
+                    </span>
+                    <div className="h-px flex-1 bg-[var(--psd-border)]" />
                   </div>
-                ))
-              )}
-            </section>
-          )}
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {group.items.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => navigate(item.path)}
+                        className="psd-focus group flex h-full w-full items-start gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-4 text-left shadow-sm transition-all hover:border-[var(--psd-primary)]/40 hover:shadow-md"
+                      >
+                        <div className={cn("shrink-0 rounded-lg p-2.5 transition-colors group-hover:bg-[var(--psd-primary-light)]", group.color.bg)}>
+                          <item.icon className={cn("size-5 group-hover:text-[var(--psd-primary)]", group.color.icon)} />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="mb-0.5 text-sm font-semibold text-[var(--psd-heading)]">{item.label}</h3>
+                          <p className="text-xs text-[var(--psd-body)]">{item.description}</p>
+                        </div>
+                        <ChevronRight className="ml-auto mt-1 size-4 shrink-0 text-[var(--psd-muted)] transition-all group-hover:translate-x-1 group-hover:text-[var(--psd-primary)]" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
+        )}
 
         {/* Tab Content: Track Applications */}
         {activeTab === "tracking" && (

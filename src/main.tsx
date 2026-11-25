@@ -107,6 +107,9 @@ import { UC_REQUEST_ENABLED } from './config/features';
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
+import VendorPaymentList from './pages/application/VendorPaymentList.tsx';
+import VendorPaymentForm from './pages/application/VendorPaymentForm.tsx';
+import VendorPaymentDetails from './pages/application/VendorPaymentDetails.tsx';
 import AccHeadToHeadTransferForm from './pages/application/AccHeadToHeadTransferForm.tsx';
 import AccHeadToHeadTransferDetails from './pages/application/AccHeadToHeadTransferDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
@@ -844,6 +847,30 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MiscellaneousCommitDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "vendor-payment",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <VendorPaymentList />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "vendor-payment-form",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <VendorPaymentForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "vendor-payment/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <VendorPaymentDetails />
                         </AuthRouteWrapper>
                     )
                 },

@@ -37,6 +37,7 @@ import {
     IdCard,
     Receipt,
     Activity,
+    FilePlus2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -58,6 +59,7 @@ import { HelpModule } from "./HelpModule";
 import { AddStudentModal } from "./AddStudentModal";
 import { useRecruitmentAdvertisementPending } from "@/hooks/useRecruitmentAdvertisementPending";
 import "@/pages/dashboards/projectStaffDashboard.css";
+import { isProjectStaffApplicant } from "@/hooks/useProjectStaffApplicant";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -287,6 +289,7 @@ export function AppSidebar() {
         },
         { label: "Salary Module", path: "/salary-module", visible: isRndStaffRole },
         { label: "Commit / De-Commit", path: "/miscellaneous-commit", visible: isRndStaffRole },
+        { label: "Vendor Payment", path: "/vendor-payment", visible: isRndStaffRole },
         { label: "Ledger Export", path: "/project-ledger-export", visible: isRndStaffRole },
     ].filter((sub) => sub.visible);
 
@@ -342,6 +345,13 @@ export function AppSidebar() {
         //   icon: HandCoinsIcon,
         //   path: "/reimbursement",
         // },
+        // Project staff start purchase / travel / reimbursement applications from their dashboard's
+        // Applications tab; their PI fills in the project and account head later.
+        {
+            label: "Apply Application",
+            icon: FilePlus2,
+            path: "/project-staff-dashboard?tab=quick-actions",
+        },
         {
             label: "Delegate User",
             icon: UserCheck,
@@ -515,6 +525,10 @@ export function AppSidebar() {
             // Students never apply for a project-staff ID card, even if they also carry "project staff".
             return (roles?.includes("project staff") ?? false) && !roles?.includes("Student");
         }
+        if (item.label === "Apply Application") {
+            // Same audience as the project staff dashboard itself.
+            return isProjectStaffApplicant(roles);
+        }
         if (item.label === "My Salary Slip") {
             return roles?.includes("project staff") ?? false;
         }
@@ -642,6 +656,13 @@ export function AppSidebar() {
             const searchParams = new URLSearchParams(location.search);
             const viewMode = searchParams.get("view") || "Overview";
             return location.pathname === "/head-overview" && path === `/head-overview?view=${viewMode}`;
+        }
+
+        // Links into a dashboard tab are active only on that tab.
+        if (path.includes("?")) {
+            const [pathname, query] = path.split("?");
+            const tab = new URLSearchParams(query).get("tab");
+            return location.pathname === pathname && new URLSearchParams(location.search).get("tab") === tab;
         }
 
         return location.pathname.startsWith(path) && path !== "/";

@@ -685,7 +685,7 @@ their queue genuinely merges both.
 |---|---|---|
 | `staff, RnD`, `Hos, RnD`, `Dean, RnD`, `Director`, `Ado_RnD` | `Overhead` | Their queue mixes every PI's and every head's funds. **Checked first** — a Dean may also hold a head or Permanent Employee role. |
 | `head_approver_1`, `head_department_center_school`, `HoD` / `HoC` / `HoS` | `DPF` | Owns a Departmental Development Fund. |
-| `Permanent Employee` | `PDF` | Owns a Personal Development Fund. |
+| `Permanent Employee` | `PDF` | Owns a Professional Development Fund. |
 | anything else | `Overhead` | Safe default; the tab is empty for them anyway. |
 
 > **This is display only, and it has to be.** `ProjectCategory`, the tab filter, the counts

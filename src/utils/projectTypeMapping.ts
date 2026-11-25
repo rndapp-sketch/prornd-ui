@@ -179,6 +179,10 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'Top Up Fellowship': {
         primary: { type: 'pr_project_no', field: 'project_no' },
     },
+    'Vendor Payment': {
+        primary:  { type: 'pr_name',       field: 'project_name' },
+        fallback: { type: 'pr_project_no', field: 'project_number' },
+    },
 };
 
 // ── Lookup helpers ───────────────────────────────────────────────────────────
@@ -218,7 +222,7 @@ const OVERHEAD_DPF_ROLES = [
     'HoS (Head of School)',
 ];
 
-/** Roles that own a Personal Development Fund — a PI. */
+/** Roles that own a Professional Development Fund — a PI. */
 const OVERHEAD_PDF_ROLES = ['Permanent Employee'];
 
 /**

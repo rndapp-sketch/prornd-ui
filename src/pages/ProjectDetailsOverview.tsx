@@ -73,6 +73,7 @@ import {
     LockIcon,
     UnlockIcon,
     CircleDotIcon,
+    Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,7 +93,7 @@ import { awaitingLabel } from "@/utils/cancellationLabels";
 import { loanSettlementAPI } from "@/services/apiService";
 import { OVERHEAD_BUDGET_HEAD, OVERHEAD_BUDGET_HEAD_ID, fetchOverheadLedger } from "@/services/overheadLedger";
 import { UC_REQUEST_ENABLED } from "@/config/features";
-import { isTravelAdvancePaid } from "@/services/travelSettlement";
+import { isTravelAdvancePaid, travelRequestedAdvance } from "@/services/travelSettlement";
 import "@/pages/dashboards/projectStaffDashboard.css";
 import { fetchPerson } from "@/hooks/useMyRecentApplications";
 
@@ -1050,7 +1051,7 @@ const QuickActions = ({
         // Same rule as TravelDetails: a travel that asked for an advance can only be
         // settled once that advance has been paid.
         if (
-            item.travel_financial_assistance === "Yes" &&
+            travelRequestedAdvance(item) &&
             !(await isTravelAdvancePaid(item.name, item.travel_project_number || projectNo || ""))
         ) {
             setIsLoading(false);
@@ -1263,6 +1264,11 @@ const QuickActions = ({
             items: ["Reimbursement"],
         },
         {
+            title: "Vendor Payment",
+            icon: Receipt,
+            items: ["Vendor Payment"],
+        },
+        {
             title: "Advance",
             icon: CreditCard,
             items: ["Temporary Advance Apply"],
@@ -1298,7 +1304,7 @@ const QuickActions = ({
             ],
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
-        // Loans are not possible against a Personal Development Fund, so the group is
+        // Loans are not possible against a Professional Development Fund, so the group is
         // dropped entirely for PDF projects rather than shown and rejected later.
         ...(isOverheadProject
             ? []
@@ -1563,7 +1569,7 @@ const QuickActions = ({
                         ? `&filters=${encodeURIComponent(JSON.stringify([["travel_project_title", "=", projectName]]))}`
                         : "";
                     const travelPromise = fetch(
-                        `${FRAPPE_BASE_URL}/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel","travel_financial_assistance"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
+                        `${FRAPPE_BASE_URL}/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel","travel_financial_assistance","do_you_need_advance"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
                         {
                             method: "GET",
                             headers: { Accept: "application/json" },
@@ -2059,6 +2065,31 @@ const QuickActions = ({
                     console.error("Head to Head Transfer fetch error:", fetchError);
                     data = [];
                 }
+            } else if (selectedApplication === "Vendor Payment") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Vendor%20Payment?fields=["name","creation","workflow_state","docstatus","owner","webmail_id","project_name","project_number"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+                    const result = await fetchResponse.json();
+                    data = (result?.data || [])
+                        .filter((item: any) =>
+                            item.project_name === projectName ||
+                            item.project_number === projectNo,
+                        )
+                        .map((item: any) => ({
+                            ...item,
+                            applicant_webmail: item.webmail_id || item.owner,
+                            workflow_state: item.workflow_state || "Draft",
+                        }));
+                } catch (fetchError) {
+                    data = [];
+                }
             } else if (selectedApplication === "Miscellaneous Commit") {
                 try {
                     const timestamp = Date.now();
@@ -2255,6 +2286,10 @@ const QuickActions = ({
                 onNavigate(
                     `/miscellaneous-commit-form?project=${projectName}`,
                 );
+                break;
+            case "Vendor Payment":
+                // project_name on Vendor Payment holds the Project Registration doc name.
+                onNavigate(`/vendor-payment-form?project=${projectName}`);
                 break;
             case "Head to Head Transfer":
                 // h2h_proj_code links to the Project Registration doc name.
@@ -2679,6 +2714,11 @@ const QuickActions = ({
                                                                 case "Miscellaneous Commit":
                                                                     onNavigate(
                                                                         `/miscellaneous-commit/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Vendor Payment":
+                                                                    onNavigate(
+                                                                        `/vendor-payment/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Head to Head Transfer":
@@ -4075,7 +4115,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const sanctionEditLocked =
         hasFundReceived || commitableBalance > 0 || actualBalance > 0 || isFundLoading;
 
-    // Personal Development Fund project: a personal overhead fund surfaced as a project.
+    // Professional Development Fund project: a personal overhead fund surfaced as a project.
 
     const handleCommit = () => {
         const amount = parseFloat(commitAmount);

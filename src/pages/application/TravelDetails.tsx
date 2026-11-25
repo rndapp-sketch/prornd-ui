@@ -10,6 +10,7 @@ import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, Receip
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
+import { hideForProjectStaff } from '@/utils/travelProjectStaff';
 import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
@@ -29,6 +30,7 @@ import { Printer, Download, UploadCloud } from 'lucide-react';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import { CancellationStatusBanner } from "../../components/CancellationStatusBanner";
+import { travelRequestedAdvance } from "@/services/travelSettlement";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -37,6 +39,8 @@ interface FormDataResponse {
         link_options: Record<string, LinkOption[]>;
         prefill_data: Record<string, any>;
         scl_balance?: SclBalanceData;
+        /** The travel was raised by project staff (decided by the backend from its owner). */
+        applicant_is_project_staff?: boolean;
     };
 }
 
@@ -237,10 +241,15 @@ const TravelDetails: React.FC = () => {
     // on the live form.
     const [sclBalanceData, setSclBalanceData] = useState<SclBalanceData | null>(null);
 
+    // Raised by project staff: the faculty-only sections (SCL, additional responsibility,
+    // class arrangement) are hidden for every viewer, as they were on the form.
+    const [applicantIsProjectStaff, setApplicantIsProjectStaff] = useState(false);
+
     // Override account_head fieldtype to Link so DynamicFormRenderer uses BudgetHeadName overlay
-    const renderedFields = useMemo(() =>
-        fields.map(f => f.fieldname === 'account_head' ? { ...f, fieldtype: 'Link' } : f),
-    [fields]);
+    const renderedFields = useMemo(() => {
+        const withHeadLink = fields.map(f => f.fieldname === 'account_head' ? { ...f, fieldtype: 'Link' } : f);
+        return applicantIsProjectStaff ? hideForProjectStaff(withHeadLink) : withHeadLink;
+    }, [fields, applicantIsProjectStaff]);
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -439,10 +448,22 @@ const TravelDetails: React.FC = () => {
         isPendingDirectorApproval || (isPendingDeanApproval && isInternational);
 
     // Other-PI step: only the specifically-assigned PI picks the funding project.
+    // A project staff travel reaches its PI at "Pending PI Approval" with no project yet
+    // (the staff member leaves it to the PI), so that counts as the same step.
+    // Travels submitted before the PI was recorded on them have no travel_other_pi_id; the
+    // backend still only lets the applicant's own PI (User.piheadmentor_user_id) act.
+    const viewer = (currentUser || "").toLowerCase();
+    const recordedPi = String(formData.travel_other_pi_id || "").toLowerCase();
+    const isApplicantViewing =
+        viewer === String(formData.owner || "").toLowerCase() ||
+        viewer === String(formData.webmail_id_travel || "").toLowerCase();
     const isOtherPiStep =
-        formData.workflow_state === "Pending Other PI" &&
         !!currentUser &&
-        String(formData.travel_other_pi_id || "").toLowerCase() === currentUser.toLowerCase();
+        ((formData.workflow_state === "Pending Other PI" && recordedPi === viewer) ||
+            (formData.workflow_state === "Pending PI Approval" &&
+                !formData.travel_project_number &&
+                !isApplicantViewing &&
+                (!recordedPi || recordedPi === viewer)));
 
     useEffect(() => {
         if (!isOtherPiStep) return;
@@ -451,12 +472,23 @@ const TravelDetails: React.FC = () => {
             .catch(() => setOtherPiProjects([]));
     }, [isOtherPiStep]);
 
+    // Heads belong to the chosen project (an overhead fund such as PDF has just
+    // "Overhead"); a single head is picked for the PI. A reply for a project that is
+    // no longer selected is dropped.
     useEffect(() => {
+        let stale = false;
         setOtherPiHead("");
-        if (!otherPiProject) { setOtherPiHeads([]); return; }
+        setOtherPiHeads([]);
+        if (!otherPiProject) return;
         fetchProjectHeads({ project_name: otherPiProject })
-            .then((res: any) => setOtherPiHeads(res?.message || []))
-            .catch(() => setOtherPiHeads([]));
+            .then((res: any) => {
+                if (stale) return;
+                const heads = res?.message || [];
+                setOtherPiHeads(heads);
+                if (heads.length === 1) setOtherPiHead(heads[0].value);
+            })
+            .catch(() => { if (!stale) setOtherPiHeads([]); });
+        return () => { stale = true; };
     }, [otherPiProject]);
 
     // Advance / Settle logic
@@ -474,7 +506,10 @@ const TravelDetails: React.FC = () => {
         currentUser.toLowerCase() === String(formData.webmail_id_travel).toLowerCase();
     // Settle: after Dean approval; if advance needed, only after payment recorded;
     // and only when a TA/DA Settlement hasn't already been raised for this travel.
-    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (needsAdvance ? !!linkedPayment : true);
+    // Settle waits for a payment only when an advance was actually asked for ("Do you need
+    // Advance?" = Yes) — financial assistance without an advance can be settled straight away.
+    const advanceRequested = travelRequestedAdvance(formData);
+    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (advanceRequested ? !!linkedPayment : true);
 
 
     // Block "Forward" when R&D Staff hasn't committed yet but advance is required
@@ -555,7 +590,8 @@ const TravelDetails: React.FC = () => {
     useEffect(() => {
         const loadDocument = async () => {
             if (formDataResult?.message && docName) {
-                const { fields: apiFields, link_options, scl_balance } = formDataResult.message;
+                const { fields: apiFields, link_options, scl_balance, applicant_is_project_staff } = formDataResult.message;
+                setApplicantIsProjectStaff(!!applicant_is_project_staff);
                 setFields(apiFields || []);
                 setLinkOptions(link_options || {});
                 setSclBalanceData(scl_balance || null);
@@ -747,6 +783,7 @@ const TravelDetails: React.FC = () => {
                             commitRequired={commitRequired}
                             workflowState={formData.workflow_state}
                             otherPiId={formData.travel_other_pi_id}
+                            isPiProjectStep={isOtherPiStep}
                             otherPiProject={otherPiProject}
                             otherPiHead={otherPiHead}
                             otherPiProjects={otherPiProjects}
@@ -826,7 +863,7 @@ const TravelDetails: React.FC = () => {
                                 >
                                     <option value="">Select project…</option>
                                     {otherPiProjects.map((p) => {
-                                        const blocked = needsAdvance && pfmsOtherPiProjects.has(p.value);
+                                        const blocked = advanceRequested && pfmsOtherPiProjects.has(p.value);
                                         return (
                                             <option key={p.value} value={p.value} disabled={blocked}>
                                                 {blocked ? `${p.label} (PFMS – advance not allowed)` : p.label}
@@ -834,7 +871,7 @@ const TravelDetails: React.FC = () => {
                                         );
                                     })}
                                 </select>
-                                {needsAdvance && pfmsOtherPiProjects.size > 0 && (
+                                {advanceRequested && pfmsOtherPiProjects.size > 0 && (
                                     <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                                         This travel requests an advance, so PFMS projects cannot be selected.
                                     </p>

@@ -11,6 +11,7 @@ import {
 } from "frappe-react-sdk";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import PendingLoansAlert from "@/components/dashboard/PendingLoansAlert";
+import ProjectStaffApprovalsAlert from "@/components/dashboard/ProjectStaffApprovalsAlert";
 import {
   PlusCircle,
   MessageSquare,
@@ -760,6 +761,7 @@ export function PiHomePage() {
 
           <SectionDivider title="Overview" />
           <PendingLoansAlert />
+          <ProjectStaffApprovalsAlert />
           <section className="mb-3 grid grid-cols-1 gap-2.5 lg:grid-cols-2">
             <StatStrip icon={<BarChart />} title="Project Overview" columns={3} tone="violet" action={viewDetail("/project-analytics")}>
               <MiniStat label="Total Projects" value={String(overview?.total_projects ?? 0)} hint={`${overview?.draft_projects ?? 0} in draft stage`} icon={<FileText />} tone="violet" loading={dashPending} error={failed} />
