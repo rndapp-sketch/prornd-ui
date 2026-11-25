@@ -897,7 +897,9 @@ const TravelForm: React.FC = () => {
                 f.read_only = 1;
             }
 
-            if (f.fieldname === 'travel_financial_assistance' && isPfmsProject) {
+            // PFMS: financial assistance stays selectable, but no advance — "Do you need Advance?"
+            // is fixed to No (see the effect below) and locked.
+            if (f.fieldname === 'do_you_need_advance' && isPfmsProject) {
                 f.read_only = 1;
                 f.description = PFMS_NO_ADVANCE_MESSAGE;
             }
@@ -925,12 +927,17 @@ const TravelForm: React.FC = () => {
         return processedFields;
     }, [fields, formData, isPfmsProject]);
 
-    // A PFMS project cannot fund an advance: clear a "Yes" as soon as one is selected.
+    // A PFMS project cannot fund an advance: once financial assistance is Yes (which shows
+    // "Do you need Advance?"), the advance is set to No and kept there.
     useEffect(() => {
-        if (isPfmsProject && formData.travel_financial_assistance === 'Yes') {
-            setFormData(prev => ({ ...prev, travel_financial_assistance: 'No' }));
+        if (
+            isPfmsProject &&
+            formData.travel_financial_assistance === 'Yes' &&
+            formData.do_you_need_advance !== 'No'
+        ) {
+            setFormData(prev => ({ ...prev, do_you_need_advance: 'No' }));
         }
-    }, [isPfmsProject, formData.travel_financial_assistance]);
+    }, [isPfmsProject, formData.travel_financial_assistance, formData.do_you_need_advance]);
 
     // --- RENDER LOGIC ---
     // New applications must accept the Important Notice before the form is shown.
