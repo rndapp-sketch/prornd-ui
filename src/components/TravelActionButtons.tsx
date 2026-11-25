@@ -20,6 +20,9 @@ interface TravelActionButtonsProps {
     otherPiProject?: string;
     otherPiHead?: string;
     otherPiProjects?: any[];
+    /** Set by TravelDetails when the PI must pick project + head before forwarding
+     *  (Other-PI step, or a project staff travel at "Pending PI Approval"). */
+    isPiProjectStep?: boolean;
 }
 
 // Same grouping/style convention as Project Registration's workflow actions dropdown
@@ -58,6 +61,7 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     otherPiProject = '',
     otherPiHead = '',
     otherPiProjects = [],
+    isPiProjectStep,
 }) => {
     const [actions, setActions] = useState<string[]>([]);
 
@@ -71,9 +75,10 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     // head selectors are rendered by TravelDetails (full page width); this
     // component just validates the choice and sends it with the action.
     const isPiStep =
-        workflowState === "Pending Other PI" &&
-        !!currentUser &&
-        (otherPiId || "").toLowerCase() === currentUser.toLowerCase();
+        isPiProjectStep ??
+        (workflowState === "Pending Other PI" &&
+            !!currentUser &&
+            (otherPiId || "").toLowerCase() === currentUser.toLowerCase());
 
     const selectedProject = otherPiProject;
     const selectedHead = otherPiHead;

@@ -73,6 +73,7 @@ import {
     LockIcon,
     UnlockIcon,
     CircleDotIcon,
+    Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1261,6 +1262,11 @@ const QuickActions = ({
             items: ["Reimbursement"],
         },
         {
+            title: "Vendor Payment",
+            icon: Receipt,
+            items: ["Vendor Payment"],
+        },
+        {
             title: "Advance",
             icon: CreditCard,
             items: ["Temporary Advance Apply"],
@@ -2057,6 +2063,31 @@ const QuickActions = ({
                     console.error("Head to Head Transfer fetch error:", fetchError);
                     data = [];
                 }
+            } else if (selectedApplication === "Vendor Payment") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Vendor%20Payment?fields=["name","creation","workflow_state","docstatus","owner","webmail_id","project_name","project_number"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+                    const result = await fetchResponse.json();
+                    data = (result?.data || [])
+                        .filter((item: any) =>
+                            item.project_name === projectName ||
+                            item.project_number === projectNo,
+                        )
+                        .map((item: any) => ({
+                            ...item,
+                            applicant_webmail: item.webmail_id || item.owner,
+                            workflow_state: item.workflow_state || "Draft",
+                        }));
+                } catch (fetchError) {
+                    data = [];
+                }
             } else if (selectedApplication === "Miscellaneous Commit") {
                 try {
                     const timestamp = Date.now();
@@ -2240,6 +2271,10 @@ const QuickActions = ({
                 onNavigate(
                     `/miscellaneous-commit-form?project=${projectName}`,
                 );
+                break;
+            case "Vendor Payment":
+                // project_name on Vendor Payment holds the Project Registration doc name.
+                onNavigate(`/vendor-payment-form?project=${projectName}`);
                 break;
             case "Head to Head Transfer":
                 // h2h_proj_code links to the Project Registration doc name.
@@ -2658,6 +2693,11 @@ const QuickActions = ({
                                                                 case "Miscellaneous Commit":
                                                                     onNavigate(
                                                                         `/miscellaneous-commit/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Vendor Payment":
+                                                                    onNavigate(
+                                                                        `/vendor-payment/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Head to Head Transfer":

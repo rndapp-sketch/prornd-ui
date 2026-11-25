@@ -10,6 +10,9 @@ import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { useIsPfmsProject, PFMS_NO_ADVANCE_MESSAGE } from '@/hooks/useIsPfmsProject';
+import { useProjectStaffApplicant } from '@/hooks/useProjectStaffApplicant';
+import { ProjectStaffPiNotice } from '@/components/ProjectStaffPiNotice';
+import { STAFF_HIDDEN_FIELDS, hideForProjectStaff } from '@/utils/travelProjectStaff';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -850,6 +853,44 @@ const TravelForm: React.FC = () => {
     };
 
     // --- Apply depends_on logic to filter visible fields ---
+    // Project staff raise the travel as an Other-PI one charged to their PI, who picks
+    // the project and account head at the "Pending Other PI" step.
+    const projectStaff = useProjectStaffApplicant();
+    const staffMode = projectStaff.isProjectStaff;
+    const staffPrefilled = React.useRef(false);
+    // The hidden Select questions are answered "No" / "Not Required" so the backend
+    // does not see them as unanswered or expect leave details.
+    const staffHiddenAnswers = useMemo(() => {
+        const answers: Record<string, string> = {};
+        fields.forEach((f) => {
+            if (f.fieldtype !== 'Select' || !STAFF_HIDDEN_FIELDS.has(f.fieldname)) return;
+            const opts = String(f.options || '').split('\n').map((o) => o.trim()).filter(Boolean);
+            const no = opts.find((o) => /^(no|not required)$/i.test(o));
+            if (no) answers[f.fieldname] = no;
+        });
+        return answers;
+    }, [fields]);
+    useEffect(() => {
+        if (!staffMode || projectStaff.isLoading || !dataLoaded || editDocName || staffPrefilled.current) return;
+        staffPrefilled.current = true;
+        setFormData(prev => ({
+            ...prev,
+            travel_other_pi: 'Other',
+            travel_other_pi_id: projectStaff.piEmail || prev.travel_other_pi_id || '',
+            travel_project_title: '',
+            travel_project_number: '',
+            account_head: '',
+            ...staffHiddenAnswers,
+        }));
+    }, [staffMode, projectStaff.isLoading, projectStaff.piEmail, dataLoaded, editDocName, staffHiddenAnswers]);
+    const staffLockedFields = useMemo(
+        () => (staffMode
+            ? ['travel_other_pi', 'travel_project_title', 'travel_project_number', 'account_head',
+                ...(projectStaff.piEmail ? ['travel_other_pi_id'] : [])]
+            : []),
+        [staffMode, projectStaff.piEmail],
+    );
+
     const visibleFields = useMemo(() => {
         const processedFields = fields.map(field => {
             const f = { ...field };
@@ -904,6 +945,10 @@ const TravelForm: React.FC = () => {
                 f.description = PFMS_NO_ADVANCE_MESSAGE;
             }
 
+            if (staffLockedFields.includes(f.fieldname)) {
+                f.read_only = 1;
+            }
+
             return f;
         });
 
@@ -925,7 +970,7 @@ const TravelForm: React.FC = () => {
         }
 
         return processedFields;
-    }, [fields, formData, isPfmsProject]);
+    }, [fields, formData, isPfmsProject, staffLockedFields]);
 
     // A PFMS project cannot fund an advance: once financial assistance is Yes (which shows
     // "Do you need Advance?"), the advance is set to No and kept there.
@@ -941,6 +986,8 @@ const TravelForm: React.FC = () => {
 
     // --- RENDER LOGIC ---
     // New applications must accept the Important Notice before the form is shown.
+    const staffVisibleFields = useMemo(() => hideForProjectStaff(visibleFields), [visibleFields]);
+
     if (!editDocName && !noticeAccepted) {
         return <ImportantTravelNotice onAccept={() => setNoticeAccepted(true)} />;
     }
@@ -990,6 +1037,7 @@ const TravelForm: React.FC = () => {
                                 designation={formData.designation_travel}
                                 projectNo={formData.travel_project_number}
                             />
+                            {staffMode && formData.docstatus !== 1 && <ProjectStaffPiNotice piEmail={projectStaff.piEmail} />}
                             <FrappeCard className="space-y-4">
                                 {formData.if_traveler === 'Other' && (
                                     <div className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
@@ -1007,7 +1055,7 @@ const TravelForm: React.FC = () => {
                                 )}
                                 <DynamicFormRenderer
                                                                         overheadFund={isOverheadProject}
-                                    fields={visibleFields}
+                                    fields={staffMode ? staffVisibleFields : visibleFields}
                                     formData={formData}
                                     linkOptions={linkOptions}
                                     onChange={handleChange}

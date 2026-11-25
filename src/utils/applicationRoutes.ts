@@ -10,6 +10,8 @@ export const getApplicationRoute = (doctype: string, name: string) => {
             return `/travel/${name}`;
         case "Miscellaneous Commit":
             return `/miscellaneous-commit/${name}`;
+        case "Vendor Payment":
+            return `/vendor-payment/${name}`;
         case "Loan Request":
             return `/loan-request/${name}`;
         case "Project Staff Extension":
@@ -129,6 +131,8 @@ export const getPendingTaskRoute = (doctype: string, id: string) => {
             return `/proforma-invoice/${id}`;
         case "Miscellaneous Commit":
             return `/miscellaneous-commit/${id}`;
+        case "Vendor Payment":
+            return `/vendor-payment/${id}`;
         case "Loan Request":
             return `/loan-request/${id}`;
         case "Loan Settlement":
