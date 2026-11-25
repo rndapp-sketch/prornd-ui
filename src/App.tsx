@@ -25,6 +25,7 @@ import {
   LogOutIcon,
   UserCircle,
   Sparkles,
+  Eye,
 } from "lucide-react";
 import { GlobalLoader, GlobalLoaderHost } from "@/components/ui/global-loader";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -33,6 +34,7 @@ import { useRef, useEffect, useState } from "react";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import { safeStorage } from "@/lib/safeStorage";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
+import { useEyeComfort, DEFAULT_EYE_LEVEL, DEFAULT_EYE_BORDER } from "@/hooks/useEyeComfort";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,6 +61,112 @@ function ThemeToggle() {
       <MoonIcon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
       <span className="sr-only">Toggle theme</span>
     </Button>
+  );
+}
+
+/** Eye comfort: softer, warmer colours for the whole app (header, sidebar and every page), with a strength slider. */
+function EyeComfortToggle() {
+  const [on, setOn, level, setLevel, border, setBorder] = useEyeComfort();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label="Eye comfort settings"
+        title={on ? `Eye comfort: on (${level}%)` : "Eye comfort: off"}
+        className={
+          "h-8 w-8 flex items-center justify-center rounded-lg border transition-all " +
+          (on
+            ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+            : "border-transparent text-[#71717A] hover:text-emerald-600 hover:bg-emerald-500/10")
+        }
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Eye comfort"
+          className="absolute right-0 top-10 z-[10060] w-64 rounded-xl border border-[#E4E4E7] bg-white p-3 shadow-xl dark:border-[#3F3F46] dark:bg-[#27272A]"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-bold text-[#18181B] dark:text-[#F4F4F5]">Eye comfort</p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={on}
+              onClick={() => setOn(!on)}
+              className={"relative h-5 w-9 rounded-full transition-colors " + (on ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600")}
+            >
+              <span className={"absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all " + (on ? "left-[18px]" : "left-0.5")} />
+            </button>
+          </div>
+          <p className="mt-1 text-[11.5px] leading-snug text-[#71717A] dark:text-[#A1A1AA]">Warmer, softer colours to reduce glare on long sessions.</p>
+          <div className={"mt-3 " + (on ? "" : "pointer-events-none opacity-50")}>
+            <div className="flex items-center justify-between text-[11.5px] font-semibold text-[#52525B] dark:text-[#A1A1AA]">
+              <span>Strength</span>
+              <span className="tabular-nums">{level}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={level}
+              onChange={(e) => setLevel(Number(e.target.value))}
+              aria-label="Eye comfort strength"
+              className="mt-1 w-full accent-emerald-500"
+            />
+            <div className="flex justify-between text-[10px] text-[#A1A1AA]"><span>Light</span><span>Strong</span></div>
+          </div>
+          <div className={"mt-3 " + (on ? "" : "pointer-events-none opacity-50")}>
+            <div className="flex items-center justify-between text-[11.5px] font-semibold text-[#52525B] dark:text-[#A1A1AA]">
+              <span>Border darkness</span>
+              <span className="tabular-nums">{border}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={border}
+              onChange={(e) => setBorder(Number(e.target.value))}
+              aria-label="Card border darkness"
+              className="mt-1 w-full accent-emerald-500"
+            />
+            <div className="flex justify-between text-[10px] text-[#A1A1AA]"><span>Soft</span><span>Dark</span></div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setLevel(DEFAULT_EYE_LEVEL);
+              setBorder(DEFAULT_EYE_BORDER);
+              setOn(true);
+            }}
+            className="mt-3 w-full rounded-lg border border-[#E4E4E7] py-1.5 text-[12px] font-bold text-[#52525B] transition-colors hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]"
+          >
+            Reset to default
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -259,7 +367,8 @@ function AppContent() {
                           <TooltipContent>What's New</TooltipContent>
                         </Tooltip>
 
-                        {/* Theme toggle */}
+                        {/* Eye comfort + theme toggles */}
+                        <EyeComfortToggle />
                         <ThemeToggle />
 
                         {/* Divider */}

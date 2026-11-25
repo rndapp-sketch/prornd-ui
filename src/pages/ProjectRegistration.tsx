@@ -34,6 +34,9 @@ import {
     Pencil,
     ReceiptIndianRupee,
     RefreshCw,
+    Send,
+    LockOpen,
+    Route,
 } from "lucide-react";
 import {
     EndorsementCertificate,
@@ -47,6 +50,11 @@ import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
+import { FormSelect } from "@/components/FormSelect";
+import { LocalDraftNotice, LocalDraftChooser, LocalDraftRestoreDialog, LocalDraftsButton } from "@/components/LocalProjectDraftUi";
+import { useLocalProjectDraft } from "@/hooks/useLocalProjectDraft";
+import { hasMeaningfulInput, listLocalDrafts } from "@/utils/localProjectDrafts";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -58,6 +66,8 @@ interface Field {
     read_only: boolean;
     hidden: boolean;
     description?: string | null;
+    /** Display-only hint shown under the label (frontend text; never read by form logic) */
+    helpText?: string;
     options?: string | null;
     depends_on?: string | null;
     mandatory_depends_on?: string | null;
@@ -90,9 +100,33 @@ interface FormData {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses =
-    "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-[0.4375rem] font-medium text-[13px] text-[#18181B] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 disabled:opacity-60 disabled:bg-[#F4F4F5] dark:disabled:bg-[#27272A]/50 disabled:cursor-not-allowed read-only:bg-[#F4F4F5] dark:read-only:bg-[#27272A]/60 read-only:text-[#52525B] dark:read-only:text-[#A1A1AA] transition-colors duration-150";
+    "w-full h-10 px-3 bg-[var(--psd-surface)] border border-[var(--psd-border)] rounded-lg font-medium text-[13.5px] text-[var(--psd-heading)] placeholder:text-[var(--psd-muted)] hover:border-[var(--psd-primary)]/40 focus:outline-none focus:border-[var(--psd-primary)] focus:ring-[3px] focus:ring-[var(--psd-primary)]/15 disabled:opacity-60 disabled:bg-[var(--psd-bg)] disabled:cursor-not-allowed read-only:bg-[var(--psd-bg)] read-only:text-[var(--psd-body)] transition-colors duration-150";
+// Dropdowns: same field look, native arrow replaced by a chevron, pointer cursor
+const selectClasses =
+    inputClasses +
+    " appearance-none cursor-pointer pr-10 bg-no-repeat bg-[length:16px_16px] bg-[position:right_0.8rem_center]" +
+    " bg-[url('data:image/svg+xml,%3csvg%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%20viewBox%3d%270%200%2020%2020%27%20fill%3d%27none%27%20stroke%3d%27%2371717A%27%20stroke-width%3d%272%27%20stroke-linecap%3d%27round%27%20stroke-linejoin%3d%27round%27%3e%3cpath%20d%3d%27M5%207.5l5%205%205-5%27/%3e%3c/svg%3e')]" +
+    " dark:bg-[url('data:image/svg+xml,%3csvg%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%20viewBox%3d%270%200%2020%2020%27%20fill%3d%27none%27%20stroke%3d%27%23A1A1AA%27%20stroke-width%3d%272%27%20stroke-linecap%3d%27round%27%20stroke-linejoin%3d%27round%27%3e%3cpath%20d%3d%27M5%207.5l5%205%205-5%27/%3e%3c/svg%3e')]";
 const checkboxClasses =
-    "size-5 shrink-0 appearance-none bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded checked:bg-[#4A6CF7] checked:border-[#4A6CF7] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer transition-colors";
+    "size-5 shrink-0 appearance-none bg-white dark:bg-[#27272A] border border-[var(--psd-border)] rounded checked:bg-[var(--psd-primary)] checked:border-[var(--psd-primary)] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer transition-colors";
+// Short hints under the labels. Shown only when the server's own field description is empty.
+const FIELD_HELP: Record<string, string> = {
+    project_title: "Enter the full proposed title, exactly as it should appear on approvals and records.",
+    project_type: "Choose Research, Consultancy or Others. The funding and budget sections change with this choice.",
+    implementation_department: "Select the department or centre of IIT Guwahati where the project work will be carried out.",
+    project_objective: "Briefly state what the project aims to achieve.",
+    project_deliverables: "List the outputs expected at the end, such as reports, prototypes, publications or data.",
+    executive_summary: "A short overview of the work: scope, approach and expected outcome.",
+    upload_proj_prop: "Attach the project proposal or invitation letter (PDF, DOC or DOCX, up to 10MB).",
+    project_duration_months: "Total project duration in months (tentative). The start and end dates follow from this.",
+    is_additional_pi: "Select Yes if another faculty member shares responsibility for the project as an additional PI.",
+    has_co_pi: "Select Yes to add a Co-PI. A collaborator from outside IIT Guwahati needs stakeholder registration first.",
+    committees: "Select Yes if the project needs ethics, bio-safety or any other committee clearance. You will then give the details.",
+    equipment_checkbox: "Tick to add the equipment you plan to buy: item, quantity and unit cost.",
+    manpower_checkbox: "Tick to add the project staff you plan to hire: position, number of posts and salary.",
+    involves_international_travel: "Select Yes if project work will need travel outside India.",
+};
+
 const ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".doc", ".docx"];
 const ALLOWED_DOCUMENT_ACCEPT = ".pdf,.doc,.docx";
 const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
@@ -123,7 +157,7 @@ const FrappeCard = ({
 }) => (
     <div
         className={cn(
-            "bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm",
+            "psd-card",
             className,
         )}
     >
@@ -147,9 +181,9 @@ const FrappeButton = ({
 }) => {
     const variants = {
         primary:
-            "bg-[#4A6CF7] hover:bg-[#3558E8] text-white shadow-sm hover:shadow-md hover:shadow-[#4A6CF7]/25 border border-[#4A6CF7]",
+            "bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)] text-white shadow-sm hover:shadow-md hover:shadow-[var(--psd-primary)]/25 border border-[var(--psd-primary)]",
         secondary:
-            "bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] text-[#3F3F46] dark:text-[#D4D4D8] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] shadow-sm",
+            "bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] shadow-sm",
         danger: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/40",
         ghost: "bg-transparent text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] border border-transparent",
     };
@@ -159,7 +193,7 @@ const FrappeButton = ({
             onClick={onClick}
             disabled={disabled}
             className={cn(
-                "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-[11px] uppercase tracking-wide transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed",
+                "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-[12px] tracking-normal transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[var(--psd-primary)]/25 disabled:opacity-50 disabled:cursor-not-allowed",
                 variants[variant],
                 className,
             )}
@@ -226,6 +260,7 @@ const MemoizedFormField = memo(
                                     onChange(field.fieldname, val)
                                 }
                                 options={options || []}
+                                variant="psd"
                             />
                         );
                     }
@@ -233,11 +268,13 @@ const MemoizedFormField = memo(
                         return (
                             <AutocompleteEmail
                                 {...commonProps}
+                                className={selectClasses}
                                 value={value || ""}
                                 onChange={(val) =>
                                     onChange(field.fieldname, val)
                                 }
                                 options={options || []}
+                                variant="psd"
                                 placeholder="Search funding agency..."
                                 searchByLabel
                                 showAllOnFocus
@@ -247,8 +284,9 @@ const MemoizedFormField = memo(
                         );
                     }
                     return (
-                        <select
+                        <FormSelect
                             {...commonProps}
+                            className={selectClasses}
                             value={value || ""}
                             onChange={(e) =>
                                 onChange(field.fieldname, e.target.value)
@@ -260,12 +298,13 @@ const MemoizedFormField = memo(
                                     {opt.label}
                                 </option>
                             ))}
-                        </select>
+                        </FormSelect>
                     );
                 case "Select":
                     return (
-                        <select
+                        <FormSelect
                             {...commonProps}
+                            className={selectClasses}
                             value={value || ""}
                             onChange={(e) =>
                                 onChange(field.fieldname, e.target.value)
@@ -280,7 +319,7 @@ const MemoizedFormField = memo(
                                     {opt}
                                 </option>
                             ))}
-                        </select>
+                        </FormSelect>
                     );
                 case "Text":
                 case "Small Text":
@@ -361,7 +400,7 @@ const MemoizedFormField = memo(
                             {...commonProps}
                             className={
                                 field.fieldname === "project_title"
-                                    ? cn(inputClasses, "h-14 text-base font-semibold px-4")
+                                    ? cn(inputClasses, "h-12 text-[15px] font-semibold px-4")
                                     : commonProps.className
                             }
                             value={value || ""}
@@ -385,6 +424,9 @@ const MemoizedFormField = memo(
                         />
                     ) : null}
                     {renderInput()}
+                    {field.helpText && (
+                        <p className="text-[11.5px] leading-relaxed text-[var(--psd-body)]">{field.helpText}</p>
+                    )}
                 </div>
             );
         }
@@ -392,7 +434,7 @@ const MemoizedFormField = memo(
             <div className="space-y-1.5">
                 <label
                     htmlFor={field.fieldname}
-                    className="block text-[11px] font-bold uppercase tracking-widest text-[#27272A] dark:text-[#E4E4E7]"
+                    className="block text-[12.5px] font-semibold tracking-normal text-[var(--psd-heading)]"
                 >
                     {field.label}
                     {field.mandatory && <span className="text-red-500 ml-0.5 normal-case">*</span>}
@@ -404,8 +446,11 @@ const MemoizedFormField = memo(
                         maxLength={field.fieldname === "funding_agency_schemes" ? 100 : maxLength}
                     />
                 )}
+                {field.helpText && (
+                    <p className="text-[11.5px] text-[var(--psd-body)] leading-relaxed">{field.helpText}</p>
+                )}
                 {field.description && field.fieldtype !== "Check" && (
-                    <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
+                    <p className="text-[11.5px] text-[var(--psd-body)] mt-1 leading-relaxed">
                         {field.description}
                     </p>
                 )}
@@ -426,9 +471,9 @@ const MemoizedGenericTable = memo(
         onDeleteRow,
         onOpenQuickEntry, // EDITED BY MKY | 2026-04-14 14:52 IST: Added Quick Entry hook prop
     }: any) => (
-        <div className="overflow-x-auto border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
-            <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/20">
+        <div className="overflow-x-auto border border-[var(--psd-border)] rounded-2xl shadow-sm">
+            <table className="min-w-full divide-y divide-[var(--psd-border)]">
+                <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                     <tr>
                         {[
                             ...columns,
@@ -440,21 +485,21 @@ const MemoizedGenericTable = memo(
                         ].map((c: any) => (
                             <th
                                 key={c.key}
-                                className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
+                                className="px-3.5 py-3 font-bold text-[#33441F] dark:text-[#D5E2C2] text-[11px] text-left tracking-wide border-r border-[#BBC9A4]/70 dark:border-[#4B5A3E] last:border-r-0"
                             >
                                 {c.label}
                             </th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
+                <tbody className="bg-[var(--psd-surface)] divide-y divide-[var(--psd-border)]">
                     {(tableData || []).map((row: any, i: number) => (
                         <tr
                             key={row.id}
-                            className="hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors"
+                            className="even:bg-[var(--psd-bg)]/50 hover:bg-[var(--psd-primary-light)]/40 transition-colors"
                         >
                             {columns.map((col: any) => (
-                                <td key={col.key} className="px-4 py-2.5">
+                                <td key={col.key} className="px-3.5 py-2.5 align-top">
                                     {" "}
                                     {col.type === "file" ? (
                                         <div className="space-y-1">
@@ -464,7 +509,7 @@ const MemoizedGenericTable = memo(
                                                         href={getFileUrl(row[col.key])}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-[10px] text-[#D97757] underline truncate max-w-[160px]"
+                                                        className="text-[11.5px] text-[var(--psd-primary)] underline truncate max-w-[170px]"
                                                         title={row[col.key].split("/").pop()}
                                                     >
                                                         {row[col.key].split("/").pop()}
@@ -475,7 +520,7 @@ const MemoizedGenericTable = memo(
                                             <input
                                                 type="file"
                                                 accept={ALLOWED_DOCUMENT_ACCEPT}
-                                                className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`}
+                                                className={`${inputClasses} !h-9 !py-1.5 text-[12.5px]`}
                                                 onChange={(e) =>
                                                     onFileChange(
                                                         tableName,
@@ -487,8 +532,8 @@ const MemoizedGenericTable = memo(
                                             />
                                         </div>
                                     ) : col.type === "select" ? (
-                                        <select
-                                            className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`}
+                                        <FormSelect compact
+                                            className={`${selectClasses} !h-9 text-[12.5px]`}
                                             value={row[col.key] || ""}
                                             onChange={(e) => {
                                                 // ============================================================
@@ -521,13 +566,13 @@ const MemoizedGenericTable = memo(
                                                     </option>
                                                 ),
                                             )}
-                                        </select>
+                                        </FormSelect>
                                     ) : (
                                         <input
                                             type={col.type}
                                             readOnly={!!col.readOnly}
                                             maxLength={col.type === "text" && !col.readOnly ? 140 : undefined}
-                                            className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none${col.readOnly ? " bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500" : ""}`}
+                                            className={`${inputClasses} !h-9 text-[12.5px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none${col.readOnly ? " bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500" : ""}`}
                                             value={row[col.key] || ""}
                                             onChange={(e) => {
                                                 if (col.readOnly) return;
@@ -556,15 +601,15 @@ const MemoizedGenericTable = memo(
                                         />
                                     )}{" "}
                                     {col.type === "text" && !col.readOnly && (
-                                        <CharLimitAlert value={row[col.key]} maxLength={140} className="mt-1 text-[10px]" />
+                                        <CharLimitAlert value={row[col.key]} maxLength={140} className="mt-1 text-[11px]" />
                                     )}
                                 </td>
                             ))}
-                            <td className="px-4 py-2.5">
+                            <td className="px-3.5 py-2.5 align-top">
                                 <FrappeButton
                                     variant="danger"
                                     onClick={() => onDeleteRow(tableName, i)}
-                                    className="w-full py-1.5 h-8"
+                                    className="w-full py-1 h-8"
                                 >
                                     Delete
                                 </FrappeButton>
@@ -573,11 +618,11 @@ const MemoizedGenericTable = memo(
                     ))}
                 </tbody>
             </table>
-            <div className="p-3 bg-[#FAFAF9] dark:bg-[#27272A]/60 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            <div className="p-3 bg-[var(--psd-bg)] border-t border-[var(--psd-border)]">
                 <FrappeButton
                     variant="secondary"
                     onClick={() => onAddRow(tableName, newRow)}
-                    className="w-full border-dashed"
+                    className="w-full border-dashed !py-2"
                 >
                     Add Row
                 </FrappeButton>
@@ -611,9 +656,9 @@ const MemoizedCollaboratorTable = memo(
                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
                     {title}
                 </h3>
-                <div className="border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
-                    <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/20">
+                <div className="border border-[var(--psd-border)] rounded-xl shadow-sm">
+                    <table className="min-w-full divide-y divide-[var(--psd-border)]">
+                        <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                             <tr>
                                 {[
                                     "Name*",
@@ -626,7 +671,7 @@ const MemoizedCollaboratorTable = memo(
                                 ].map((h) => (
                                     <th
                                         key={h}
-                                        className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
+                                        className="px-3.5 py-3 font-bold text-[#33441F] dark:text-[#D5E2C2] text-[11px] text-left tracking-wide border-r border-[#BBC9A4]/70 dark:border-[#4B5A3E] last:border-r-0"
                                     >
                                         {h}
                                     </th>
@@ -637,11 +682,11 @@ const MemoizedCollaboratorTable = memo(
                             {(tableData || []).map((row: any, i: number) => (
                                 <tr
                                     key={row.id}
-                                    className="hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors"
+                                    className="even:bg-[var(--psd-bg)]/50 hover:bg-[var(--psd-primary-light)]/40 transition-colors"
                                 >
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <AutocompleteEmail
-                                            className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                            className={`${inputClasses} !h-9 text-[12.5px]`}
                                             value={row[`${prefix}_name`] || ""}
                                             onChange={(val) =>
                                                 onCollaboratorChange(
@@ -657,42 +702,42 @@ const MemoizedCollaboratorTable = memo(
                                             placeholder="Select Name"
                                         />
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <input
                                             type="email"
                                             readOnly
-                                            className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`}
+                                            className={`${inputClasses} !h-9 text-[12.5px] font-medium`}
                                             value={row[`${prefix}_email`] || ""}
                                         />
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <input
                                             type="text"
                                             readOnly
-                                            className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`}
+                                            className={`${inputClasses} !h-9 text-[12.5px] font-medium`}
                                             value={
                                                 row[`${prefix}_designation`] ||
                                                 ""
                                             }
                                         />
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <input
                                             type="text"
                                             readOnly
-                                            className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`}
+                                            className={`${inputClasses} !h-9 text-[12.5px] font-medium`}
                                             value={
                                                 row[`${prefix}_department`] ||
                                                 ""
                                             }
                                         />
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <input
                                             type="text"
                                             placeholder="Institute/Address"
                                             maxLength={140}
-                                            className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                            className={`${inputClasses} !h-9 text-[12.5px]`}
                                             value={
                                                 row[`${prefix}_address`] || ""
                                             }
@@ -705,14 +750,14 @@ const MemoizedCollaboratorTable = memo(
                                                 )
                                             }
                                         />
-                                        <CharLimitAlert value={row[`${prefix}_address`]} maxLength={140} className="mt-1 text-[10px]" />
+                                        <CharLimitAlert value={row[`${prefix}_address`]} maxLength={140} className="mt-1 text-[11px]" />
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <input
                                             type="tel"
                                             placeholder="91XXXXXXXXXX"
                                             maxLength={12}
-                                            className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                            className={`${inputClasses} !h-9 text-[12.5px]`}
                                             value={
                                                 row[`${prefix}_contact`] || ""
                                             }
@@ -729,13 +774,13 @@ const MemoizedCollaboratorTable = memo(
                                             }
                                         />
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3.5 py-2.5 align-top">
                                         <FrappeButton
                                             variant="danger"
                                             onClick={() =>
                                                 onDeleteRow(tableName, i)
                                             }
-                                            className="w-full py-1.5 h-8"
+                                            className="w-full py-1 h-8"
                                         >
                                             Delete
                                         </FrappeButton>
@@ -744,11 +789,11 @@ const MemoizedCollaboratorTable = memo(
                             ))}
                         </tbody>
                     </table>
-                    <div className="p-3 bg-[#FAFAF9] dark:bg-[#27272A]/60 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="p-3 bg-[var(--psd-bg)] border-t border-[var(--psd-border)]">
                         <FrappeButton
                             variant="secondary"
                             onClick={() => onAddRow(tableName, newRow)}
-                            className="w-full border-dashed"
+                            className="w-full border-dashed !py-2"
                         >
                             Add Row
                         </FrappeButton>
@@ -774,31 +819,51 @@ const MemoizedBudgetTable = memo(
         allowYearActions = true,
         readOnly = false,
     }: any) => (
-        <div className="space-y-4">
-            <div className="overflow-x-auto border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
-                <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                    <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/20">
+        <div className="space-y-3">
+            {/* How to fill this table (display only) */}
+            <ol className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {[
+                    ["1", "Select an account head", "Choose the budget head for each row: manpower, equipment, travel and so on."],
+                    ["2", "Enter the amount per year", "Type the planned amount in ₹ under each year. Use Add Year for longer projects."],
+                    ["3", "Totals update by themselves", "Row totals, yearly totals and the grand total are calculated for you."],
+                ].map(([n, title, body]) => (
+                    <li key={n} className="flex gap-2.5 rounded-xl border border-[var(--psd-border)] bg-[linear-gradient(135deg,#FFFFFF,#F8F5FF)] px-3 py-2 dark:bg-[linear-gradient(135deg,#27272A,#2A2838)]">
+                        <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[var(--psd-primary)] text-[10.5px] font-extrabold text-white">{n}</span>
+                        <span>
+                            <span className="block text-[12.5px] font-bold text-[var(--psd-heading)]">{title}</span>
+                            <span className="block text-[11.5px] leading-snug text-[var(--psd-body)]">{body}</span>
+                        </span>
+                    </li>
+                ))}
+            </ol>
+            <div className="overflow-x-auto border border-[var(--psd-border)] rounded-2xl shadow-sm">
+                <table className="min-w-full divide-y divide-[var(--psd-border)]">
+                    <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                         <tr>
-                            <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20">
+                            <th className="px-3 py-2 font-bold text-[#33441F] dark:text-[#D5E2C2] text-[11px] text-left tracking-wide border-r border-[#BBC9A4]/70 dark:border-[#4B5A3E]">
                                 Account Head
+                                <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal opacity-70">Budget head for the row</span>
                             </th>
                             {budgetYears.map((year: number, index: number) => (
                                 <th
                                     key={index}
-                                    className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
+                                    className="px-3 py-2 font-bold text-[#33441F] dark:text-[#D5E2C2] text-[11px] text-left tracking-wide border-r border-[#BBC9A4]/70 dark:border-[#4B5A3E] last:border-r-0"
                                 >
                                     {allowYearActions ? `Year ${year} (₹)` : "Budget (₹)"}
+                                    <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal opacity-70">Planned amount</span>
                                 </th>
                             ))}
-                            <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20">
+                            <th className="px-3 py-2 font-bold text-[#33441F] dark:text-[#D5E2C2] text-[11px] text-left tracking-wide border-r border-[#BBC9A4]/70 dark:border-[#4B5A3E]">
                                 Total (₹)
+                                <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal opacity-70">Row total, automatic</span>
                             </th>
-                            <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest">
+                            <th className="px-3 py-2 font-bold text-[#33441F] dark:text-[#D5E2C2] text-[11px] text-left tracking-wide">
                                 Actions
+                                <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal opacity-70">Remove this row</span>
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
+                    <tbody className="bg-[var(--psd-surface)] divide-y divide-[var(--psd-border)]">
                         {(tableData || []).map((row: any, rowIndex: number) => {
                             const rowTotal = (row.years || []).reduce(
                                 (sum: number, val: any) =>
@@ -808,11 +873,11 @@ const MemoizedBudgetTable = memo(
                             return (
                                 <tr
                                     key={row.id}
-                                    className="hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors"
+                                    className="even:bg-[var(--psd-bg)]/50 hover:bg-[var(--psd-primary-light)]/40 transition-colors"
                                 >
-                                    <td className="px-4 py-2.5">
-                                        <select
-                                            className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                    <td className="px-3 py-1.5 align-top">
+                                        <FormSelect compact
+                                            className={`${selectClasses} !h-9 text-[12.5px]`}
                                             value={row.head || ""}
                                             disabled={readOnly}
                                             onChange={(e) =>
@@ -824,7 +889,7 @@ const MemoizedBudgetTable = memo(
                                             }
                                         >
                                             <option value="">
-                                                Select Budget Head
+                                                Select an account head
                                             </option>
                                             {row.head &&
                                                 !budgetHeadOptions.some(
@@ -844,20 +909,20 @@ const MemoizedBudgetTable = memo(
                                                     </option>
                                                 ),
                                             )}
-                                        </select>
+                                        </FormSelect>
                                     </td>
                                     {budgetYears.map(
                                         (_: any, yearIndex: number) => (
                                             <td
                                                 key={yearIndex}
-                                                className="px-4 py-2.5"
+                                                className="px-3 py-1.5 align-top"
                                             >
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
                                                     title="Enter a positive budget amount"
                                                     maxLength={22}
-                                                    className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                                    className={`${inputClasses} !h-9 text-[12.5px]`}
                                                     value={String((row.years || [])[yearIndex] ?? "")}
                                                     readOnly={readOnly}
                                                     disabled={readOnly}
@@ -877,14 +942,14 @@ const MemoizedBudgetTable = memo(
                                             </td>
                                         ),
                                     )}
-                                    <td className="px-4 py-2.5 font-medium text-zinc-900 dark:text-zinc-100 text-right pr-6 text-xs">
+                                    <td className="px-3 py-1.5 font-semibold text-[var(--psd-heading)] text-right pr-5 text-[12.5px]">
                                         {rowTotal.toFixed(2)}
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3 py-1.5 align-top">
                                         <FrappeButton
                                             variant="danger"
                                             type="button"
-                                            className="w-full py-1.5 h-8"
+                                            className="w-full py-1 h-7"
                                             disabled={readOnly}
                                             onClick={() =>
                                                 onDeleteRow(
@@ -900,27 +965,28 @@ const MemoizedBudgetTable = memo(
                             );
                         })}
                     </tbody>
-                    <tfoot className="bg-[#F4F4F5] dark:bg-[#27272A]/60 border-t-[1.5px] border-[#D4D4D8] dark:border-[#52525B]">
+                    <tfoot className="bg-[#EEF3E6] dark:bg-[#2A3125] border-t border-[#BBC9A4] dark:border-[#4B5A3E]">
                         <tr>
-                            <th className="px-4 py-3 text-right font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-[11px] uppercase tracking-wide">
+                            <th className="px-3 py-2 text-right font-bold text-[var(--psd-heading)] text-[11.5px] tracking-wide">
                                 Yearly Total
+                                <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal text-[var(--psd-body)]">Sum of all rows</span>
                             </th>
                             {budgetYears.map((_: any, yearIndex: number) => (
                                 <td
                                     key={yearIndex}
-                                    className="px-4 py-3 font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right pr-6 text-[12px]"
+                                    className="px-3 py-2 font-bold text-[var(--psd-heading)] text-right pr-5 text-[12.5px]"
                                 >
                                     {Number(getYearTotal(yearIndex)).toFixed(2)}
                                 </td>
                             ))}
-                            <td className="px-4 py-3 font-extrabold text-[#4A6CF7] dark:text-[#818CF8] text-right pr-6 text-[12px]">
+                            <td className="px-3 py-2 font-extrabold text-[var(--psd-primary)] text-right pr-5 text-[13px]">
                                 {totalBudgetAmount.toFixed(2)}
                             </td>
-                            <td className="px-4 py-3"></td>
+                            <td className="px-3 py-2"></td>
                         </tr>
                     </tfoot>
                 </table>
-                <div className="p-3 bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 flex justify-between">
+                <div className="p-2.5 bg-[var(--psd-bg)] border-t border-[var(--psd-border)] flex flex-wrap items-center justify-between gap-2">
                     <FrappeButton
                         variant="secondary"
                         disabled={readOnly}
@@ -936,7 +1002,7 @@ const MemoizedBudgetTable = memo(
                         + Add Row
                     </FrappeButton>
                     {allowYearActions && (
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             {budgetYears.length > 1 && (
                                 <FrappeButton
                                     variant="danger"
@@ -951,15 +1017,27 @@ const MemoizedBudgetTable = memo(
                         </div>
                     )}
                 </div>
+                <p className="border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-3 pb-2 pt-1.5 text-[11px] leading-snug text-[var(--psd-body)]">
+                    <b className="font-bold text-[var(--psd-heading)]">Add Row</b> adds another account head.{" "}
+                    {allowYearActions && (
+                        <>
+                            <b className="font-bold text-[var(--psd-heading)]">Add Year</b> adds a column for the next year, and{" "}
+                            <b className="font-bold text-[var(--psd-heading)]">Remove Year</b> deletes the last one.
+                        </>
+                    )}
+                </p>
             </div>
-            <div className="mt-6 flex justify-end">
-                <div className="w-full md:w-1/3 space-y-2">
-                    <label className="block text-base font-bold text-zinc-900 dark:text-zinc-100">
+            <div className="mt-4 flex justify-end">
+                <div className="w-full md:w-60 space-y-1 rounded-xl border border-[var(--psd-border)] bg-[linear-gradient(135deg,#FFFFFF,#F1F6EA)] px-3 py-2.5 dark:bg-[linear-gradient(135deg,#27272A,#2A3027)]">
+                    <label className="block text-[13px] font-bold text-[var(--psd-heading)]">
                         Grand Total (₹)
                     </label>
+                    <p className="text-[10.5px] font-normal leading-snug text-[var(--psd-body)]">
+                        Sum of all account heads across all years.
+                    </p>
                     <input
                         type="text"
-                        className={`${inputClasses} !h-10 text-lg font-bold bg-claude-bg dark:bg-zinc-900 text-[#D97757]`}
+                        className={`${inputClasses} !h-9 text-base font-extrabold !bg-white/70 dark:!bg-zinc-900/60 text-[var(--psd-primary)]`}
                         readOnly
                         value={totalBudgetAmount.toFixed(2)}
                     />
@@ -970,6 +1048,84 @@ const MemoizedBudgetTable = memo(
 );
 
 // --- MAIN COMPONENT ---
+interface FlowStep {
+    icon: React.ElementType;
+    label: string;
+    who: string;
+    tone: string;
+    here?: boolean;
+}
+
+/** A row of coloured nodes joined by arrows. Arrows are hidden where a row wraps (small: smCols, wide: xlCols). */
+const FlowDiagram = ({
+    title,
+    subtitle,
+    icon: HeaderIcon,
+    steps,
+    smCols,
+    xlCols,
+    footer,
+    className,
+}: {
+    title: string;
+    subtitle: string;
+    icon: React.ElementType;
+    steps: FlowStep[];
+    smCols: number;
+    xlCols: number;
+    footer?: React.ReactNode;
+    className?: string;
+}) => (
+    <div className={cn("psd-card overflow-hidden", className)}>
+        <div className="flex items-center gap-2 border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] px-2.5 py-1 dark:bg-zinc-800/60">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--psd-accent)] text-white shadow-sm"><HeaderIcon className="h-2.5 w-2.5" /></span>
+            <div>
+                <p className="text-[11.5px] font-extrabold leading-tight text-[var(--psd-heading)]">{title}</p>
+                <p className="text-[9.5px] font-medium text-[var(--psd-body)]">{subtitle}</p>
+            </div>
+        </div>
+        <div className="px-2.5 py-2">
+            <ol
+                className="grid gap-y-2 grid-cols-[repeat(var(--sm-cols),minmax(0,1fr))] xl:grid-cols-[repeat(var(--xl-cols),minmax(0,1fr))]"
+                style={{ ["--sm-cols" as string]: smCols, ["--xl-cols" as string]: xlCols }}
+            >
+                {steps.map((n, i) => {
+                    const last = i === steps.length - 1;
+                    const endsSmallRow = (i + 1) % smCols === 0;
+                    const endsWideRow = (i + 1) % xlCols === 0;
+                    return (
+                        <li key={n.label} className="relative flex flex-col items-center px-1 text-center">
+                            {/* Arrow from this node to the next */}
+                            {!last && (
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        "pointer-events-none absolute top-[11px] left-[calc(50%+15px)] right-[calc(-50%+15px)] items-center",
+                                        endsSmallRow ? "hidden" : "flex",
+                                        endsSmallRow && !endsWideRow && "xl:flex",
+                                    )}
+                                >
+                                    <span className="h-[2px] flex-1 rounded-full" style={{ background: n.tone, opacity: 0.45 }} />
+                                    <ArrowRight className="-ml-1 size-2.5 shrink-0" style={{ color: n.tone }} strokeWidth={2.5} />
+                                </span>
+                            )}
+                            <span
+                                className="relative z-10 grid size-6 place-items-center rounded-full text-white shadow-sm ring-2 ring-[var(--psd-surface)]"
+                                style={{ background: n.tone, boxShadow: n.here ? `0 0 0 3px color-mix(in srgb, ${n.tone} 28%, transparent)` : undefined }}
+                            >
+                                <n.icon className="size-3" />
+                            </span>
+                            <span className="mt-0.5 text-[10.5px] font-extrabold leading-tight text-[var(--psd-heading)]">{n.label}</span>
+                            <span className="text-[9px] font-medium leading-tight text-[var(--psd-body)]">{n.here ? "You are here" : n.who}</span>
+                        </li>
+                    );
+                })}
+            </ol>
+            {footer && <div className="mt-1.5 border-t border-[var(--psd-border)] pt-1">{footer}</div>}
+        </div>
+    </div>
+);
+
 const ProjectRegistration: React.FC = () => {
     // --- STATE & API HOOKS ---
     const { currentUser } = useFrappeAuth();
@@ -2307,6 +2463,7 @@ const ProjectRegistration: React.FC = () => {
                 mandatory: isMandatory,
                 read_only: isReadOnly,
                 ...(labelOverride ? { label: labelOverride } : {}),
+                ...(!field.description && FIELD_HELP[fieldname] ? { helpText: FIELD_HELP[fieldname] } : {}),
             };
             const options =
                 linkOptions[field.options as string] || linkOptions[fieldname];
@@ -2359,7 +2516,7 @@ const ProjectRegistration: React.FC = () => {
                         title="Refetch from PI webmail"
                         disabled={isFetchingPiDetails}
                         onClick={refetchPiDetails}
-                        className="absolute right-0 top-0 rounded p-0.5 text-[#4A6CF7] transition-colors hover:bg-[#4A6CF7]/10 disabled:opacity-40 dark:text-[#93C5FD]"
+                        className="absolute right-0 top-0 rounded p-0.5 text-[var(--psd-primary)] transition-colors hover:bg-[var(--psd-primary)]/10 disabled:opacity-40 dark:text-[#93C5FD]"
                     >
                         <RefreshCw
                             className={cn(
@@ -3090,6 +3247,39 @@ Endorsement is optional. You may continue completing Project Registration while 
         }
     }, [saveEndorsementResult, saveEndorsementError]);
 
+    // Local (this browser) autosave of an unfinished new registration. Read-only on the form; see useLocalProjectDraft.
+    const localDraft = useLocalProjectDraft({
+        tempId: pathTempId,
+        docname,
+        user: currentUser,
+        resumeRequested: new URLSearchParams(location.search).get("resume") === "1",
+        formData,
+        setFormData,
+        budgetYears,
+        setBudgetYears,
+        activeTab,
+        setActiveTab,
+        setEntryStep,
+        formReady: !loading && fields.length > 0,
+        isEditMode,
+        serverSaved: !!(saveResult || submitResult),
+        restoreYears: controlYearFieldsVisibility,
+    });
+    const [showDraftChooser, setShowDraftChooser] = useState(false);
+    const startRegistration = async () => {
+        const saved = currentUser && !docname ? await listLocalDrafts(currentUser) : [];
+        // Skip drafts that are this very form (already open); only offer other unfinished ones
+        if (saved.some((d) => d.id !== pathTempId)) setShowDraftChooser(true);
+        else setEntryStep("form");
+    };
+    const restoreDialog = (
+        <LocalDraftRestoreDialog
+            draft={localDraft.mode === "pending" ? localDraft.found : null}
+            onRestore={localDraft.accept}
+            onDiscard={localDraft.discard}
+        />
+    );
+
     // --- RENDER LOGIC ---
     if (entryStep === "instructions") {
         const pipelineSteps = [
@@ -3126,58 +3316,66 @@ Endorsement is optional. You may continue completing Project Registration while 
         ];
 
         return (
-            <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
+            <div className="psd-root flex-1 w-full min-h-screen">
+                {restoreDialog}
+                <LocalDraftChooser open={showDraftChooser} onClose={() => setShowDraftChooser(false)} onStartFresh={() => setEntryStep("form")} />
                 <div className="w-full px-0 py-0 mx-auto">
-
                     {/* Page header */}
-                    <div className="flex items-center gap-3 mb-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(-1)}
-                            className="p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors"
-                        >
-                            <ArrowLeft className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
-                        </button>
-                        <div>
-                            <h1 className="text-[18px] font-extrabold text-[#18181B] dark:text-[#FAFAFA] leading-tight">Project Registration Guide</h1>
-                            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">Understand the process before you begin</p>
+                    <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                        <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => navigate(-1)}
+                                aria-label="Go back"
+                                className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">New project</div>
+                                <h1 className="mt-0.5 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Project Registration Guide</h1>
+                            </div>
                         </div>
-                    </div>
+                        <div className="relative z-10 flex items-center gap-3">
+                            <p className="hidden text-xs text-[var(--psd-body)] sm:block">Understand the process before you begin</p>
+                            <LocalDraftsButton />
+                        </div>
+                    </header>
 
                     <div className="space-y-4">
 
                         {/* TOP ROW — two columns */}
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
 
                         {/* LEFT COLUMN — fill the form */}
-                        <div className="lg:col-span-3 space-y-4">
+                        <div className="lg:col-span-2 grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
 
                             {/* STEP A: Fill the form */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-[#4A6CF7] px-4 py-2.5 flex items-center gap-2">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white text-[10px] font-extrabold">A</span>
+                            <div className="psd-card overflow-hidden">
+                                <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] dark:bg-zinc-800/60 px-3.5 py-2 flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--psd-primary)] text-white text-[11px] font-extrabold shadow-sm">A</span>
                                     <div>
-                                        <p className="text-[12px] font-extrabold text-white leading-tight">Fill the Registration Form</p>
-                                        <p className="text-[9px] text-blue-100 mt-0.5">You are here — complete these 4 sections</p>
+                                        <p className="text-[12px] font-extrabold text-[var(--psd-heading)] leading-tight">Fill the Registration Form</p>
+                                        <p className="text-[11px] font-medium text-[var(--psd-body)] mt-0.5">You are here — complete these 4 sections</p>
                                     </div>
                                 </div>
-                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
+                                <div className="divide-y divide-[var(--psd-border)]">
                                     {[
-                                        { icon: FileText, color: "text-[#4A6CF7]", bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", step: "1", title: "Project Details", body: <>Choose the <b>project type</b> (Research / Consultancy / Others), enter the title, select the <b>department</b> and <b>funding agency</b>, set the duration, and attach the <b>proposal or invitation letter</b>.</> },
+                                        { icon: FileText, color: "text-[var(--psd-primary)]", bg: "bg-[#EEF2FF] dark:bg-[var(--psd-primary)]/15", step: "1", title: "Project Details", body: <>Choose the <b>project type</b> (Research / Consultancy / Others), enter the title, select the <b>department</b> and <b>funding agency</b>, set the duration, and attach the <b>proposal or invitation letter</b>.</> },
                                         { icon: Users, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-900/20", step: "2", title: "Investigators (PI / Co-PI)", body: <>Your <b>PI details auto-fill from webmail</b>. Add a Co-PI or Additional PI only if someone else is also responsible for the project. External collaborators need <b>stakeholder registration</b> first.</> },
                                         { icon: Landmark, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20", step: "3", title: "Budget & Clearances", body: <>Enter the <b>proposed budget breakup by head</b> (manpower, equipment, travel, etc.). Fill committee clearance or ethical declaration fields <b>only if applicable</b> to your project.</> },
                                         { icon: CheckCircle2, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20", step: "4", title: "Save or Submit", body: <>Use <b>Save As Draft</b> if the form is not yet complete — you can return later. When everything is ready, click <b>Submit</b> to send the project for approval.</> },
                                     ].map((s) => (
-                                        <div key={s.step} className="flex gap-3 px-4 py-2.5">
-                                            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg mt-0.5 ${s.bg}`}>
+                                        <div key={s.step} className="flex gap-3 px-3 py-1.5 transition-colors hover:bg-[var(--psd-primary-light)]/30">
+                                            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg mt-0.5 ${s.bg}`}>
                                                 <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                                             </div>
                                             <div>
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="text-[10px] font-extrabold text-[#A1A1AA] dark:text-[#71717A] uppercase tracking-wide">Step {s.step}</span>
-                                                    <span className="text-[12px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <span className="rounded-full bg-[var(--psd-bg)] px-2 py-px text-[10px] font-extrabold uppercase tracking-wide text-[var(--psd-body)] ring-1 ring-[var(--psd-border)]">Step {s.step}</span>
+                                                    <span className="text-[12px] font-extrabold text-[var(--psd-heading)]">{s.title}</span>
                                                 </div>
-                                                <p className="text-[11px] font-medium leading-snug text-[#52525B] dark:text-[#A1A1AA] [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">{s.body}</p>
+                                                <p className="text-[11px] font-medium leading-snug text-[var(--psd-body)] [&_b]:font-extrabold [&_b]:text-[var(--psd-heading)]">{s.body}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -3185,81 +3383,107 @@ Endorsement is optional. You may continue completing Project Registration while 
                             </div>
 
                             {/* STEP B: What happens after */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-emerald-600 px-4 py-2.5 flex items-center gap-2">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white text-[10px] font-extrabold">B</span>
+                            <div className="psd-card overflow-hidden">
+                                <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] dark:bg-zinc-800/60 px-3.5 py-2 flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--psd-approved)] text-white text-[11px] font-extrabold shadow-sm">B</span>
                                     <div>
-                                        <p className="text-[12px] font-extrabold text-white leading-tight">What Happens After You Submit</p>
-                                        <p className="text-[9px] text-emerald-100 mt-0.5">The project goes through this pipeline automatically</p>
+                                        <p className="text-[12px] font-extrabold text-[var(--psd-heading)] leading-tight">What Happens After You Submit</p>
+                                        <p className="text-[11px] font-medium text-[var(--psd-body)] mt-0.5">The project goes through this pipeline automatically</p>
                                     </div>
                                 </div>
-                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
+                                <div className="divide-y divide-[var(--psd-border)]">
                                     {[
                                         { num: "1", title: "Approval Workflow", body: <>Your submitted project goes to the configured approvers — typically <b>HoS</b> (Head of Section) followed by <b>Dean R&D</b>. Each approver reviews and approves at their level.</>, tag: "Auto-routed", tagColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
                                         { num: "2", title: "Project Approved", body: <>Once all approvers sign off, the project status changes to <b>Approved</b>. You will now be able to <b>add fund sanction details</b>.</>, tag: "Milestone", tagColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
                                         { num: "3", title: "Add Fund Sanction", body: <>Enter the <b>sanction letter details</b> from your funding agency — sanction number, date, total amount, and budget breakup. This also goes through an <b>approval workflow</b>.</>, tag: "Action needed", tagColor: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
                                         { num: "4", title: "Record Fund Received", body: <>After sanction is approved, record each <b>installment of actual funds received</b> from the agency. Once funds are recorded, <b>all application modules</b> (Travel, Reimbursement, etc.) unlock.</>, tag: "Unlocks apps", tagColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
                                     ].map((s) => (
-                                        <div key={s.num} className="flex gap-3 px-4 py-2.5">
+                                        <div key={s.num} className="flex gap-3 px-3 py-1.5 transition-colors hover:bg-[var(--psd-approved-bg)]/40">
                                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold mt-0.5">
                                                 {s.num}
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                                    <span className="text-[12px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                    <span className="text-[12px] font-extrabold text-[var(--psd-heading)]">{s.title}</span>
                                                     <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${s.tagColor}`}>{s.tag}</span>
                                                 </div>
-                                                <p className="text-[11px] font-medium leading-snug text-[#52525B] dark:text-[#A1A1AA] [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">{s.body}</p>
+                                                <p className="text-[11px] font-medium leading-snug text-[var(--psd-body)] [&_b]:font-extrabold [&_b]:text-[var(--psd-heading)]">{s.body}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+
+                            {/* WORKFLOW DIAGRAMS: where this form goes */}
+                            <FlowDiagram
+                                className="xl:col-span-2"
+                                icon={Route}
+                                title="Your project's journey"
+                                subtitle="Where this form goes, from your desk to unlocked applications"
+                                smCols={4}
+                                xlCols={8}
+                                steps={[
+                                    { icon: FileText, label: "Fill the form", who: "You", tone: "#6842D9", here: true },
+                                    { icon: Send, label: "Submit", who: "You", tone: "#6842D9" },
+                                    { icon: Users, label: "R&D Staff", who: "Review", tone: "#E99A16" },
+                                    { icon: Users, label: "HoS, R&D", who: "Approval", tone: "#E99A16" },
+                                    { icon: Users, label: "Dean, R&D", who: "Approval", tone: "#E99A16" },
+                                    { icon: CheckCircle2, label: "Project approved", who: "Milestone", tone: "#0DA875" },
+                                    { icon: Landmark, label: "Fund sanction", who: "You add, then approved", tone: "#F47721" },
+                                    { icon: LockOpen, label: "Funds received", who: "Applications unlock", tone: "#0B8F85" },
+                                ]}
+                                footer={
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] font-medium text-[var(--psd-body)]">
+                                        {[["#6842D9", "Your action"], ["#E99A16", "Approvers"], ["#0DA875", "Milestone"], ["#F47721", "Action needed"], ["#0B8F85", "Unlocks"]].map(([c, l]) => (
+                                            <span key={l} className="inline-flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: c }} />{l}</span>
+                                        ))}
+                                        <span className="ml-auto text-[var(--psd-muted)]">Save As Draft any time before submitting. Approvers follow your configured workflow.</span>
+                                    </div>
+                                }
+                            />
+
+                            <FlowDiagram
+                                className="xl:col-span-2"
+                                icon={FileBadge}
+                                title="Endorsement process"
+                                subtitle="Optional: only when your project or office process needs an endorsement certificate"
+                                smCols={3}
+                                xlCols={6}
+                                steps={[
+                                    { icon: FileText, label: "Fill basic data", who: "In this form", tone: "#6842D9" },
+                                    { icon: FileBadge, label: "Generate", who: "Click Generate Endorsement", tone: "#6842D9" },
+                                    { icon: Send, label: "Submit", who: "Goes to Dean R&D", tone: "#6842D9" },
+                                    { icon: Users, label: "Dean approves", who: "Endorsement approved", tone: "#E99A16" },
+                                    { icon: RefreshCw, label: "Download", who: "Certificate from Project View", tone: "#0DA875" },
+                                    { icon: ArrowRight, label: "Register Project", who: "Continue registration", tone: "#0B8F85" },
+                                ]}
+                            />
                         </div>
 
                         {/* RIGHT COLUMN — endorsement + CTA */}
-                        <div className="lg:col-span-2 space-y-4">
+                        <div className="lg:col-span-1 space-y-3">
 
                             {/* Endorsement guide */}
-                            <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
-                                <div className="px-4 py-2.5 border-b border-orange-200 dark:border-orange-800/50 flex items-center gap-2 bg-orange-50 dark:bg-orange-900/20">
+                            <div className="psd-card overflow-hidden">
+                                <div className="border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] dark:bg-zinc-800/60 px-3.5 py-2 flex items-center gap-2">
                                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-800/40 ring-1 ring-orange-200 dark:ring-orange-700">
                                         <FileBadge className="h-3 w-3 text-orange-600 dark:text-orange-300" />
                                     </div>
                                     <div>
-                                        <p className="text-[12px] font-extrabold text-orange-900 dark:text-orange-100">Endorsement</p>
-                                        <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Optional — not required for every project</p>
+                                        <p className="text-[13px] font-extrabold text-[var(--psd-heading)]">Endorsement</p>
+                                        <p className="text-[11px] font-semibold text-[#C2570C] dark:text-orange-300">Optional — not required for every project</p>
                                     </div>
                                 </div>
 
-                                <div className="px-4 py-3 space-y-2.5">
-                                    <div className="rounded-lg bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-3 py-2">
-                                        <p className="text-[12px] font-extrabold text-slate-800 dark:text-slate-100 mb-0.5">When do I need it?</p>
-                                        <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 leading-snug">Only when the project or office process <b className="font-extrabold text-slate-800 dark:text-slate-100">specifically requires</b> an endorsement certificate. <b className="font-extrabold text-slate-800 dark:text-slate-100">Most projects can be registered directly</b> without it.</p>
+                                <div className="px-3.5 py-2.5 space-y-2">
+                                    <div className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2">
+                                        <p className="text-[13px] font-extrabold text-[var(--psd-heading)] mb-0.5">When do I need it?</p>
+                                        <p className="text-[12px] font-medium text-[var(--psd-body)] leading-snug">Only when the project or office process <b className="font-extrabold text-slate-800 dark:text-slate-100">specifically requires</b> an endorsement certificate. <b className="font-extrabold text-slate-800 dark:text-slate-100">Most projects can be registered directly</b> without it.</p>
                                     </div>
 
-                                    <div>
-                                        <p className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Endorsement process</p>
-                                        <div className="space-y-1.5">
-                                            {[
-                                                "Fill basic project data in this form",
-                                                "Click Generate Endorsement",
-                                                "Submit — goes to Dean R&D for approval",
-                                                "Dean approves the endorsement",
-                                                "Download the certificate from Project View",
-                                                "Use Register Project to continue registration",
-                                            ].map((text, i) => (
-                                                <div key={i} className="flex gap-2 items-start">
-                                                    <span className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-extrabold mt-0.5">{i + 1}</span>
-                                                    <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-snug">{text}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="rounded-lg bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-3 py-2">
-                                        <p className="text-[12px] font-extrabold text-slate-800 dark:text-slate-100 mb-1">Fields needed</p>
-                                        <ul className="space-y-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                                    <div className="rounded-lg bg-[var(--psd-bg)] border border-[var(--psd-border)] px-3 py-2">
+                                        <p className="text-[13px] font-extrabold text-[var(--psd-heading)] mb-1">Fields needed</p>
+                                        <ul className="space-y-1 text-[12px] font-medium text-[var(--psd-body)]">
                                             <li>• Project Title, Type, Department</li>
                                             <li>• Duration & Funding Agency</li>
                                             <li>• PI Webmail, Name, Designation, Employee ID</li>
@@ -3270,17 +3494,17 @@ Endorsement is optional. You may continue completing Project Registration while 
                             </div>
 
                             {/* Quick tip */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] px-4 py-3">
-                                <p className="text-[12px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2">Quick Tips</p>
-                                <ul className="space-y-1.5">
+                            <div className="psd-card px-3.5 py-2.5">
+                                <p className="text-[13px] font-extrabold text-[var(--psd-heading)] mb-2 border-l-[3px] border-[var(--psd-accent)] pl-2.5">Quick Tips</p>
+                                <ul className="space-y-1">
                                     {[
                                         <>You can <b>save as draft</b> at any time and return later.</>,
                                         <>Only <b>submit</b> when all required fields are filled.</>,
                                         <><b>Consultancy projects</b> can be registered without endorsement.</>,
                                         <>If a Co-PI is <b>from outside IIT Guwahati</b>, they need stakeholder registration first.</>,
                                     ].map((tip, i) => (
-                                        <li key={i} className="flex gap-1.5 items-start text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA] leading-snug [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">
-                                            <span className="text-[#4A6CF7] mt-0.5 shrink-0 font-extrabold">→</span>
+                                        <li key={i} className="flex gap-1.5 items-start text-[12px] font-medium text-[var(--psd-body)] leading-snug [&_b]:font-extrabold [&_b]:text-[var(--psd-heading)]">
+                                            <span className="text-[var(--psd-primary)] mt-0.5 shrink-0 font-extrabold">→</span>
                                             {tip}
                                         </li>
                                     ))}
@@ -3293,9 +3517,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                     <div className="fixed bottom-6 right-8 z-50">
                         <button
                             type="button"
-                            onClick={() => setEntryStep("form")}
+                            onClick={startRegistration}
                             disabled={loading}
-                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#4A6CF7] hover:bg-[#3558E8] text-white text-[13px] font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)] text-white text-[13px] font-extrabold shadow-lg shadow-[var(--psd-primary)]/35 hover:shadow-[var(--psd-primary)]/50 transition-all disabled:opacity-50"
                         >
                             {loading ? (
                                 <>
@@ -3370,13 +3594,13 @@ Endorsement is optional. You may continue completing Project Registration while 
     if (docname && !formData.project_title) {
         return (
             <div className="min-h-screen bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center p-6">
-                <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm p-8 max-w-md w-full text-center space-y-4">
+                <div className="bg-white dark:bg-[#27272A] border border-[var(--psd-border)] rounded-2xl shadow-sm p-8 max-w-md w-full text-center space-y-4">
                     <div className="text-3xl">⚠️</div>
                     <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                         Data failed to load
                     </h2>
                     <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
-                        The form data did not load correctly. Please go back and click <span className="font-semibold text-[#4A6CF7]">Edit</span> again to reload.
+                        The form data did not load correctly. Please go back and click <span className="font-semibold text-[var(--psd-primary)]">Edit</span> again to reload.
                     </p>
                     <button
                         onClick={() => window.history.back()}
@@ -3406,42 +3630,20 @@ Endorsement is optional. You may continue completing Project Registration while 
             0,
         );
 
+    const TAB_ACTIVE = "bg-[var(--psd-primary)] border-[var(--psd-primary)] text-white shadow-md shadow-[var(--psd-primary)]/30";
+    const TAB_IDLE = "border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)]/50 hover:text-[var(--psd-primary)]";
     const tabs = [
-        {
-            label: "Project Details",
-            icon: FileText,
-            activeClass: "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]",
-            inactiveClass: "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]",
-            iconClass: "text-[#4A6CF7] dark:text-[#A5B4FC]",
-        },
-        {
-            label: "PI & Collaborators",
-            icon: Users,
-            activeClass: "bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]",
-            inactiveClass: "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]",
-            iconClass: "text-[#059669] dark:text-[#6EE7B7]",
-        },
-        {
-            label: "Budget",
-            icon: IndianRupee,
-            activeClass: "bg-[#FFF7ED] border-[#F97316] text-[#9A3412] shadow-sm shadow-[#F97316]/10 dark:bg-[#F97316]/15 dark:border-[#FB923C] dark:text-[#FED7AA]",
-            inactiveClass: "border-[#FED7AA] bg-[#FFF7ED]/65 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#F97316]/30 dark:bg-[#F97316]/10 dark:text-[#FED7AA]",
-            iconClass: "text-[#EA580C] dark:text-[#FDBA74]",
-        },
-        {
-            label: "Clearance",
-            icon: Shield,
-            activeClass: "bg-[#FDF2F8] border-[#DB2777] text-[#9D174D] shadow-sm shadow-[#DB2777]/10 dark:bg-[#DB2777]/15 dark:border-[#F472B6] dark:text-[#FBCFE8]",
-            inactiveClass: "border-[#FBCFE8] bg-[#FDF2F8]/65 text-[#BE185D] hover:bg-[#FDF2F8] dark:border-[#DB2777]/30 dark:bg-[#DB2777]/10 dark:text-[#FBCFE8]",
-            iconClass: "text-[#DB2777] dark:text-[#F9A8D4]",
-        },
+        { label: "Project Details", icon: FileText, activeClass: TAB_ACTIVE, inactiveClass: TAB_IDLE, iconClass: "text-current" },
+        { label: "PI & Collaborators", icon: Users, activeClass: TAB_ACTIVE, inactiveClass: TAB_IDLE, iconClass: "text-current" },
+        { label: "Budget", icon: IndianRupee, activeClass: TAB_ACTIVE, inactiveClass: TAB_IDLE, iconClass: "text-current" },
+        { label: "Clearance", icon: Shield, activeClass: TAB_ACTIVE, inactiveClass: TAB_IDLE, iconClass: "text-current" },
     ];
     const renderNextPrevButtons = (
         showPrev: boolean,
         showNext: boolean,
         isLast = false,
     ) => (
-        <div className="mt-8 flex justify-between items-center bg-white dark:bg-[#27272A] p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
+        <div className="mt-6 flex justify-between items-center psd-card !rounded-xl p-3">
             {/* Previous Button */}
             <FrappeButton
                 variant="secondary"
@@ -3520,11 +3722,12 @@ Endorsement is optional. You may continue completing Project Registration while 
     };
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B]">
+        <div className="psd-root">
+            {restoreDialog}
             {/* Mandatory fields validation modal */}
             {validationErrors.length > 0 && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                    <div className="psd-card !rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
                         {/* Modal top accent */}
                         <div className="h-[3px] bg-gradient-to-r from-red-500 to-red-400" />
                         <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-[#F4F4F5] dark:border-[#3F3F46]">
@@ -3569,33 +3772,60 @@ Endorsement is optional. You may continue completing Project Registration while 
                     </div>
                 </div>
             )}
-            <main className="w-full overflow-hidden bg-[#FAFAF9] dark:bg-[#18181B]">
+            <main className="w-full overflow-hidden">
                 {/* Page header */}
-                <header className="mb-3 flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="font-sans text-[21px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
-                            {docname ? "Project Registration" : "New Project Registration"}
-                        </h1>
-                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mt-1 font-medium">
+                <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                    <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                        <button
+                            type="button"
+                            onClick={() => (docname ? navigate(-1) : setEntryStep("instructions"))}
+                            aria-label={docname ? "Go back" : "Back to the guide and unfinished registrations"}
+                            title={docname ? "Go back" : "Back to the guide (your entries stay as they are)"}
+                            className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                        </button>
+                        <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <FileText className="size-4" strokeWidth={1.8} />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Project Registry</div>
+                            <h1 className="mt-0.5 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">
+                                {docname ? "Project Registration" : "New Project Registration"}
+                            </h1>
+                        </div>
+                    </div>
+                    <div className="relative z-10 flex items-center gap-3">
+                        <p className="hidden text-xs text-[var(--psd-body)] md:block">
                             {isEditMode
                                 ? "Fill all sections to register a new project."
                                 : "Viewing saved draft — click Edit to make changes."}
                         </p>
+                        {!docname && <LocalDraftsButton />}
                     </div>
                     {docname && !isEditMode && (
                         <button
                             type="button"
                             onClick={() => setIsEditMode(true)}
-                            className="flex-shrink-0 btn-primary-accent"
+                            className="relative z-10 flex-shrink-0 btn-primary-accent"
                         >
                             <Pencil className="w-3.5 h-3.5" /> Edit
                         </button>
                     )}
                 </header>
 
+                {localDraft.active && isEditMode && (
+                    <LocalDraftNotice
+                        supported={localDraft.supported}
+                        status={localDraft.status}
+                        lastSavedAt={localDraft.lastSavedAt}
+                        hasInput={hasMeaningfulInput(formData)}
+                    />
+                )}
+
                 {/* Tab navigation card */}
-                <div className="bg-white dark:bg-[#27272A] border border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm overflow-hidden">
-                    <div className="border-b border-[#D4D4D8] dark:border-[#52525B] bg-[#FAFAF9] dark:bg-[#27272A]">
+                <div className="psd-card overflow-hidden !rounded-xl">
+                    <div className="border-b border-[var(--psd-border)] bg-[var(--psd-surface)]">
                         <nav className="flex items-center gap-1 p-2 overflow-x-auto">
                             {tabs.map((tab, index) => (
                                 <button
@@ -3603,7 +3833,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                     type="button"
                                     onClick={() => setActiveTab(index)}
                                     className={cn(
-                                        "flex-shrink-0 flex h-8 items-center gap-1.5 px-2.5 font-bold text-[11px] uppercase tracking-wide rounded-lg border transition-all",
+                                        "flex-shrink-0 flex h-9 items-center gap-2 px-3.5 font-bold text-[12.5px] tracking-normal rounded-full border transition-all duration-200",
                                         activeTab === index ? tab.activeClass : tab.inactiveClass,
                                     )}
                                 >
@@ -3642,7 +3872,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                         </nav>
                     </div>
 
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-3">
+                    <div className="bg-[linear-gradient(160deg,#F7F3FF_0%,#F6F8FC_48%,#EFF5E6_100%)] dark:bg-[linear-gradient(160deg,#222030_0%,#1F2024_50%,#222A21_100%)] p-3">
                         {/* Form loading skeleton — shown until fields arrive */}
                         {(loading || fields.length === 0) && (
                             <div className="space-y-4">
@@ -3681,8 +3911,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                                         }
                                     >
                                         <FrappeCard className="overflow-hidden p-5 space-y-5">
-                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
-                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] font-sans text-[14px] font-bold tracking-tight text-[var(--psd-heading)] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[var(--psd-accent)] rounded-full flex-shrink-0" />
                                                 1. Project Description
                                             </h2>
                                             {renderField("project_title")}
@@ -3693,7 +3923,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                         {renderField("involves_international_travel")}
                                                         <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             <div className="flex items-center justify-between flex-wrap gap-4">
-                                                                <h3 className="-mx-5 -mt-5 px-5 py-3 mb-0 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">Funding Details</h3>
+                                                                <h3 className="-mx-5 -mt-5 px-5 py-3 mb-0 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">Funding Details</h3>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -3705,17 +3935,17 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                     Add Funding Agency
                                                                 </button>
                                                             </div>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                                 {renderFields(
                                                                     tabFieldGroups.fundingDetails,
                                                                 )}
                                                             </div>
                                                         </FrappeCard>
                                                         <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                            <h3 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">
                                                                 Agency Address
                                                             </h3>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                                 {renderFields(
                                                                     tabFieldGroups.agencyAddress,
                                                                 )}
@@ -3741,9 +3971,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                             {formData.consultancy_category?.startsWith(
                                                                 "Category D",
                                                             ) && (
-                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60 min-w-0 overflow-hidden">
+                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border border-[var(--psd-border)] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60 min-w-0 overflow-hidden">
                                                                         <div className="space-y-4 min-w-0">
-                                                                            <h4 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                                            <h4 className="text-[12.5px] font-bold tracking-normal text-[var(--psd-heading)]">
                                                                                 Category D Details
                                                                             </h4>
                                                                             {renderField("category_d_note")}
@@ -3778,7 +4008,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                             {renderField("cat_d_grand_total_calc")}
                                                                         </div>
                                                                         <div className="space-y-4 min-w-0 overflow-hidden">
-                                                                            <h4 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                                            <h4 className="text-[12.5px] font-bold tracking-normal text-[var(--psd-heading)]">
                                                                                 Calculation Breakdown
                                                                             </h4>
                                                                             {(() => {
@@ -3804,11 +4034,11 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                                                 <col className="w-[46%]" />
                                                                                                 <col className="w-[23%]" />
                                                                                             </colgroup>
-                                                                                            <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
+                                                                                            <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                                                                                                 <tr>
-                                                                                                    <th scope="col" className="px-2 py-2 text-left text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">Step</th>
-                                                                                                    <th scope="col" className="px-2 py-2 text-left text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">Formula</th>
-                                                                                                    <th scope="col" className="px-2 py-2 text-right text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">Result</th>
+                                                                                                    <th scope="col" className="px-2 py-2 text-left text-[10px] font-extrabold uppercase tracking-widest text-[#33441F] dark:text-[#D5E2C2] border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">Step</th>
+                                                                                                    <th scope="col" className="px-2 py-2 text-left text-[10px] font-extrabold uppercase tracking-widest text-[#33441F] dark:text-[#D5E2C2] border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">Formula</th>
+                                                                                                    <th scope="col" className="px-2 py-2 text-right text-[10px] font-extrabold uppercase tracking-widest text-[#33441F] dark:text-[#D5E2C2]">Result</th>
                                                                                                 </tr>
                                                                                             </thead>
                                                                                             <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
@@ -3871,7 +4101,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                 "Category D",
                                                             ) &&
                                                                 formData.consultancy_category && (
-                                                                    <div className="space-y-4 p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60">
+                                                                    <div className="space-y-4 p-4 border border-[var(--psd-border)] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60">
                                                                         <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
                                                                             {formData.consultancy_category?.includes(
                                                                                 "Routine",
@@ -3914,7 +4144,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                         </div>
                                                         <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             <div className="flex items-center justify-between flex-wrap gap-4">
-                                                                <h3 className="-mx-5 -mt-5 px-5 py-3 mb-0 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">Funding Details</h3>
+                                                                <h3 className="-mx-5 -mt-5 px-5 py-3 mb-0 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">Funding Details</h3>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -3926,17 +4156,17 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                     Add Funding Agency
                                                                 </button>
                                                             </div>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                                 {renderFields(
                                                                     tabFieldGroups.fundingDetails,
                                                                 )}
                                                             </div>
                                                         </FrappeCard>
                                                         <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                            <h3 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">
                                                                 Agency Address
                                                             </h3>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                                 {renderFields(
                                                                     tabFieldGroups.agencyAddress,
                                                                 )}
@@ -4009,7 +4239,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 />
                                             </div>
                                             {renderField("my_projects")}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                 {formData.project_type === "Consultancy" ? (
                                                     <>
                                                         {renderField("project_duration_months")}
@@ -4033,7 +4263,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                         })()}
                                                     </p>
                                                 )}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                 {renderField("prj_start_date")}
                                                 {renderField("prj_end_date")}
                                             </div>
@@ -4047,7 +4277,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     )}
                                                     {formData.is_the_account_type_pfms ===
                                                         "Yes" && (
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                                 {renderField(
                                                                     "scheme_name",
                                                                 )}
@@ -4058,7 +4288,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                         )}
                                                     {formData.is_the_account_type_pfms ===
                                                         "No" && (
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                                                                 {renderField(
                                                                     "account_number",
                                                                 )}
@@ -4138,13 +4368,13 @@ Endorsement is optional. You may continue completing Project Registration while 
                                         }
                                     >
                                         <FrappeCard className="overflow-hidden p-5 space-y-5">
-                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
-                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] font-sans text-[14px] font-bold tracking-tight text-[var(--psd-heading)] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[var(--psd-accent)] rounded-full flex-shrink-0" />
                                                 2. Investigators & Collaborators
                                             </h2>
                                             <div className="overflow-hidden border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm bg-white dark:bg-zinc-900">
-                                                <div className="px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 flex items-center gap-3">
-                                                    <h3 className="text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                <div className="px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] flex items-center gap-3">
+                                                    <h3 className="text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">
                                                         Principal Investigator (PI)
                                                     </h3>
                                                     {isFetchingPiDetails && (
@@ -4177,8 +4407,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                                             </div>
                                             {isMentorEligible && (
                                                 <div className="overflow-hidden border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm bg-white dark:bg-zinc-900">
-                                                    <div className="px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 flex items-center gap-3">
-                                                        <h3 className="text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                    <div className="px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] flex items-center gap-3">
+                                                        <h3 className="text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">
                                                             Mentor
                                                         </h3>
                                                     </div>
@@ -4187,15 +4417,15 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                             <div className="space-y-1.5">
                                                                 <label
                                                                     htmlFor="mentor_user_id"
-                                                                    className="block text-[11px] font-bold uppercase tracking-widest text-[#27272A] dark:text-[#E4E4E7]"
+                                                                    className="block text-[12.5px] font-semibold tracking-normal text-[var(--psd-heading)]"
                                                                 >
                                                                     Mentor
                                                                     <span className="text-red-500 ml-0.5 normal-case">*</span>
                                                                 </label>
-                                                                <select
+                                                                <FormSelect
                                                                     id="mentor_user_id"
                                                                     name="mentor_user_id"
-                                                                    className={inputClasses}
+                                                                    className={selectClasses}
                                                                     required
                                                                     disabled={!isEditMode}
                                                                     value={formData.mentor_user_id || ""}
@@ -4215,8 +4445,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                         !mentorOptions.some((opt) => opt.name === formData.mentor_user_id) && (
                                                                             <option value={formData.mentor_user_id}>{formData.mentor_user_id}</option>
                                                                         )}
-                                                                </select>
-                                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
+                                                                </FormSelect>
+                                                                <p className="text-[11.5px] text-[var(--psd-body)] mt-1 leading-relaxed">
                                                                     Must be a Permanent Employee. Your mentor will review and approve applications on your behalf.
                                                                 </p>
                                                             </div>
@@ -4341,8 +4571,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                                         }
                                     >
                                         <FrappeCard className="overflow-hidden p-5 space-y-5">
-                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
-                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] font-sans text-[14px] font-bold tracking-tight text-[var(--psd-heading)] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[var(--psd-accent)] rounded-full flex-shrink-0" />
                                                 3. Proposed Budget
                                             </h2>
                                             {formData.project_type?.toLowerCase() === "consultancy" && (
@@ -4395,9 +4625,14 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 readOnly={isConsultancyProject}
                                             />
                                             <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">
-                                                <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
-                                                    Enter the details of Equipment and Manpower (Optional)
-                                                </p>
+                                                <div>
+                                                    <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
+                                                        Enter the details of Equipment and Manpower (Optional)
+                                                    </p>
+                                                    <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--psd-body)]">
+                                                        Only fill these if the project will buy equipment or hire staff. Leave both unticked otherwise.
+                                                    </p>
+                                                </div>
                                                 {renderField(
                                                     "equipment_checkbox",
                                                 )}
@@ -4555,8 +4790,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                                         }
                                     >
                                         <FrappeCard className="overflow-hidden p-5 space-y-5">
-                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
-                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] font-sans text-[14px] font-bold tracking-tight text-[var(--psd-heading)] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[var(--psd-accent)] rounded-full flex-shrink-0" />
                                                 4. Clearance & Declaration
                                             </h2>
                                             {renderField(
@@ -4612,7 +4847,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 {formData.have_sanction_details ===
                                                     "Yes" && (
                                                         <FrappeCard className="overflow-hidden p-6 space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="-mx-6 -mt-6 mb-2 px-6 py-4 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] dark:from-[#1E3A8A]/15 dark:to-[#4A6CF7]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                            <h3 className="-mx-6 -mt-6 mb-2 px-6 py-4 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">
                                                                 Sanction Details
                                                             </h3>
 
@@ -4705,7 +4940,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 {formData.have_fund_details ===
                                                     "Yes" && (
                                                         <FrappeCard className="overflow-hidden p-6 space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="-mx-6 -mt-6 mb-2 px-6 py-4 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] dark:from-[#1E3A8A]/15 dark:to-[#4A6CF7]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                            <h3 className="-mx-6 -mt-6 mb-2 px-6 py-4 bg-[#FFF8F1] dark:bg-zinc-800/60 border-b border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-accent)] text-[14px] font-bold tracking-tight text-[var(--psd-heading)]">
                                                                 Fund Details
                                                             </h3>
 
@@ -4830,9 +5065,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                 {/* Endorsement Certificate Modal */}
                 {showEndorsementModal && (
                     <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-8">
-                        <div className="relative bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl max-w-[240mm] w-full mx-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] overflow-hidden">
+                        <div className="relative bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl max-w-[240mm] w-full mx-4 border border-[var(--psd-border)] overflow-hidden">
                             {/* Modal Header */}
-                            <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
+                            <div className="h-[3px] bg-gradient-to-r from-[var(--psd-primary)] via-[#2563EB] to-transparent" />
                             <div className="bg-[#FAFAF9] dark:bg-[#27272A] border-b border-[#E4E4E7] dark:border-[#3F3F46] px-6 py-4 flex items-center justify-between">
                                 <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                     Endorsement Certificate
@@ -4970,9 +5205,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                 {/* Preview Modal */}
                 {showPreviewModal && docname && (
                     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-hidden">
-                        <div className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl flex flex-col w-full max-w-7xl h-full max-h-screen border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] overflow-hidden">
+                        <div className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl flex flex-col w-full max-w-7xl h-full max-h-screen border border-[var(--psd-border)] overflow-hidden">
                             {/* Header accent */}
-                            <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent shrink-0" />
+                            <div className="h-[3px] bg-gradient-to-r from-[var(--psd-primary)] via-[#2563EB] to-transparent shrink-0" />
                             {/* Header */}
                             <div className="flex justify-between items-center px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] z-10 shrink-0">
                                 <div>
@@ -5031,8 +5266,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                 {/* ============================================================ */}
                 {quickEntryState?.isOpen && (
                     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999999] p-4">
-                        <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] p-6 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-                            <div className="h-[2px] -mx-6 -mt-6 mb-5 bg-gradient-to-r from-[#4A6CF7] to-transparent" />
+                        <div className="bg-white dark:bg-[#27272A] border border-[var(--psd-border)] p-6 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+                            <div className="h-[2px] -mx-6 -mt-6 mb-5 bg-gradient-to-r from-[var(--psd-primary)] to-transparent" />
                             <h3 className="text-[13px] font-bold mb-4 text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Create New Designation
                             </h3>
@@ -5071,8 +5306,8 @@ Endorsement is optional. You may continue completing Project Registration while 
                 {/* Final Submission Comment Modal */}
                 {showSubmitCommentModal && (
                     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999999] p-4">
-                        <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] p-6 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-                            <div className="h-[2px] -mx-6 -mt-6 mb-5 bg-gradient-to-r from-[#4A6CF7] to-transparent" />
+                        <div className="bg-white dark:bg-[#27272A] border border-[var(--psd-border)] p-6 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="h-[2px] -mx-6 -mt-6 mb-5 bg-gradient-to-r from-[var(--psd-primary)] to-transparent" />
                             <h3 className="text-[13px] font-bold mb-1.5 text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Confirm Submit
                             </h3>
@@ -5083,7 +5318,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 id="finalSubmitComment"
                                 placeholder="Enter your comment here..."
                                 maxLength={65535}
-                                className="w-full mb-4 min-h-[100px] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#27272A] text-[#18181B] dark:text-[#E4E4E7] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 p-3 rounded-lg text-[13px] font-medium resize-none"
+                                className="w-full mb-4 min-h-[100px] border border-[var(--psd-border)] bg-white dark:bg-[#27272A] text-[#18181B] dark:text-[#E4E4E7] focus:outline-none focus:border-[var(--psd-primary)] focus:ring-[3px] focus:ring-[var(--psd-primary)]/12 p-3 rounded-lg text-[13px] font-medium resize-none"
                             />
                             <div className="flex justify-end gap-3">
                                 <button

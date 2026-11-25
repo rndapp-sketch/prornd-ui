@@ -94,6 +94,8 @@ import { loanSettlementAPI } from "@/services/apiService";
 import { OVERHEAD_BUDGET_HEAD, OVERHEAD_BUDGET_HEAD_ID, fetchOverheadLedger } from "@/services/overheadLedger";
 import { UC_REQUEST_ENABLED } from "@/config/features";
 import { isTravelAdvancePaid, travelRequestedAdvance } from "@/services/travelSettlement";
+import "@/pages/dashboards/projectStaffDashboard.css";
+import { fetchPerson } from "@/hooks/useMyRecentApplications";
 
 // --- Ledger Interfaces ---
 interface LedgerTransaction {
@@ -2135,21 +2137,34 @@ const QuickActions = ({
     const ActionButton = ({
         children,
         onClick,
+        icon: GroupIcon,
+        color = "#6842D9",
     }: {
         children: React.ReactNode;
         onClick?: () => void;
+        icon?: React.ElementType;
+        color?: string;
     }) => (
         <button
             onClick={onClick}
             className={cn(
-                "w-full justify-start text-left text-sm font-medium text-zinc-700 dark:text-zinc-300",
-                "px-4 py-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800",
-                "shadow-sm transition-all duration-150",
-                "hover:shadow-md hover:border-[#D97757]/20 hover:text-[#D97757]",
-                "focus:outline-none focus:ring-2 focus:ring-[#D97757]/20",
+                "psd-focus group flex w-full items-center gap-3 rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3.5 py-3 text-left",
+                "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
             )}
         >
-            {children}
+            {GroupIcon && (
+                <span
+                    className="grid size-9 shrink-0 place-items-center rounded-lg transition-transform duration-200 group-hover:scale-110"
+                    style={{ background: `color-mix(in srgb, ${color} 14%, var(--psd-surface))`, color }}
+                >
+                    <GroupIcon className="size-[18px]" />
+                </span>
+            )}
+            <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-bold text-[var(--psd-heading)]">{children}</span>
+                <span className="block text-[11.5px] text-[var(--psd-body)]">Start or view applications</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-[var(--psd-muted)] transition-transform group-hover:translate-x-0.5" style={{ color }} />
         </button>
     );
 
@@ -2319,13 +2334,47 @@ const QuickActions = ({
     };
 
     // Table view for selected application
+    // All tabs share one look; the selected one turns green
+    const TAB_ACTIVE = "#0DA875";
+    const groupColor = (_title: string) => TAB_ACTIVE;
+
+    const tabStrip = (
+        <nav className="flex flex-wrap gap-2" aria-label="Quick actions tabs">
+            {groups.map((group) => {
+                const Icon = group.icon;
+                const isActive = activeTab === group.title;
+                const tabLocked = isModuleLocked && !unlockedGroups.includes(group.title);
+                return (
+                    <button
+                        key={group.title}
+                        onClick={() => !tabLocked && handleTabChange(group.title)}
+                        aria-selected={isActive}
+                        disabled={tabLocked}
+                        title={tabLocked ? "Locked: Fund Sanction must be approved and funds received before using this module" : undefined}
+                        style={isActive ? { boxShadow: `0 4px 10px -4px ${TAB_ACTIVE}` } : undefined}
+                        className={cn(
+                            "psd-focus inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[12.5px] font-bold transition-all duration-200",
+                            isActive
+                                ? "scale-[1.04] bg-[#0DA875] text-white"
+                                : "border border-[var(--psd-border)] bg-[#EEF1E8] text-[var(--psd-body)] hover:border-[#0DA875]/50 hover:text-[#0A7F58] dark:bg-[#2A3125]",
+                            tabLocked && "pointer-events-none cursor-not-allowed opacity-40",
+                        )}
+                    >
+                        <Icon className="size-4" />
+                        <span>{group.title}</span>
+                    </button>
+                );
+            })}
+        </nav>
+    );
+
     if (selectedApplication) {
         // Check if current tab is single-item (hide back button for these)
         const currentGroup = groups.find((g) => g.title === activeTab);
         const isSingleItemTab = currentGroup && currentGroup.items.length === 1;
 
         return (
-            <div className="p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+            <div className="psd-root rounded-2xl border border-[var(--psd-border)] p-4" style={{ background: "var(--psd-bg)" }}>
                 {/* Lock notice banner */}
                 {isModuleLocked && (
                     <div className="mb-4 flex gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
@@ -2344,35 +2393,7 @@ const QuickActions = ({
                 )}
 
                 {/* Tab Header - Always visible */}
-                <div className="mb-5">
-                    <nav
-                        className="frappe-tabs"
-                        aria-label="Quick actions tabs"
-                    >
-                        {groups.map((group) => {
-                            const Icon = group.icon;
-                            const isActive = activeTab === group.title;
-                            const tabLocked = isModuleLocked && !unlockedGroups.includes(group.title);
-                            return (
-                                <button
-                                    key={group.title}
-                                    onClick={() => !tabLocked && handleTabChange(group.title)}
-                                    aria-selected={isActive}
-                                    disabled={tabLocked}
-                                    title={tabLocked ? "Locked: Fund Sanction must be approved and funds received before using this module" : undefined}
-                                    className={cn(
-                                        "frappe-tab flex items-center gap-2 font-bold",
-                                        isActive && "active",
-                                        tabLocked && "opacity-40 cursor-not-allowed pointer-events-none",
-                                    )}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    <span>{group.title}</span>
-                                </button>
-                            );
-                        })}
-                    </nav>
-                </div>
+                <div className="mb-4">{tabStrip}</div>
 
                 {/* Header with back button and Apply New */}
                 <div className="flex items-center justify-between mb-5">
@@ -2385,7 +2406,7 @@ const QuickActions = ({
                                 <ChevronRight className="w-5 h-5 text-zinc-600 dark:text-zinc-400 rotate-180" />
                             </button>
                         )}
-                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                        <h3 className="text-[15px] font-bold text-[var(--psd-heading)]">
                             {selectedApplication}
                         </h3>
                     </div>
@@ -2397,8 +2418,8 @@ const QuickActions = ({
                                 onClick={handleApplyNew}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                                    "bg-[#D97757] text-white hover:bg-[#D97757]",
-                                    "shadow-sm transition-all duration-150",
+                                    "psd-focus bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)]",
+                                    "shadow-sm transition-all duration-150 active:scale-[0.98]",
                                 )}
                             >
                                 <Plus className="w-4 h-4" />
@@ -2408,36 +2429,36 @@ const QuickActions = ({
                 </div>
 
                 {/* Applications Table */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                <div className="psd-card overflow-hidden !rounded-xl">
                     {isLoading ? (
                         <div className="p-12 text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mx-auto"></div>
-                            <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--psd-primary)] mx-auto"></div>
+                            <p className="mt-4 text-sm text-[var(--psd-body)]">
                                 Loading applications...
                             </p>
                         </div>
                     ) : applicationData.length > 0 ? (
-                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        <table className="min-w-full">
+                            <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
+                                <tr className="border-b border-[#BBC9A4] dark:border-[#4B5A3E]">
+                                    <th className="relative px-4 py-2 text-left text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Application ID
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    <th className="relative px-4 py-2 text-left text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Date
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    <th className="relative px-4 py-2 text-left text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Applicant
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    <th className="relative px-4 py-2 text-left text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider after:absolute after:right-0 after:top-[25%] after:h-1/2 after:w-px after:rounded-full after:bg-[#9DAE85] dark:after:bg-[#5C6D4D]">
                                         Status
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    <th className="relative px-4 py-2 text-left text-[11px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                            <tbody>
                                 {applicationData
                                     .slice(
                                         (applicationsPage - 1) * applicationsPageSize,
@@ -2447,19 +2468,19 @@ const QuickActions = ({
                                     (item: any, index: number) => (
                                         <tr
                                             key={item.name || index}
-                                            className="hover:bg-zinc-50 dark:bg-zinc-800/50"
+                                            className="border-b border-[var(--psd-border)] last:border-b-0 transition-colors hover:bg-[var(--psd-primary-light)]/40"
                                         >
-                                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                            <td className="relative border-b border-[#D8C6EC] dark:border-[#4A3A5C] bg-[#F1E8F9] dark:bg-[#33243F] px-4 py-2.5 font-mono text-[13px] font-bold text-[#7A46AE] dark:text-[#D3B4F0] after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[#DDD0EE] dark:after:bg-[#4A3A5C] [tr:last-child_&]:border-b-0">
                                                 {item.name}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                            <td className="relative px-4 py-2.5 text-[13px] text-[var(--psd-body)] after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[var(--psd-border)]">
                                                 {formatDate(item.creation)}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
+                                            <td className="relative px-4 py-2.5 text-[13px] font-medium text-[var(--psd-heading)] after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[var(--psd-border)]">
                                                 {item.applicant_webmail ||
                                                     item.owner}
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="relative px-4 py-2.5 after:absolute after:right-0 after:top-[22%] after:h-[56%] after:w-px after:rounded-full after:bg-[var(--psd-border)]">
                                                 <div className="flex flex-col gap-1">
                                                     {(() => {
                                                         const displayStatus =
@@ -2472,19 +2493,19 @@ const QuickActions = ({
                                                         return (
                                                             <span
                                                                 className={cn(
-                                                                    "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                                                                    "inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full",
                                                                     displayStatus ===
                                                                     "Approved" &&
-                                                                    "bg-green-100 text-green-700",
+                                                                    "bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300",
                                                                     displayStatus ===
                                                                     "PO Delivered" &&
-                                                                    "bg-green-100 text-green-700",
+                                                                    "bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300",
                                                                     displayStatus ===
                                                                     "Pending" &&
-                                                                    "bg-yellow-100 text-yellow-700",
+                                                                    "bg-[var(--psd-review-bg)] text-[#B45309] dark:text-amber-300",
                                                                     displayStatus ===
                                                                     "Rejected" &&
-                                                                    "bg-red-100 text-red-700",
+                                                                    "bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300",
                                                                     displayStatus ===
                                                                     "Draft" &&
                                                                     "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
@@ -2497,7 +2518,7 @@ const QuickActions = ({
                                                                     ].includes(
                                                                         displayStatus,
                                                                     ) &&
-                                                                    "bg-blue-100 text-blue-700",
+                                                                    "bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300",
                                                                 )}
                                                             >
                                                                 {displayStatus ||
@@ -2515,10 +2536,10 @@ const QuickActions = ({
                                                         return (
                                                             <span
                                                                 className={cn(
-                                                                    "inline-flex w-fit px-2 py-1 text-xs font-medium rounded-full",
-                                                                    approved && "bg-red-100 text-red-700",
+                                                                    "inline-flex w-fit px-2 py-0.5 text-[11px] font-semibold rounded-full",
+                                                                    approved && "bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300",
                                                                     rejected && "bg-zinc-100 text-zinc-700",
-                                                                    !approved && !rejected && "bg-amber-100 text-amber-700",
+                                                                    !approved && !rejected && "bg-[var(--psd-review-bg)] text-[#B45309] dark:text-amber-300",
                                                                 )}
                                                                 title={`Cancellation request: ${c.status || "Pending"}`}
                                                             >
@@ -2534,7 +2555,7 @@ const QuickActions = ({
                                                         item.loan_settlement_status && (
                                                             <span
                                                                 className={cn(
-                                                                    "inline-flex w-fit px-2 py-1 text-xs font-medium rounded-full",
+                                                                    "inline-flex w-fit px-2 py-0.5 text-[11px] font-semibold rounded-full",
                                                                     LOAN_SETTLEMENT_BADGE[
                                                                         item.loan_settlement_status as LoanSettlementStatus
                                                                     ],
@@ -2573,13 +2594,13 @@ const QuickActions = ({
                                                                             settlement.name
                                                                         }
                                                                         className={cn(
-                                                                            "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                                                                            "inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full",
                                                                             settlement.workflow_state ===
                                                                             "Approved" &&
-                                                                            "bg-green-100 text-green-700",
+                                                                            "bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300",
                                                                             settlement.workflow_state ===
                                                                             "Rejected" &&
-                                                                            "bg-red-100 text-red-700",
+                                                                            "bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300",
                                                                             settlement.workflow_state ===
                                                                             "Draft" &&
                                                                             "bg-zinc-100 text-zinc-700",
@@ -2590,7 +2611,7 @@ const QuickActions = ({
                                                                             ].includes(
                                                                                 settlement.workflow_state,
                                                                             ) &&
-                                                                            "bg-blue-100 text-blue-700",
+                                                                            "bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300",
                                                                         )}
                                                                         title={`Settlement: ${settlement.name}`}
                                                                     >
@@ -2603,7 +2624,7 @@ const QuickActions = ({
                                                             )}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-2.5">
                                                 <div className="flex gap-3">
                                                     <button
                                                         onClick={() => {
@@ -2934,13 +2955,13 @@ const QuickActions = ({
                         </table>
                     ) : (
                         <div className="p-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                                <FileTextIcon className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
+                            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[var(--psd-primary-light)] text-[var(--psd-primary)] flex items-center justify-center">
+                                <FileTextIcon className="w-7 h-7" />
                             </div>
-                            <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
+                            <h4 className="text-sm font-bold text-[var(--psd-heading)] mb-1">
                                 No applications yet
                             </h4>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                            <p className="text-[13px] text-[var(--psd-body)] mb-4">
                                 You haven't submitted any{" "}
                                 {selectedApplication?.toLowerCase()}{" "}
                                 applications for this project.
@@ -2949,8 +2970,8 @@ const QuickActions = ({
                                 onClick={handleApplyNew}
                                 className={cn(
                                     "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                                    "bg-[#D97757] text-white hover:bg-[#D97757]",
-                                    "shadow-sm transition-all duration-150",
+                                    "psd-focus bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)]",
+                                    "shadow-sm transition-all duration-150 active:scale-[0.98]",
                                 )}
                             >
                                 <Plus className="w-4 h-4" />
@@ -2959,8 +2980,8 @@ const QuickActions = ({
                         </div>
                     )}
                     {applicationData.length > applicationsPageSize && (
-                        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-800">
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        <div className="flex items-center justify-between border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2">
+                            <p className="text-xs font-medium tabular-nums text-[var(--psd-body)]">
                                 Showing{" "}
                                 {(applicationsPage - 1) * applicationsPageSize + 1}
                                 {"–"}
@@ -2976,11 +2997,11 @@ const QuickActions = ({
                                         setApplicationsPage((p) => Math.max(1, p - 1))
                                     }
                                     disabled={applicationsPage === 1}
-                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                    className="psd-focus px-3 py-1 text-xs font-semibold rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                 >
                                     Previous
                                 </button>
-                                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                                <span className="text-xs font-medium tabular-nums text-[var(--psd-body)]">
                                     Page {applicationsPage} of{" "}
                                     {Math.max(
                                         1,
@@ -3009,7 +3030,7 @@ const QuickActions = ({
                                                 applicationsPageSize,
                                         )
                                     }
-                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                    className="psd-focus px-3 py-1 text-xs font-semibold rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                 >
                                     Next
                                 </button>
@@ -3080,7 +3101,7 @@ const QuickActions = ({
 
     // Category selection view
     return (
-        <div className="p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+        <div className="psd-root rounded-2xl border border-[var(--psd-border)] p-4" style={{ background: "var(--psd-bg)" }}>
             {/* Lock notice banner */}
             {isModuleLocked && (
                 <div className="mb-4 flex gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
@@ -3099,35 +3120,10 @@ const QuickActions = ({
             )}
 
             {/* Tab Header */}
-            <div className="mb-5">
-                <nav className="frappe-tabs" aria-label="Quick actions tabs">
-                    {groups.map((group) => {
-                        const Icon = group.icon;
-                        const isActive = activeTab === group.title;
-                        const tabLocked = isModuleLocked && !unlockedGroups.includes(group.title);
-                        return (
-                            <button
-                                key={group.title}
-                                onClick={() => !tabLocked && handleTabChange(group.title)}
-                                aria-selected={isActive}
-                                disabled={tabLocked}
-                                title={tabLocked ? "Locked: Fund Sanction must be approved and funds received before using this module" : undefined}
-                                className={cn(
-                                    "frappe-tab flex items-center gap-2 font-bold",
-                                    isActive && "active",
-                                    tabLocked && "opacity-40 cursor-not-allowed pointer-events-none",
-                                )}
-                            >
-                                <Icon className="w-4 h-4" />
-                                <span>{group.title}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
-            </div>
+            <div className="mb-4">{tabStrip}</div>
 
             {/* Tab Content */}
-            <div className="p-5 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <div className="psd-card p-4">
                 {isModuleLocked && !unlockedGroups.includes(activeTab) ? (
                     <div className="flex flex-col items-center justify-center py-10 gap-3">
                         <AlertCircleIcon className="w-9 h-9 text-amber-400" />
@@ -3149,6 +3145,8 @@ const QuickActions = ({
                             <ActionButton
                                 key={item}
                                 onClick={() => handleApplicationClick(item)}
+                                icon={activeGroup?.icon}
+                                color={groupColor(activeTab)}
                             >
                                 {item}
                             </ActionButton>
@@ -3162,6 +3160,58 @@ const QuickActions = ({
 // --- END: REFACTORED QuickActions COMPONENT ---
 
 // --- Activity Stream Component ---
+const ActivityTimelineEntry = ({ item }: { item: ActivityItem }) => {
+    const [person, setPerson] = useState<{ name?: string; role?: string }>({});
+    useEffect(() => {
+        let cancelled = false;
+        if (item.owner) fetchPerson(item.owner).then((p) => { if (!cancelled) setPerson(p); });
+        return () => { cancelled = true; };
+    }, [item.owner]);
+
+    const isComment = !item.comment_type || item.comment_type === "Comment";
+    const name = person.name || (item.owner || "Unknown User").replace(/@.*/, "");
+    const when = item.creation
+        ? new Date(item.creation.replace(" ", "T")).toLocaleString("en-IN", {
+            day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
+        })
+        : "N/A";
+
+    return (
+        <li className="relative pl-11">
+            <span
+                aria-hidden
+                className={cn(
+                    "absolute left-0 top-0 grid size-8 place-items-center rounded-full text-[13px] font-bold ring-4 ring-[var(--psd-surface)]",
+                    isComment ? "bg-[var(--psd-primary)] text-white" : "bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300",
+                )}
+            >
+                {(name.charAt(0) || "U").toUpperCase()}
+            </span>
+            <div className="rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3.5 py-2.5 transition-shadow hover:shadow-sm">
+                <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 truncate text-[13px] font-extrabold text-[var(--psd-heading)]">{name}</span>
+                    {person.role && (
+                        <span className="shrink-0 truncate rounded-full border border-[#0B6B63]/30 bg-[#DDF3F0] px-2 py-px text-[10.5px] font-bold text-[#0B6B63] dark:border-teal-400/30 dark:bg-teal-500/15 dark:text-teal-300">
+                            {person.role}
+                        </span>
+                    )}
+                    {!isComment && (
+                        <span className="shrink-0 rounded-full bg-[var(--psd-bg)] px-2 py-px text-[10px] font-semibold text-[var(--psd-body)] ring-1 ring-[var(--psd-border)]">
+                            {item.comment_type}
+                        </span>
+                    )}
+                    <span className="ml-auto text-[11px] text-[var(--psd-muted)]">{when}</span>
+                </div>
+                {/* Fixed-size box: a long comment scrolls inside it instead of stretching the timeline */}
+                <div
+                    className="prose prose-sm dark:prose-invert max-h-36 max-w-none overflow-y-auto overscroll-contain whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--psd-heading)]/90 [overflow-wrap:anywhere]"
+                    dangerouslySetInnerHTML={{ __html: item.content || "No content" }}
+                />
+            </div>
+        </li>
+    );
+};
+
 const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
     ({ doctype, docname }, ref) => {
         const [newComment, setNewComment] = useState("");
@@ -3210,70 +3260,63 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         const items: ActivityItem[] = activityData?.message ?? [];
 
         return (
-            <div className="space-y-4">
-                {/* Comment input */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
-                    <Textarea
-                        placeholder="Add a comment… (Ctrl+Enter to submit)"
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        className="resize-none text-sm min-h-[80px]"
-                    />
-                    <div className="flex justify-end">
-                        <button
-                            onClick={handleCommentSubmit}
-                            disabled={isSubmitting || !newComment.trim()}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D97757] text-white text-sm font-semibold hover:bg-[#c4664a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {isSubmitting ? "Posting…" : "Post Comment"}
-                        </button>
+            <section className="psd-root overflow-hidden rounded-2xl border border-[var(--psd-border)]" style={{ background: "var(--psd-surface)" }}>
+                <div className="flex items-center justify-between border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[#FFF8F1] px-4 py-2.5 dark:bg-zinc-800/60">
+                    <div className="flex items-center gap-2.5">
+                        <span className="grid size-7 place-items-center rounded-lg bg-[var(--psd-accent)]/15 text-[var(--psd-accent)]">
+                            <MessageSquareIcon className="size-3.5" />
+                        </span>
+                        <h2 className="text-[13px] font-bold uppercase tracking-wider text-[var(--psd-heading)]">Activity Log</h2>
                     </div>
-                </div>
-
-                {/* Activity list */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {items.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-14 text-zinc-400 dark:text-zinc-500 gap-2">
-                            <MessageSquareIcon className="w-8 h-8" />
-                            <p className="text-sm">No activity yet.</p>
-                        </div>
-                    ) : (
-                        items.map((item, idx) => (
-                            <div key={idx} className="flex gap-3 px-4 py-3">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs font-bold uppercase">
-                                    {item.owner?.[0] ?? "?"}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                                            {item.owner}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                                            {new Date(item.creation).toLocaleString("en-IN", {
-                                                day: "2-digit",
-                                                month: "short",
-                                                year: "numeric",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
-                                        </span>
-                                        {item.comment_type && item.comment_type !== "Comment" && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium">
-                                                {item.comment_type}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p
-                                        className="text-sm text-zinc-600 dark:text-zinc-300 mt-0.5 leading-relaxed"
-                                        dangerouslySetInnerHTML={{ __html: item.content }}
-                                    />
-                                </div>
-                            </div>
-                        ))
+                    {items.length > 0 && (
+                        <span className="rounded-full bg-[var(--psd-surface)] px-2 py-0.5 text-[11px] font-bold tabular-nums text-[var(--psd-body)] ring-1 ring-[var(--psd-border)]">
+                            {items.length}
+                        </span>
                     )}
                 </div>
-            </div>
+
+                <div className="space-y-4 p-4">
+                    {/* Comment composer */}
+                    <div className="rounded-xl border border-[var(--psd-border)] bg-[var(--psd-bg)] p-3">
+                        <Textarea
+                            placeholder="Add a comment… (Ctrl+Enter to submit)"
+                            value={newComment}
+                            maxLength={1000}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            disabled={isSubmitting}
+                            className="min-h-[72px] resize-none rounded-lg border-[var(--psd-border)] bg-[var(--psd-surface)] text-[13px] focus-visible:border-[var(--psd-primary)] focus-visible:ring-[var(--psd-primary)]/20"
+                        />
+                        <div className="mt-2 flex items-center justify-between">
+                            <span className="text-[11px] font-medium tabular-nums text-[var(--psd-muted)]">{newComment.length}/1000</span>
+                            <button
+                                onClick={handleCommentSubmit}
+                                disabled={isSubmitting || !newComment.trim()}
+                                className="psd-focus inline-flex items-center gap-1.5 rounded-lg bg-[var(--psd-primary)] px-3.5 py-1.5 text-[12px] font-bold text-white transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isSubmitting ? "Posting…" : "Post Comment"}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Timeline */}
+                    {items.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-8 text-center">
+                            <span className="grid size-10 place-items-center rounded-xl bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+                                <MessageSquareIcon className="size-5" strokeWidth={1.6} />
+                            </span>
+                            <p className="text-[13px] font-semibold text-[var(--psd-heading)]">No activity yet</p>
+                            <p className="text-xs text-[var(--psd-body)]">Comments and workflow changes will appear here.</p>
+                        </div>
+                    ) : (
+                        <ol className="relative space-y-3 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-[var(--psd-border)]">
+                            {items.map((item, idx) => (
+                                <ActivityTimelineEntry key={`${item.creation}-${idx}`} item={item} />
+                            ))}
+                        </ol>
+                    )}
+                </div>
+            </section>
         );
     },
 );
@@ -7470,17 +7513,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             </div>
                                         ) : (
                                             <div className="max-h-[70vh] overflow-y-auto p-1 min-w-0">
-                                                <div className="hidden xl:grid grid-cols-[repeat(11,minmax(0,1fr))] rounded-t-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 overflow-hidden">
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Date / TID</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Particulars</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Module</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">App ID</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">BMR</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Received</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit Bal</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Paid</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Pay Bal</div>
+                                                <div className="hidden xl:grid grid-cols-[repeat(11,minmax(0,1fr))] rounded-t-lg border border-[#9DAE85] bg-[#DCE6CD] text-[10px] font-extrabold uppercase tracking-widest text-[#33441F] dark:border-[#5C6D4D] dark:bg-[#34402B] dark:text-[#D5E2C2] overflow-hidden">
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">Date / TID</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">Particulars</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">Module</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">App ID</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">BMR</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#BFE6D2] text-[#0B6B4A] dark:bg-[#1E4D3B] dark:text-[#9BE3C4]">Received</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#F6DFA8] text-[#8A5A00] dark:bg-[#5A4416] dark:text-[#F3D58A]">Commit</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#E4DAF6] text-[#4B2FA8] dark:bg-[#3A2F5C] dark:text-[#CFC1F5]">Commit Bal</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#F5C9CE] text-[#A4202F] dark:bg-[#5A2A31] dark:text-[#F5B5BC]">Paid</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#CFE0F8] text-[#1F4FB0] dark:bg-[#243A5E] dark:text-[#B5CDF5]">Pay Bal</div>
                                                     <div className="px-1.5 py-1.5 text-center">Status</div>
                                                 </div>
                                                 {sortedTransactions.map((txn, idx) => (
@@ -7749,6 +7792,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             activeTab === "ledger" && "hidden",
                         )}
                     >
+                        {/* Latest activity: not shown once the project is approved (Sanction/Fund activity on the sanction tab stays) */}
+                        {(activeTab === "sanction-details" || !(data?.workflow_state || "").toLowerCase().includes("approved")) && (
                         <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
                             <div className="px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                                 <div className="flex items-center gap-2 mb-3">
@@ -7856,6 +7901,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                 })()}
                             </div>
                         </div>
+                        )}
 
                         {/* Section 2: Add Comment (Moved Up) */}
                         {/* <div className="frappe-widget">

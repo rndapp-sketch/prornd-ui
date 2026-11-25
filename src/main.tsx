@@ -31,6 +31,7 @@ import Login from './pages/Login.tsx';
 import LandingPage from './pages/landing.tsx';
 import Home from './pages/Home.tsx';
 import PiHomePage from './pages/PiHomePage.tsx';
+import PiFinancialDashboard from './pages/PiFinancialDashboard.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
 import ProjectRegistration from './pages/ProjectRegistration.tsx';
@@ -82,6 +83,7 @@ import MySalarySlip from './pages/application/MySalarySlip';
 import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
 import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
+import RecruitmentAdvertisement from './pages/RecruitmentAdvertisement.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
@@ -201,6 +203,15 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <Home />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    // PI's account-wise financial dashboard and ledger records across all their projects
+                    path: "pi-financial-dashboard",
+                    element: (
+                        <AuthRouteWrapper allowedRole="Permanent Employee">
+                            <PiFinancialDashboard />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -538,6 +549,14 @@ const router = createBrowserRouter(
                             'Permanent Employee'
                         ]}>
                             <PendingTask />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "recruitment-advertisement",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <RecruitmentAdvertisement />
                         </AuthRouteWrapper>
                     ),
                 },

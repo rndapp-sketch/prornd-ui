@@ -14,6 +14,8 @@ import PendingLoansAlert from "@/components/dashboard/PendingLoansAlert";
 import ProjectStaffApprovalsAlert from "@/components/dashboard/ProjectStaffApprovalsAlert";
 import {
   PlusCircle,
+  MessageSquare,
+  RotateCcw,
   LayoutGrid,
   FileText,
   BarChart,
@@ -58,6 +60,11 @@ import {
   MonitorPlay,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { KPI_TONES, type KpiTone } from "@/components/dashboard/KpiCard";
+import { useMyRecentApplications } from "@/hooks/useMyRecentApplications";
+import { usePiLedgerSummary } from "@/hooks/usePiLedgerSummary";
+import { HelpModule } from "@/components/HelpModule";
+import "@/pages/dashboards/projectStaffDashboard.css";
 
 interface ProjectOverview {
   total_projects: number;
@@ -105,38 +112,40 @@ const Card = ({
 }: {
   children: React.ReactNode;
   className?: string;
-}) => (
-  <div
-    className={cn(
-      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-sm transition-all overflow-hidden",
-      className,
-    )}
-  >
-    {children}
+}) => <div className={cn("psd-card overflow-hidden transition-all", className)}>{children}</div>;
+
+const SectionDivider = ({ title }: { title: string }) => (
+  <div className="mb-2 mt-1 flex items-center gap-2.5">
+    <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--psd-body)]">
+      {title}
+    </span>
+    <div className="h-px flex-1 bg-[var(--psd-border)]" />
   </div>
 );
 
-const SectionDivider = ({ title }: { title: string }) => (
-  <div className="flex items-center gap-2.5 mb-2 mt-0">
-    <span className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.1em] whitespace-nowrap">
-      {title}
-    </span>
-    <div className="flex-1 h-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
-  </div>
-);
+// Per-section colour from the KPI palette: icon tile (light bg, strong icon) and a soft header wash.
+const toneTile = (tone: KpiTone): React.CSSProperties => ({
+  background: `color-mix(in srgb, ${KPI_TONES[tone].primary} 16%, var(--psd-surface))`,
+  color: KPI_TONES[tone].primary,
+});
+const toneWash = (tone: KpiTone): React.CSSProperties => ({
+  backgroundImage: `linear-gradient(to right, color-mix(in srgb, ${KPI_TONES[tone].primary} 14%, var(--psd-surface)), transparent 70%)`,
+});
 
 const PanelHeader = ({
   icon,
   title,
   action,
+  tone = "violet",
 }: {
   icon: React.ReactNode;
   title: string;
   action?: React.ReactNode;
+  tone?: KpiTone;
 }) => (
-  <div className="flex items-center justify-between px-4 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
-    <div className="flex items-center gap-2 text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-      <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400">
+  <div className="flex items-center justify-between border-b border-[var(--psd-border)] px-4 py-2.5" style={toneWash(tone)}>
+    <div className="flex items-center gap-2.5 text-[14px] font-semibold text-[var(--psd-heading)]">
+      <div className="grid size-7 place-items-center rounded-lg" style={toneTile(tone)}>
         {React.cloneElement(icon as React.ReactElement<any>, { size: 15 })}
       </div>
       {title}
@@ -145,7 +154,91 @@ const PanelHeader = ({
   </div>
 );
 
-const CurrentTime = () => {
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** Types `text` out one letter at a time (smooth, ~30ms/letter). Instant when reduced motion is on. */
+function useTypewriter(text: string, start: boolean, msPerChar = 32) {
+  const [count, setCount] = React.useState(0);
+  React.useEffect(() => {
+    if (!start) return;
+    if (prefersReducedMotion()) {
+      setCount(text.length);
+      return;
+    }
+    setCount(0);
+    let i = 0;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      // Catch up by elapsed time so the speed stays even on slow frames
+      const steps = Math.floor((now - last) / msPerChar);
+      if (steps > 0) {
+        i = Math.min(text.length, i + steps);
+        last += steps * msPerChar;
+        setCount(i);
+      }
+      if (i < text.length) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, start, msPerChar]);
+  return { typed: text.slice(0, count), rest: text.slice(count), done: start && count >= text.length };
+}
+
+/**
+ * Counts a formatted figure up from zero ("6", "68%", "₹4.2Cr", "₹11L"), keeping its prefix, suffix and
+ * decimals. Anything that isn't a number is shown as is.
+ */
+function CountUp({ value, duration = 900 }: { value: string; duration?: number }) {
+  const m = /^([^\d-]*)(-?[\d,]*\.?\d+)(.*)$/.exec(value);
+  const target = m ? parseFloat(m[2].replace(/,/g, "")) : NaN;
+  const decimals = m && m[2].includes(".") ? m[2].split(".")[1].length : 0;
+  const grouped = !!m && m[2].includes(",");
+  const [shown, setShown] = React.useState<number>(prefersReducedMotion() ? target : 0);
+
+  React.useEffect(() => {
+    if (!m || isNaN(target)) return;
+    if (prefersReducedMotion()) {
+      setShown(target);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      setShown(target * (1 - Math.pow(1 - p, 3))); // easeOutCubic
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    setShown(0);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, duration]);
+
+  if (!m || isNaN(target)) return <>{value}</>;
+  const text = shown.toLocaleString("en-IN", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: grouped,
+  });
+  return (
+    <>
+      {m[1]}
+      {text}
+      {m[3]}
+    </>
+  );
+}
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+};
+
+const HeroClock = () => {
   const [time, setTime] = React.useState(new Date());
   React.useEffect(() => {
     const timerId = setInterval(() => setTime(new Date()), 1000);
@@ -153,16 +246,12 @@ const CurrentTime = () => {
   }, []);
 
   return (
-    <div className="text-right hidden sm:block">
-      <div className="text-[11px] uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] font-bold">
-        {time.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        })}
+    <div className="relative z-10 hidden shrink-0 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/80 px-2.5 py-1 text-right backdrop-blur-sm sm:block">
+      <div className="text-[13px] font-semibold leading-none tabular-nums text-[var(--psd-heading)]">
+        {time.toLocaleTimeString()}
       </div>
-      <div className="text-[#3F3F46] dark:text-[#E4E4E7] text-[15px] font-extrabold leading-tight">
-        {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      <div className="mt-0.5 text-[10px] text-[var(--psd-body)]">
+        {time.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}
       </div>
     </div>
   );
@@ -173,81 +262,135 @@ interface ActionCardProps {
   title: string;
   description: string;
   onClick: () => void;
+  tone: KpiTone;
 }
 
-const ActionCard: React.FC<ActionCardProps> = ({
-  icon,
-  title,
-  description,
-  onClick,
-}) => (
-  <Card className="hover:-translate-y-0.5 hover:shadow-md cursor-pointer group">
+const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick, tone }) => {
+  const c = KPI_TONES[tone].primary;
+  return (
     <button
       onClick={onClick}
-      className="w-full text-left p-3 flex items-center gap-3 h-full"
+      // Deeper tint of the card's own colour (mixed with the surface, so it also works in dark mode)
+      style={{
+        backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${c} 16%, var(--psd-surface)), color-mix(in srgb, ${c} 32%, var(--psd-surface)))`,
+        borderColor: `color-mix(in srgb, ${c} 45%, transparent)`,
+      }}
+      className="psd-card psd-focus group flex w-full items-center gap-3 p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="size-9 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 group-hover:bg-[#D97757] group-hover:text-white transition-all duration-200 shrink-0">
-        {React.cloneElement(icon as React.ReactElement<any>, { size: 19 })}
-      </div>
-      <div className="min-w-0">
-        <h3 className="text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] font-extrabold mb-0.5">
-          {title}
-        </h3>
-        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium leading-snug">
-          {description}
-        </p>
-      </div>
-      <ChevronRight className="size-4 ml-auto mt-1 text-zinc-300 group-hover:text-[#D97757] shrink-0" />
+      <span
+        className="grid size-9 shrink-0 place-items-center rounded-lg bg-[var(--psd-surface)] shadow-sm transition-transform duration-200 group-hover:scale-110"
+        style={{ color: c }}
+      >
+        {React.cloneElement(icon as React.ReactElement<any>, { size: 18 })}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13.5px] font-bold text-[var(--psd-heading)]">{title}</span>
+        <span className="block text-[12px] font-medium leading-snug text-[var(--psd-heading)]/75">{description}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: c }} />
     </button>
-  </Card>
-);
+  );
+};
 
-const AnalyticsCard: React.FC<{
-  title: string;
+// Slim stat: small coloured icon, label and value on one compact row.
+const MiniStat = ({
+  label,
+  value,
+  hint,
+  icon,
+  tone,
+  loading,
+  error,
+}: {
+  label: string;
   value: string;
-  subtitle: string;
+  hint?: string;
   icon: React.ReactNode;
-  trend?: string;
-  onClick?: () => void;
-}> = ({ title, value, subtitle, icon, trend, onClick }) => (
-  <div
-    onClick={onClick}
-    className={cn(
-      "px-3 py-2.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] transition-all relative overflow-hidden",
-      onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-sm" : "",
-    )}
-  >
-    <div className="absolute bottom-0 right-0 w-16 h-16 rounded-full translate-x-5 translate-y-5 bg-blue-500/5 pointer-events-none" />
-    <div className="flex items-center justify-between mb-1">
-      <span className="text-[11px] uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] font-extrabold">
-        {title}
+  tone: KpiTone;
+  loading?: boolean;
+  error?: boolean;
+}) => {
+  const t = KPI_TONES[tone];
+  return (
+    <div title={hint} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5">
+      <span
+        className="grid size-6 shrink-0 place-items-center rounded-md"
+        style={{ background: `color-mix(in srgb, ${t.primary} 16%, var(--psd-surface))`, color: t.primary }}
+      >
+        {React.cloneElement(icon as React.ReactElement<any>, { size: 13 })}
       </span>
-      <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 flex items-center justify-center">
-        {icon}
-      </div>
-    </div>
-    <div className="text-[24px] font-extrabold tracking-tight leading-none text-[#2563EB] dark:text-blue-400 mb-1">
-      {value}
-    </div>
-    <div className="flex items-center justify-between">
-      <span className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-semibold">
-        {subtitle}
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate text-[10.5px] font-medium text-[var(--psd-body)]">{label}</span>
+        {loading ? (
+          <span className="mt-0.5 block h-3.5 w-9 animate-pulse rounded bg-zinc-200/80 dark:bg-zinc-700/60" />
+        ) : (
+          <span className="block text-[15px] font-bold tabular-nums text-[var(--psd-heading)]">{error ? "—" : <CountUp value={value} />}</span>
+        )}
       </span>
-      {trend && (
-        <span
-          className={cn(
-            "text-[11px] font-medium px-1.5 py-0.5 rounded-full",
-            trend.startsWith("+")
-              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
-              : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400",
-          )}
-        >
-          {trend}
+    </div>
+  );
+};
+
+// A slim card: title and "View Detail" on one line, then a single row of stats.
+const StatStrip = ({
+  icon,
+  title,
+  action,
+  columns = 4,
+  tone = "violet",
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  action?: React.ReactNode;
+  columns?: 3 | 4;
+  tone?: KpiTone;
+  children: React.ReactNode;
+}) => (
+  <div className="psd-card overflow-hidden px-2.5 pb-2" style={{ boxShadow: `inset 0 3px 0 ${KPI_TONES[tone].primary}` }}>
+    <div className="-mx-2.5 mb-1 flex items-center justify-between px-3.5 pb-1 pt-2.5" style={toneWash(tone)}>
+      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--psd-heading)]">
+        <span className="grid size-5 place-items-center rounded-md" style={toneTile(tone)}>
+          {React.cloneElement(icon as React.ReactElement<any>, { size: 12 })}
         </span>
-      )}
+        {title}
+      </div>
+      {action}
     </div>
+    <div className={cn("grid grid-cols-2 gap-x-1", columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-4")}>{children}</div>
   </div>
 );
+
+const relativeTime = (dateStr: string) => {
+  const diffMins = Math.floor((Date.now() - new Date(dateStr.replace(" ", "T")).getTime()) / 60000);
+  if (isNaN(diffMins)) return "";
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const hrs = Math.floor(diffMins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr.replace(" ", "T")).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
+
+const stateDot = (state: string) => {
+  const s = state.toLowerCase();
+  if (s.includes("reject") || s.includes("cancel") || s.includes("draft")) return "bg-[var(--psd-returned)]";
+  if (s.includes("pending")) return "bg-[var(--psd-review)]";
+  if (s.includes("approved") || s.includes("complete") || s.includes("closed") || s.includes("generated")) return "bg-[var(--psd-approved)]";
+  return "bg-[var(--psd-info)]";
+};
+
+const statePill = (state: string) => {
+  const s = state.toLowerCase();
+  if (s.includes("reject") || s.includes("cancel") || s.includes("draft"))
+    return "bg-[var(--psd-returned-bg)] text-[#C42B3C] dark:text-rose-300";
+  if (s.includes("pending")) return "bg-[var(--psd-review-bg)] text-[#B45309] dark:text-amber-300";
+  if (s.includes("approved") || s.includes("complete") || s.includes("closed") || s.includes("generated"))
+    return "bg-[var(--psd-approved-bg)] text-[#0A7F58] dark:text-emerald-300";
+  return "bg-[var(--psd-info-bg)] text-[#2F5BC4] dark:text-blue-300";
+};
 
 /**
  * --- Help Module Component ---
@@ -483,7 +626,7 @@ export function PiHomePage() {
   const { currentUser } = useFrappeAuth();
   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
-  const { data: dashboardData, isLoading: dashboardLoading } =
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } =
     useFrappeGetCall<{ message: PiDashboardData }>(
       "rndopsapp.dashboard.get_pi_dashboard_data",
       { user: currentUser },
@@ -499,278 +642,346 @@ export function PiHomePage() {
   } = useCommandPalette();
 
   const overview = dashboardData?.message?.project_overview;
-  const financials = dashboardData?.message?.financial_summary;
-  const recentUpdates = (dashboardData?.message?.recent_updates ?? []).slice(0, 50);
+  // Top 6, with "logged out" entries dropped first so six real updates are shown.
+  const recentUpdates = (dashboardData?.message?.recent_updates ?? [])
+    .filter((u) => !u.title?.toLowerCase().includes("logged out"))
+    .slice(0, 6);
+  const failed = !!dashboardError;
+  // Figures stay behind the loading shimmer until the real data is in, so the count-up (and the greeting)
+  // always play after loading, never against an early placeholder zero.
+  const dashPending = !failed && (!currentUser || dashboardLoading || !dashboardData);
+  const [isHelpOpen, setIsHelpOpen] = React.useState(false);
+  const { summary: ledger, isLoading: ledgerLoading, error: ledgerError } = usePiLedgerSummary(currentUser);
+  const ledgerPending = !ledgerError && (!currentUser || ledgerLoading || !ledger);
+
+  // Start typing once the real name and the dashboard data have loaded (or after a short wait, so it never stays blank).
+  const [nameWaited, setNameWaited] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setNameWaited(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
+  const greetingText = `${getGreeting()}, ${fullName}!`;
+  const greeting = useTypewriter(greetingText, (!!userData?.full_name && !dashPending) || nameWaited);
+  const { items: activity, isLoading: activityLoading, error: activityError } = useMyRecentApplications(currentUser, 8);
+
+  const viewDetail = (path: string) => (
+    <button
+      onClick={() => navigate(path)}
+      className="psd-focus rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--psd-primary)] transition-colors hover:bg-[var(--psd-primary-light)]"
+    >
+      View Detail
+    </button>
+  );
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans transition-colors duration-300">
-      <main className="px-0 pt-0 pb-4 overflow-y-auto w-full">
-        <div className="w-full">
-          {/* Header Section */}
-          <header className="mb-3">
-            <div className="relative overflow-hidden rounded-lg bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-              <div className="h-[3px] bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
-              <div className="px-4 py-2.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                    PI Workspace
-                  </div>
-                  <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                    Dashboard
-                  </h1>
-                  <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">
-                    Welcome back,{" "}
-                    <span className="text-[#2563EB] dark:text-blue-400 font-bold">
-                      {fullName}
-                    </span>
-                  </p>
+    <div className="psd-root flex min-h-screen flex-col font-sans transition-colors duration-300">
+      {/* overflow-x-clip (not overflow-y-auto) so the sticky footer sticks to the viewport, not to this box */}
+      <main className="flex w-full flex-1 flex-col overflow-x-clip px-0 pb-0 pt-0">
+        <div className="flex w-full flex-1 flex-col">
+          {/* Hero */}
+          <header className="psd-hero relative mb-2 flex flex-col gap-2 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                <LayoutGrid className="size-4" strokeWidth={1.8} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">
+                  PI Workspace
                 </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
-                  <button
-                    onClick={openPalette}
-                    className="relative hidden items-center gap-2.5 w-full sm:w-[320px] px-3.5 py-2.5 text-[13px] text-[#71717A] dark:text-[#A1A1AA] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-sm hover:border-[#2563EB]/40 transition-all"
-                  >
-                    <SearchIcon className="size-4 text-[#A1A1AA]" />
-                    <span className="pr-8">Search projects...</span>
-                    <kbd className="absolute right-3 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded text-[#A1A1AA]">
-                      ⌘K
-                    </kbd>
-                  </button>
-                  <CurrentTime />
-                </div>
+                <h1 className="mt-0.5 text-[17px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">
+                  PI Dashboard
+                </h1>
               </div>
             </div>
+
+            <div className="relative z-10 flex items-center gap-2">
+              <button
+                onClick={openPalette}
+                className="psd-focus relative hidden w-full items-center gap-2.5 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-[13px] text-[var(--psd-body)] shadow-sm transition-all hover:border-[var(--psd-primary)]/50 sm:w-[260px]"
+              >
+                <SearchIcon className="size-4 text-[var(--psd-muted)]" />
+                <span className="pr-8">Search projects...</span>
+                <kbd className="absolute right-3 hidden items-center rounded border border-[var(--psd-border)] bg-[var(--psd-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--psd-muted)] sm:inline-flex">
+                  ⌘K
+                </kbd>
+              </button>
+              <HeroClock />
+            </div>
           </header>
+
+          {/* Greeting (kept out of the header card) */}
+          <div className="mb-3 px-0.5">
+            <h2 className="text-[15px] font-semibold text-[var(--psd-heading)]" aria-label={greetingText}>
+              {/* The untyped remainder stays in the layout (invisible), so nothing jumps while it types */}
+              <span aria-hidden>{greeting.typed}</span>
+              <span
+                aria-hidden
+                className={cn(
+                  "mx-px inline-block h-[1em] w-[2px] translate-y-[2px] rounded-sm bg-[var(--psd-primary)] transition-opacity duration-500",
+                  greeting.done ? "opacity-0" : "animate-pulse opacity-100",
+                )}
+              />
+              <span aria-hidden className="invisible">{greeting.rest}</span>
+            </h2>
+            <p className="text-xs text-[var(--psd-body)]">
+              Here's a quick look at your projects, funds and latest updates.
+            </p>
+          </div>
 
           <CommandPalette
             isOpen={isCommandPaletteOpen}
             onClose={closePalette}
           />
+          <HelpModule isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
 
           <SectionDivider title="Quick Actions" />
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <section className="mb-3 grid grid-cols-1 gap-2.5 md:grid-cols-3">
             <ActionCard
               icon={<PlusCircle />}
               title="New Project"
               description="Initiate a new research or development proposal with guided steps."
               onClick={() => navigate("/project-registration")}
+              tone="violet"
             />
             <ActionCard
               icon={<LayoutGrid />}
               title="View Projects"
               description="Comprehensive repository of all your active and archived research initiatives."
               onClick={() => navigate("/projects-view")}
+              tone="blue"
             />
             <ActionCard
               icon={<Clock />}
               title="Pending Tasks"
-              description="Review items requiring your immediate attention or approval."
-              onClick={() => navigate("/projects-view")}
+              description="Review applications awaiting your approval as Principal Investigator."
+              onClick={() => navigate("/pending-application")}
+              tone="amber"
             />
           </section>
 
           <SectionDivider title="Overview" />
           <PendingLoansAlert />
           <ProjectStaffApprovalsAlert />
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-            {/* Project Analytics */}
-            <Card>
-              <PanelHeader
-                icon={<BarChart />}
-                title="Project Overview"
-                action={
-                  <button
-                    onClick={() => navigate("/project-analytics")}
-                    className="text-[11px] text-[#2563EB] dark:text-blue-400 font-bold uppercase tracking-wide hover:text-[#D97757] transition-colors"
-                  >
-                    View Detail
-                  </button>
-                }
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
-                <AnalyticsCard
-                  title="Total Projects"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : String(overview?.total_projects ?? 0)
-                  }
-                  subtitle={`${overview?.draft_projects ?? 0} in draft stage`}
-                  icon={<FileText size={14} />}
-                />
-                <AnalyticsCard
-                  title="Completion"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : `${overview?.completion_rate ?? 0}%`
-                  }
-                  subtitle="On track"
-                  icon={<TrendingUp size={14} />}
-                />
-                <AnalyticsCard
-                  title="Pending Review"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : String(overview?.pending_review ?? 0)
-                  }
-                  subtitle="Awaiting action"
-                  icon={<AlertCircle size={14} />}
-                />
-                <AnalyticsCard
-                  title="Staffing"
-                  value={
-                    dashboardLoading ? "—" : String(overview?.active_staff ?? 0)
-                  }
-                  subtitle="Active members"
-                  icon={<UsersIcon size={14} />}
-                />
-              </div>
-            </Card>
+          <section className="mb-3 grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+            <StatStrip icon={<BarChart />} title="Project Overview" columns={3} tone="violet" action={viewDetail("/project-analytics")}>
+              <MiniStat label="Total Projects" value={String(overview?.total_projects ?? 0)} hint={`${overview?.draft_projects ?? 0} in draft stage`} icon={<FileText />} tone="violet" loading={dashPending} error={failed} />
+              <MiniStat label="Pending Review" value={String(overview?.pending_review ?? 0)} hint="Awaiting action" icon={<AlertCircle />} tone="amber" loading={dashPending} error={failed} />
+              <MiniStat label="Staffing" value={String(overview?.active_staff ?? 0)} hint="Active members" icon={<UsersIcon />} tone="blue" loading={dashPending} error={failed} />
+            </StatStrip>
 
-            {/* Fund Analytics */}
-            <Card>
-              <PanelHeader
+            <StatStrip icon={<PieChart />} title="Financial Summary" tone="emerald" action={viewDetail("/pi-financial-dashboard")}>
+              <MiniStat
+                label="Allocation"
+                value={formatCrore(ledger?.received ?? 0)}
+                hint={`Fund received across ${ledger?.projectsWithFunds ?? 0} of ${ledger?.projectsTotal ?? 0} projects${ledger?.partial ? " (some projects could not be read)" : ""}`}
                 icon={<PieChart />}
-                title="Financial Summary"
-                action={
-                  <button
-                    onClick={() => navigate("/fund-analytics")}
-                    className="text-[11px] text-[#2563EB] dark:text-blue-400 font-bold uppercase tracking-wide hover:text-[#D97757] transition-colors"
-                  >
-                    View Detail
-                  </button>
-                }
+                tone="violet"
+                loading={ledgerPending}
+                error={ledgerError}
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
-                <AnalyticsCard
-                  title="Total Allocation"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : formatCrore(financials?.total_allocation ?? 0)
-                  }
-                  subtitle={`FY ${financials?.financial_year ?? "—"}`}
-                  icon={<PieChart size={14} />}
-                />
-                <AnalyticsCard
-                  title="Utilization"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : `${financials?.utilization_rate ?? 0}%`
-                  }
-                  subtitle={`${formatCrore(financials?.utilized ?? 0)} spent`}
-                  icon={<TrendingUp size={14} />}
-                />
-                <AnalyticsCard
-                  title="Available"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : formatCrore(financials?.available ?? 0)
-                  }
-                  subtitle="Net balance"
-                  icon={<PieChart size={14} />}
-                />
-                <AnalyticsCard
-                  title="Requests"
-                  value={
-                    dashboardLoading
-                      ? "—"
-                      : formatCrore(financials?.pending_requests ?? 0)
-                  }
-                  subtitle="Pending review"
-                  icon={<AlertCircle size={14} />}
-                />
-              </div>
-            </Card>
+              <MiniStat
+                label="Utilization"
+                value={`${ledger?.utilization ?? 0}%`}
+                hint={`${formatCrore(ledger?.committed ?? 0)} committed · ${formatCrore(ledger?.paid ?? 0)} paid`}
+                icon={<TrendingUp />}
+                tone="amber"
+                loading={ledgerPending}
+                error={ledgerError}
+              />
+              <MiniStat
+                label="Available"
+                value={formatCrore(ledger?.commitable ?? 0)}
+                hint={`Can still be committed · ${formatCrore(ledger?.actualBalance ?? 0)} actual balance`}
+                icon={<PieChart />}
+                tone="emerald"
+                loading={ledgerPending}
+                error={ledgerError}
+              />
+              <MiniStat
+                label="Awaiting Payment"
+                value={formatCrore(ledger?.awaitingPayment ?? 0)}
+                hint="Committed but not yet paid"
+                icon={<AlertCircle />}
+                tone="coral"
+                loading={ledgerPending}
+                error={ledgerError}
+              />
+            </StatStrip>
           </section>
 
-          {/* Secondary Information */}
-          <SectionDivider title="Updates & Resources" />
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-3 pb-2">
+          {/* Activity & updates */}
+          <SectionDivider title="Activity & Updates" />
+          <section className="grid grid-cols-1 gap-3 pb-2 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <PanelHeader icon={<Megaphone />} title="Recent Updates" />
-              <div className="p-3 space-y-3 max-h-[420px] overflow-y-auto">
-                {dashboardLoading ? (
-                  <p className="text-[12px] text-[#A1A1AA] font-medium">
-                    Loading updates...
+              <PanelHeader icon={<History />} title="Application Activity" tone="emerald" />
+              <div className="max-h-[340px] overflow-y-auto">
+                {activityLoading ? (
+                  <div className="divide-y divide-[var(--psd-border)]">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                        <div className="size-2 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-44 animate-pulse rounded bg-zinc-200/70 dark:bg-zinc-700/50" />
+                          <div className="h-2.5 w-28 animate-pulse rounded bg-zinc-200/70 dark:bg-zinc-700/50" />
+                        </div>
+                        <div className="h-5 w-20 animate-pulse rounded-full bg-zinc-200/70 dark:bg-zinc-700/50" />
+                      </div>
+                    ))}
+                  </div>
+                ) : activityError ? (
+                  <p role="alert" className="p-4 text-[12px] font-medium text-[var(--psd-returned)]">
+                    Couldn't load your application activity. Please refresh the page.
                   </p>
-                ) : recentUpdates.length === 0 ? (
-                  <p className="text-[12px] text-[#A1A1AA] font-medium">
-                    No recent updates.
+                ) : activity.length === 0 ? (
+                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">
+                    No application activity yet. Applications you create or update will appear here.
                   </p>
                 ) : (
-                  recentUpdates.map((update, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "flex items-start gap-4 group border-b border-[#F4F4F5] dark:border-zinc-800 last:border-0 pb-3 last:pb-0",
-                        update.title?.toLowerCase().includes("logged out") && "hidden"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "size-2 rounded-full mt-2",
-                          update.type === "announcement"
-                            ? "bg-[#D97757]"
-                            : "bg-[#2563EB]",
-                        )}
-                      ></div>
-                      <div className="w-full">
-                        <p className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                          {update.title}
-                        </p>
-                        <p className="text-[11px] text-[#A1A1AA] dark:text-zinc-500 font-medium mt-0.5">
-                          {update.meta}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                  <ul className="divide-y divide-[var(--psd-border)]">
+                    {activity.map((a) => {
+                      const created = Math.abs(new Date(a.modified.replace(" ", "T")).getTime() - new Date(a.creation.replace(" ", "T")).getTime()) < 60000;
+                      return (
+                        <li key={`${a.doctype}-${a.id}`}>
+                          <button
+                            onClick={() => navigate(a.route)}
+                            className="psd-focus group block w-full px-4 py-3 text-left transition-colors hover:bg-[var(--psd-primary-light)]/40"
+                          >
+                            {/* Line 1: what it is, and where it stands */}
+                            <span className="flex items-center justify-between gap-3">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className={cn("size-2 shrink-0 rounded-full", stateDot(a.workflow_state))} />
+                                <span className="truncate text-[13.5px] font-bold text-[var(--psd-heading)]">{a.title || a.doctype}</span>
+                              </span>
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className="hidden text-[11px] text-[var(--psd-muted)] sm:inline">
+                                  {created ? "Created" : "Updated"} {relativeTime(a.modified)}
+                                </span>
+                                <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold", statePill(a.workflow_state))}>{a.workflow_state}</span>
+                                <ChevronRight className="size-4 text-[var(--psd-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--psd-primary)]" />
+                              </span>
+                            </span>
+
+                            {/* Line 2: ID and project, plain muted text */}
+                            <span className="mt-0.5 block truncate pl-4 font-mono text-[11px] text-[var(--psd-muted)]">
+                              {a.title ? `${a.doctype} · ` : ""}{a.id}{a.projectNo ? `  ·  ${a.projectNo}` : ""}
+                            </span>
+
+                            {/* Line 3: latest comment. A Put Back comment is highlighted so it can't be missed. */}
+                            {(() => {
+                              const c = a.latestComment;
+                              if (c === undefined)
+                                return <span className="mt-1.5 block h-3 w-2/3 animate-pulse rounded bg-zinc-200/70 pl-4 dark:bg-zinc-700/50" />;
+                              if (c === null)
+                                return <span className="mt-1.5 block pl-4 text-[12px] italic text-[var(--psd-muted)]">No comments yet</span>;
+                              const putBack = /put\s*back/i.test(c.text.slice(0, 40));
+                              return putBack ? (
+                                <span
+                                  className="ml-4 mt-1.5 flex items-start gap-2 rounded-lg border border-[var(--psd-returned)]/35 bg-[var(--psd-returned-bg)] px-2.5 py-1.5 text-[12px]"
+                                  title={`${c.user}${c.role ? ` (${c.role})` : ""}, ${relativeTime(c.timestamp)}: ${c.text}`}
+                                >
+                                  <RotateCcw className="mt-0.5 size-3.5 shrink-0 text-[var(--psd-returned)]" />
+                                  <span className="min-w-0">
+                                    <span className="flex flex-wrap items-center gap-x-1.5">
+                                      <span className="rounded bg-[var(--psd-returned)] px-1.5 py-px text-[9.5px] font-extrabold uppercase tracking-wider text-white">Put back</span>
+                                      <span className="font-bold text-[var(--psd-heading)]">{c.user}</span>
+                                      {c.role && <span className="font-semibold text-[#0B6B63] dark:text-teal-300">{c.role}</span>}
+                                      <span className="text-[10.5px] text-[var(--psd-muted)]">{relativeTime(c.timestamp)}</span>
+                                    </span>
+                                    <span className="line-clamp-2 font-medium text-[#8F1F2D] dark:text-rose-200">{c.text}</span>
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="mt-1.5 flex items-center gap-1.5 pl-4 text-[12px]">
+                                  <MessageSquare className="size-3 shrink-0 text-[var(--psd-muted)]" />
+                                  <span className="shrink-0 font-bold text-[var(--psd-heading)]">{c.user}</span>
+                                  {c.role && <span className="shrink-0 font-semibold text-[#0B6B63] dark:text-teal-300">{c.role}</span>}
+                                  <span className="min-w-0 truncate text-[var(--psd-body)]" title={`${c.text} (${relativeTime(c.timestamp)})`}>
+                                    {c.text}
+                                  </span>
+                                </span>
+                              );
+                            })()}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </div>
             </Card>
 
             <Card>
-              <PanelHeader icon={<LifeBuoy />} title="Quick Resources" />
-              <ul className="p-3 space-y-1.5">
-                {[
-                  { icon: <FileText />, label: "Project Guidelines" },
-                  { icon: <LifeBuoy />, label: "Support Portal" },
-                  { icon: <BarChart />, label: "Analytics Reports" },
-                  { icon: <PieChart />, label: "Financial Templates" },
-                ].map((item, i) => (
-                  <li key={i}>
-                    <a
-                      href="#"
-                      className="flex items-center gap-2.5 p-2.5 rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] font-semibold hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-all group"
-                    >
-                      <span className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 flex items-center justify-center group-hover:bg-[#D97757] group-hover:text-white transition-colors">
-                        {React.cloneElement(
-                          item.icon as React.ReactElement<any>,
-                          { size: 14 },
+              <PanelHeader icon={<Megaphone />} title="Recent Updates" tone="amber" />
+              <div className="max-h-[340px] overflow-y-auto">
+                {dashboardLoading ? (
+                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">Loading updates...</p>
+                ) : failed ? (
+                  <p role="alert" className="p-4 text-[12px] font-medium text-[var(--psd-returned)]">
+                    Couldn't load updates. Please refresh the page.
+                  </p>
+                ) : recentUpdates.length === 0 ? (
+                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">No recent updates.</p>
+                ) : (
+                  <ul className="divide-y divide-[var(--psd-border)]">
+                    {recentUpdates.map((update, i) => (
+                      <li
+                        key={i}
+                        className={cn(
+                          "flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--psd-primary-light)]/40",
+                          update.title?.toLowerCase().includes("logged out") && "hidden",
                         )}
-                      </span>
-                      {item.label}
-                      <ChevronRight className="size-4 ml-auto text-zinc-300 group-hover:text-[#D97757]" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
+                      >
+                        <span
+                          className={cn(
+                            "mt-1.5 size-2 shrink-0 rounded-full",
+                            update.type === "announcement" ? "bg-[var(--psd-accent)]" : "bg-[var(--psd-primary)]",
+                          )}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-[var(--psd-heading)]">{update.title}</p>
+                          <p className="mt-0.5 text-[11px] text-[var(--psd-body)]">{update.meta}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </Card>
+
           </section>
 
           {/* Footer */}
-          <footer className="pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+          <footer className="sticky bottom-0 z-20 mt-auto flex flex-col items-center justify-between gap-2 rounded-t-xl border-t border-[var(--psd-border)] bg-[var(--psd-surface)]/90 px-3 py-2 shadow-[0_-8px_18px_-12px_rgba(21,27,50,0.3)] backdrop-blur-md sm:flex-row">
+            <nav aria-label="Quick resources" className="flex flex-wrap items-center justify-center gap-1.5">
+              <span className="mr-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--psd-body)]">Quick Resources</span>
+              {(
+                [
+                  // Opens the same user guides / videos / PDFs as the sidebar Help
+                  { icon: <FileText />, label: "Project Guidelines", tone: "violet", onClick: () => setIsHelpOpen(true) },
+                  { icon: <LifeBuoy />, label: "Support Portal", tone: "emerald", href: "mailto:ernd@iitg.ac.in?subject=ProRnD%20support%20request" },
+                  { icon: <BarChart />, label: "Analytics Reports", tone: "amber", onClick: () => navigate("/project-analytics") },
+                ] as { icon: React.ReactNode; label: string; tone: KpiTone; onClick?: () => void; href?: string }[]
+              ).map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => (item.href ? window.open(item.href, "_self") : item.onClick?.())}
+                  className="psd-focus group inline-flex items-center gap-1.5 rounded-full border border-[var(--psd-border)] bg-[var(--psd-surface)] py-1 pl-1 pr-2.5 text-[12px] font-semibold text-[var(--psd-heading)] transition-all hover:-translate-y-0.5 hover:shadow-sm"
+                >
+                  <span className="grid size-5 place-items-center rounded-full" style={toneTile(item.tone)}>
+                    {React.cloneElement(item.icon as React.ReactElement<any>, { size: 11 })}
+                  </span>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="inline-flex items-center gap-2 text-[12px] font-medium text-[var(--psd-body)]">
               <Mail className="size-3.5" />
               <span>For assistance, reach out to</span>
               <a
                 href="mailto:ernd@iitg.ac.in"
-                className="text-[#2563EB] hover:text-[#D97757] font-bold transition-colors"
+                className="font-bold text-[var(--psd-primary)] transition-colors hover:text-[var(--psd-primary-hover)]"
               >
                 ernd@iitg.ac.in
               </a>

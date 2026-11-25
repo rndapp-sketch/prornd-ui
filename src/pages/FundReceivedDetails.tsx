@@ -35,7 +35,8 @@ import { HoSApprovalView } from "./HoSApprovalView";
 import { ActivityLog } from "@/components/ActivityLog";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import ViewProjectButton from "@/components/ViewProjectButton";
-import { getFileUrl } from "@/utils/fileUtils";
+import { getFileUrl, getMinioKey, getMinioFileUrl } from "@/utils/fileUtils";
+import { FundReceivedFiles, FUND_FOLDERS, type ProjectFile } from "@/components/FundReceivedFiles";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
@@ -48,12 +49,37 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 // ── Attachment helper ──────────────────────────────────────────────────────────
+/**
+ * Fund Received uploads live in MinIO under Project_Registration/<project number>/fundreceived/<file>.
+ * A stored value that is already a full path, MinIO key or Frappe file path is used as it is; a bare
+ * file name (or a relative path with no known folder) is placed in that folder and read through the same
+ * authenticated Frappe file route as every other MinIO object.
+ */
+const resolveFundReceivedFileUrl = (raw: string | undefined, projectNo?: string): string => {
+    if (!raw) return "";
+    const value = String(raw).trim();
+    if (!value) return "";
+    const known = getMinioKey(value) || /^(https?:|data:|blob:|\/files\/|\/private\/files\/|\/assets\/)/i.test(value);
+    if (known || !projectNo) return getFileUrl(value);
+    let name = value.split("/").filter(Boolean).pop() || value;
+    try {
+        name = decodeURIComponent(name);
+    } catch {
+        /* keep the raw name */
+    }
+    return getMinioFileUrl(`Project_Registration/${projectNo}/fundreceived/${name}`);
+};
+
 const TransactionAttachment = ({
     transactionName,
     fallbackFile,
+    projectNo,
+    listedFiles,
 }: {
     transactionName: string;
     fallbackFile?: string;
+    projectNo?: string;
+    listedFiles?: ProjectFile[];
 }) => {
     const { data } = useFrappeGetCall<{ message: any[] }>(
         "frappe.client.get_list",
@@ -63,7 +89,10 @@ const TransactionAttachment = ({
     const rawUrl = file?.file_url || fallbackFile;
     const fileName = file?.file_name || "Attachment";
     if (!rawUrl) return <span className="text-[#A1A1AA]">—</span>;
-    const resolvedUrl = getFileUrl(rawUrl);
+    // Prefer the object MinIO actually holds: match the stored name against the project's listed files
+    const stored = String(rawUrl).split("/").filter(Boolean).pop();
+    const listed = listedFiles?.find((f) => f.file_name === stored);
+    const resolvedUrl = listed ? getFileUrl(listed.file_url) : resolveFundReceivedFileUrl(rawUrl, projectNo);
     return (
         <a href={resolvedUrl} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4A6CF7] hover:text-[#2563EB] transition-colors"
@@ -959,6 +988,20 @@ const FundReceivedDetails = () => {
     const funds = normalizeResponse(apiData);
     const listData = funds.find((f: any) => f.name === name);
     const fundData = listData ? { ...docData, ...listData } : docData ?? null;
+
+    // Files MinIO holds for this project (Project_Registration/<project>/<folder>/<file>); only the Fund Received folders
+    const filesProject = effectivePrjregTitle || fundData?.prjreg_title;
+    const { data: filesResp } = useFrappeGetCall<{
+        message: { files?: ProjectFile[] };
+    }>(
+        "rndopsapp.rndopsapp.file_api.list_files",
+        filesProject ? { docname: filesProject } : undefined,
+        filesProject ? undefined : null,
+    );
+    const fundFiles = React.useMemo(
+        () => (filesResp?.message?.files ?? []).filter((f) => FUND_FOLDERS.includes((f.folder || "").toLowerCase())),
+        [filesResp],
+    );
     const findChildSanctionName = (doc: any) => {
         const childTables = [doc?.fund_transactions, doc?.received_amt_breakup];
         for (const table of childTables) {
@@ -2178,10 +2221,10 @@ const FundReceivedDetails = () => {
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex flex-col items-start gap-1">
-                                                                    <TransactionAttachment transactionName={item.name} fallbackFile={item.attachment || item.file} />
+                                                                    <TransactionAttachment transactionName={item.name} fallbackFile={item.attachment || item.file || item.file_url || item.file_name} projectNo={effectivePrjregTitle} listedFiles={fundFiles} />
                                                                     <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] font-bold text-[#4A6CF7] hover:text-[#3B5CE6] uppercase tracking-wide transition-colors">
                                                                         <Paperclip className="h-3 w-3" />
-                                                                        {item.attachment || item.file ? "Replace" : "Upload"}
+                                                                        {item.attachment || item.file || item.file_url || item.file_name ? "Replace" : "Upload"}
                                                                         <input type="file" className="hidden" onChange={e => handleFileSelect(idx, e)} />
                                                                     </label>
                                                                 </div>
@@ -2209,7 +2252,7 @@ const FundReceivedDetails = () => {
                                                 <td className="px-4 py-3 text-[13px] font-mono text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.date || item.transaction_date || "—"}</td>
                                                 <td className="px-4 py-3 text-[13px] font-bold text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.transaction_number || "—"}</td>
                                                 <td className="px-4 py-3 text-[13px] text-right font-bold text-[#D97757] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
-                                                <td className="px-4 py-3 text-center"><TransactionAttachment transactionName={item.name} fallbackFile={item.attachment || item.file} /></td>
+                                                <td className="px-4 py-3 text-center"><TransactionAttachment transactionName={item.name} fallbackFile={item.attachment || item.file || item.file_url || item.file_name} projectNo={effectivePrjregTitle} listedFiles={fundFiles} /></td>
                                             </tr>
                                         )) : (
                                             <tr><td colSpan={4} className="px-4 py-10 text-center text-[13px] text-[#A1A1AA]">No transactions recorded.</td></tr>
@@ -2218,6 +2261,9 @@ const FundReceivedDetails = () => {
                                 </table>
                             </div>
                         </div>
+
+                        {/* ── Fund Received Files (read from MinIO) ── */}
+                        <FundReceivedFiles project={filesProject} />
 
                         {/* ── Sanction Details ── */}
                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">

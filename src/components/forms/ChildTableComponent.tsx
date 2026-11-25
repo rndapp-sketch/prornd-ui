@@ -361,7 +361,7 @@ export const ChildTableComponent = memo(({
                                     href={getFileUrl(value)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-[11px] text-[#D97757] underline truncate max-w-[220px]"
+                                    className="file-link text-[11px] text-[#D97757] underline truncate max-w-[220px]"
                                     title={value.split('/').pop()}
                                 >
                                     {value.split('/').pop()}
@@ -517,7 +517,7 @@ export const ChildTableComponent = memo(({
     return (
         <div className="space-y-4">
             {label && (
-                <div className="flex items-center gap-2 rounded-lg border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 px-3 py-2">
+                <div className="ct-title flex items-center gap-2 rounded-lg border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 px-3 py-2">
                     <span className="h-4 w-1 rounded-full bg-[#4A6CF7] dark:bg-[#818CF8]" />
                     <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-[#C7D2FE]">
                         {label}
@@ -532,24 +532,24 @@ export const ChildTableComponent = memo(({
                     const isExpanded = !collapsedRows[rowKey];
 
                     return (
-                        <div key={rowKey} className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl overflow-hidden transition-all duration-150 shadow-sm"  >
+                        <div key={rowKey} className="ct-row border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl overflow-hidden transition-all duration-150 shadow-sm"  >
                             {isExpanded ? (
                                 <div className="bg-white dark:bg-[#27272A]">
-                                    <div className="flex items-center justify-between px-5 py-3 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <div className="ct-row-head flex items-center justify-between px-5 py-3 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                         <span className="text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest">
                                             {hideRowIndex ? (rowLabelOverride || rowLabel) : `${rowLabelOverride || rowLabel} #${rowIndex + 1}`}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <FrappeButton
                                                 onClick={() => toggleRow(rowKey)}
-                                                className="bg-[#4A6CF7] text-white border-[#4A6CF7] hover:bg-[#3B5CF5]"
+                                                className="ct-done bg-[#4A6CF7] text-white border-[#4A6CF7] hover:bg-[#3B5CF5]"
                                             >
                                                 Done
                                             </FrappeButton>
                                             {!readOnly && !disableDelete && (
                                                 <FrappeButton
                                                     onClick={() => onDeleteRow(tableName, rowIndex)}
-                                                    className="bg-white/70 text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-300 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/40 dark:hover:bg-red-950/30"
+                                                    className="ct-remove bg-white/70 text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-300 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/40 dark:hover:bg-red-950/30"
                                                 >
                                                     Remove
                                                 </FrappeButton>
@@ -557,9 +557,9 @@ export const ChildTableComponent = memo(({
                                         </div>
                                     </div>
 
-                                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
+                                    <div className="ct-row-body p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
                                         {getRowColumns(row).map(col => col.fieldtype === 'Section Break' ? (
-                                            <div key={col.fieldname} className="col-span-full border-b border-[#E4E4E7] dark:border-[#3F3F46] pb-1.5 pt-2">
+                                            <div key={col.fieldname} className="ct-sectionbreak col-span-full border-b border-[#E4E4E7] dark:border-[#3F3F46] pb-1.5 pt-2">
                                                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#D97757]">{col.label}</h4>
                                             </div>
                                         ) : (
@@ -622,9 +622,9 @@ export const ChildTableComponent = memo(({
                                     </div>
                                 </div>
                             ) : (
-                                <div className="px-4 py-3.5 flex items-center justify-between gap-4 bg-white dark:bg-[#27272A] border-l-[3px] border-l-[#2563EB]">
+                                <div className="ct-collapsed px-4 py-3.5 flex items-center justify-between gap-4 bg-white dark:bg-[#27272A] border-l-[3px] border-l-[#2563EB]">
                                     <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                                        <div className="shrink-0 w-6 h-6 rounded-full bg-[#4A6CF7]/10 flex items-center justify-center text-[10px] font-bold text-[#4A6CF7] border border-[#4A6CF7]/25">
+                                        <div className="ct-num shrink-0 w-6 h-6 rounded-full bg-[#4A6CF7]/10 flex items-center justify-center text-[10px] font-bold text-[#4A6CF7] border border-[#4A6CF7]/25">
                                             {rowIndex + 1}
                                         </div>
                                         <div className="flex flex-wrap gap-x-8 gap-y-1 flex-1">
@@ -648,14 +648,14 @@ export const ChildTableComponent = memo(({
                                     <div className="shrink-0 flex items-center gap-2 border-l border-[#E4E4E7] dark:border-[#3F3F46] pl-4">
                                         <FrappeButton
                                             onClick={() => toggleRow(rowKey)}
-                                            className="bg-[#4A6CF7]/8 text-[#4A6CF7] border border-[#4A6CF7]/30 hover:bg-[#4A6CF7]/15 hover:border-[#4A6CF7]/50 dark:bg-[#4A6CF7]/10 dark:text-[#60A5FA] dark:border-[#4A6CF7]/30"
+                                            className="ct-edit bg-[#4A6CF7]/8 text-[#4A6CF7] border border-[#4A6CF7]/30 hover:bg-[#4A6CF7]/15 hover:border-[#4A6CF7]/50 dark:bg-[#4A6CF7]/10 dark:text-[#60A5FA] dark:border-[#4A6CF7]/30"
                                         >
                                             Edit
                                         </FrappeButton>
                                         {!readOnly && !disableDelete && (
                                             <FrappeButton
                                                 onClick={() => onDeleteRow(tableName, rowIndex)}
-                                                className="bg-transparent text-red-500 border border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20"
+                                                className="ct-remove bg-transparent text-red-500 border border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20"
                                             >
                                                 Remove
                                             </FrappeButton>
@@ -668,7 +668,7 @@ export const ChildTableComponent = memo(({
                 })}
 
                 {tableData.length === 0 && (
-                    <div className="py-10 text-center rounded-lg border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/30">
+                    <div className="ct-empty py-10 text-center rounded-lg border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/30">
                         <p className="text-[12px] font-bold uppercase tracking-wide text-[#A1A1AA] dark:text-[#71717A]">No {rowLabel.toLowerCase()} records added yet</p>
                         <p className="text-[11px] text-[#D4D4D8] dark:text-[#52525B] mt-1">Click "Add Row" below to get started</p>
                     </div>
@@ -702,7 +702,7 @@ export const ChildTableComponent = memo(({
                     <button
                         type="button"
                         onClick={handleAddClick}
-                        className="w-full py-2.5 rounded-[0.4375rem] border border-dashed border-[#4A6CF7]/40 text-[11px] font-bold uppercase tracking-widest text-[#4A6CF7] hover:border-[#4A6CF7]/60 hover:bg-[#4A6CF7]/5 dark:text-[#60A5FA] dark:border-[#60A5FA]/30 dark:hover:bg-[#4A6CF7]/8 transition-all duration-150"
+                        className="ct-add w-full py-2.5 rounded-[0.4375rem] border border-dashed border-[#4A6CF7]/40 text-[11px] font-bold uppercase tracking-widest text-[#4A6CF7] hover:border-[#4A6CF7]/60 hover:bg-[#4A6CF7]/5 dark:text-[#60A5FA] dark:border-[#60A5FA]/30 dark:hover:bg-[#4A6CF7]/8 transition-all duration-150"
                     >
                         + Add Row
                     </button>

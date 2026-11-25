@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
+import '@/pages/dashboards/projectStaffDashboard.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeAuth, useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { useUserRoles } from '../components/UserRole';
@@ -74,7 +75,7 @@ const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number 
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
+    <div className={cn("psd-card !rounded-xl", className)}>
         {children}
     </div>
 );
@@ -90,12 +91,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#D97757]",
-            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-            variant === 'outline' && "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
-            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#D97757]",
+            "psd-focus inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-[12px] transition-all duration-150",
+            variant === 'primary' && "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm border border-[var(--psd-primary)]",
+            variant === 'ghost' && "bg-transparent text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]",
+            variant === 'outline' && "bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
+            variant === 'action' && "bg-[var(--psd-primary)] text-white font-bold hover:bg-[var(--psd-primary-hover)] shadow-sm active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -330,19 +330,19 @@ const TaskRegistry: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         const s = status?.toLowerCase();
-        let style = "bg-blue-100 text-blue-800 border-blue-300";
+        let style = "bg-[var(--psd-info-bg)] text-[#2F5BC4] border-[var(--psd-info)]/35 dark:text-blue-300";
         if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
-            style = "bg-amber-100 text-amber-800 border-amber-300";
+            style = "bg-[var(--psd-review-bg)] text-[#B26A00] border-[var(--psd-review)]/40 dark:text-amber-300";
         } else if (s?.includes("approved")) {
-            style = "bg-emerald-100 text-emerald-800 border-emerald-300";
+            style = "bg-[var(--psd-approved-bg)] text-[#0A8A60] border-[var(--psd-approved)]/40 dark:text-emerald-300";
         } else if (s?.includes("draft")) {
-            style = "bg-slate-100 text-slate-800 border-slate-300";
+            style = "bg-[var(--psd-bg)] text-[var(--psd-body)] border-[var(--psd-border)]";
         } else if (s?.includes("rejected")) {
-            style = "bg-red-100 text-red-800 border-red-300";
+            style = "bg-[var(--psd-returned-bg)] text-[#C02B3D] border-[var(--psd-returned)]/40 dark:text-rose-300";
         } else if (s?.includes("forwarded") || s?.includes("processed")) {
-            style = "bg-purple-100 text-purple-800 border-purple-300";
+            style = "bg-[var(--psd-primary-light)] text-[var(--psd-primary)] border-[var(--psd-primary)]/35";
         }
-        return cn("px-2 py-0.5 rounded-md text-[10px] font-bold border", style);
+        return cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold", style);
     };
 
     const getPageNumbers = () => {
@@ -366,11 +366,11 @@ const TaskRegistry: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="psd-root flex h-screen items-center justify-center">
                 <FrappeCard className="p-8 text-center">
-                    <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Error Loading Task Registry</h2>
-                    <p className="text-zinc-900 dark:text-zinc-100">{error.message}</p>
+                    <FaExclamationCircle className="h-10 w-10 text-[var(--psd-returned)] mx-auto mb-3" />
+                    <h2 className="text-[17px] font-bold text-[var(--psd-heading)] mb-2">Error Loading Task Registry</h2>
+                    <p className="text-[var(--psd-body)]">{error.message}</p>
                 </FrappeCard>
             </div>
         );
@@ -383,67 +383,77 @@ const TaskRegistry: React.FC = () => {
 
     return (
         <>
-            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+            <div className="psd-root min-h-screen font-sans">
                 <GlobalLoader isLoading={isLoading} />
 
-                <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
+                <main className="flex-1 px-0 pt-0 pb-4 w-full space-y-2.5">
                     {/* Header */}
-                    <FrappeCard className="mb-3 overflow-hidden p-0">
-                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                        <div className="flex items-center gap-3 px-4 py-2.5">
+                    <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                        <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                                className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
                                 aria-label="Go back"
                             >
                                 <FaArrowLeft className="h-3.5 w-3.5" />
                             </button>
+                            <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                                <ActivityIcon className="size-4" strokeWidth={1.8} />
+                            </div>
                             <div className="min-w-0">
-                                <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Task Registry</h1>
-                                <p className="truncate text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View processed and forwarded documents.</p>
+                                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Records</div>
+                                <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Task Registry</h1>
                             </div>
                         </div>
-                    </FrappeCard>
+                        <p className="relative z-10 hidden text-xs text-[var(--psd-body)] md:block">View processed and forwarded documents.</p>
+                    </header>
+
+                    {isLoading && (
+                        <div role="status" aria-live="polite" className="space-y-1">
+                            <div className="psd-loadbar" />
+                            <p className="text-[11.5px] font-semibold text-[var(--psd-body)]">Fetching documents…</p>
+                        </div>
+                    )}
 
                     {/* Info banner */}
-                    <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800/50 dark:bg-amber-950/30">
-                        <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
-                            <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <div className="psd-card flex items-center gap-2.5 !rounded-xl border-l-[3px] !border-l-[var(--psd-review)] px-3 py-1.5">
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-review-bg)] text-[var(--psd-review)]">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                             </svg>
                         </div>
-                        <div>
-                            <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">This page is for record-keeping only — no actions can be performed here.</p>
-                            <p className="mt-0.5 text-[12px] font-medium leading-5 text-amber-700 dark:text-amber-400">Task Registry shows all forms processed by the concerned staff. To perform actions, approve, or forward any form, go to <span className="font-bold">Pending Tasks</span>.</p>
-                        </div>
+                        <p className="text-[12px] leading-snug text-[var(--psd-body)]">
+                            <b className="font-bold text-[var(--psd-heading)]">This page is for record-keeping only — no actions can be performed here.</b>{" "}
+                            Task Registry shows all forms processed by the concerned staff. To perform actions, approve, or forward any form, go to <b className="font-bold">Pending Tasks</b>.
+                        </p>
                     </div>
 
                     {/* Project Type Filter */}
-                    <div className="mb-3 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35">
-                        <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                    <div className="psd-card !rounded-xl px-3 py-2">
+                        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--psd-body)]">
                             Project Type
                         </div>
                         <div className="flex items-center gap-2 overflow-x-auto">
                             {PROJECT_TYPE_TABS.map((tab) => {
                                 const active = selectedProjectType === tab;
                                 const tabColors: Record<ProjectTypeTab, string> = {
-                                    Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
-                                    Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
-                                    Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
-                                    Overhead: active ? 'bg-[#FFF7ED] border-[#EA580C] text-[#9A3412] shadow-sm shadow-[#EA580C]/10 dark:bg-[#EA580C]/18 dark:border-[#FB923C] dark:text-[#FED7AA]' : 'border-[#FED7AA] bg-[#FFF7ED]/60 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#EA580C]/30 dark:bg-[#EA580C]/10 dark:text-[#FED7AA]',
+                                    Research: active ? 'bg-[#6842D9] border-[#6842D9] text-white shadow-sm' : 'border-[#6842D9]/35 bg-[#6842D9]/8 text-[#5632C5] hover:bg-[#6842D9]/15 dark:text-[#C9B8FA]',
+                                    Consultancy: active ? 'bg-[#0DA875] border-[#0DA875] text-white shadow-sm' : 'border-[#0DA875]/35 bg-[#0DA875]/8 text-[#0A8A60] hover:bg-[#0DA875]/15 dark:text-[#7BE0BC]',
+                                    Others: active ? 'bg-[#64748B] border-[#64748B] text-white shadow-sm' : 'border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:bg-[var(--psd-bg)]',
+                                    Overhead: active ? 'bg-[#F47721] border-[#F47721] text-white shadow-sm' : 'border-[#F47721]/35 bg-[#F47721]/8 text-[#C2570C] hover:bg-[#F47721]/15 dark:text-[#FDBA8C]',
                                 };
                                 const badgeColors: Record<ProjectTypeTab, string> = {
-                                    Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
-                                    Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
-                                    Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
-                                    Overhead: active ? 'bg-[#EA580C] text-white' : 'bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50',
+                                    Research: active ? 'bg-white/25 text-white' : 'bg-white/80 text-[#6842D9] dark:bg-[#18181B]/50',
+                                    Consultancy: active ? 'bg-white/25 text-white' : 'bg-white/80 text-[#0A8A60] dark:bg-[#18181B]/50',
+                                    Others: active ? 'bg-white/25 text-white' : 'bg-[var(--psd-bg)] text-[var(--psd-body)]',
+                                    Overhead: active ? 'bg-white/25 text-white' : 'bg-white/80 text-[#C2570C] dark:bg-[#18181B]/50',
                                 };
                                 return (
                                     <button
                                         key={tab}
                                         onClick={() => handleProjectTypeChange(tab)}
                                         className={cn(
-                                            "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
+                                            "flex h-8 flex-shrink-0 items-center gap-2 rounded-full border px-3 text-[11px] font-bold uppercase tracking-wide transition-all duration-150",
                                             tabColors[tab],
                                         )}
                                     >
@@ -458,27 +468,27 @@ const TaskRegistry: React.FC = () => {
                     </div>
 
                     {/* Filter & Search Section */}
-                    <div className="mb-3">
+                    <div>
                         <FrappeCard className="px-3 py-2">
-                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
                                 <div className="flex flex-1 items-center gap-3 w-full flex-wrap">
                                     {/* Search Input */}
                                     <div className="relative w-full md:w-64">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                            <FaSearch className="text-[var(--psd-muted)]" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="Search documents..."
                                             value={searchQuery}
                                             onChange={handleSearchChange}
-                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
+                                            className="h-9 w-full rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] pl-10 pr-4 text-[13px] text-[var(--psd-heading)] placeholder:text-[var(--psd-muted)] transition-colors focus:border-[var(--psd-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--psd-primary)]/15"
                                         />
                                     </div>
 
                                     {/* Module Filter */}
                                     <div className="flex items-center gap-2">
-                                        <label className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                        <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)] whitespace-nowrap hidden md:block">
                                             Filter:
                                         </label>
                                         <ModuleFilterSelect
@@ -492,7 +502,7 @@ const TaskRegistry: React.FC = () => {
                                         {selectedModule && (
                                             <FrappeButton
                                                 onClick={() => handleModuleChange('')}
-                                                className="text-red-600 hover:bg-red-50 border border-red-200"
+                                                className="!text-[var(--psd-returned)] hover:!bg-[var(--psd-returned-bg)] border border-[var(--psd-returned)]/40"
                                             >
                                                 Clear
                                             </FrappeButton>
@@ -500,7 +510,7 @@ const TaskRegistry: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
+                                <div className="whitespace-nowrap text-[12px] font-bold text-[var(--psd-heading)]">
                                     Total: {totalCount} documents
                                 </div>
                             </div>
@@ -511,20 +521,20 @@ const TaskRegistry: React.FC = () => {
                     <FrappeCard className="overflow-hidden p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                                     <tr>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Status</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Module</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Title/Document ID</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Funding Agency</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Document ID</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Created</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Modified</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Owner</th>
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                <tbody className="divide-y divide-[var(--psd-border)] bg-[var(--psd-surface)] text-xs">
                                     {paginatedTasks.length > 0 ? (
                                         paginatedTasks.map((task) => (
                                             <tr
@@ -568,7 +578,7 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                     }
                                                 }}
-                                                className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50 cursor-pointer transition-colors"
+                                                className="cursor-pointer transition-colors hover:bg-[var(--psd-primary-light)]/40"
                                             >
                                                 <td className="px-3 py-2">
                                                     <span className={getStatusBadge(task.status)}>
@@ -580,12 +590,12 @@ const TaskRegistry: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2 font-bold text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-bold text-[var(--psd-heading)]">
                                                     {task.doctype}
                                                 </td>
-                                                <td className="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-semibold text-[var(--psd-heading)]">
                                                     <button
-                                                        className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group"
+                                                        className="text-left hover:text-[var(--psd-primary)] transition-colors flex items-center gap-1.5 group"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title });
@@ -598,10 +608,10 @@ const TaskRegistry: React.FC = () => {
                                                             const display = prRowForTask(task)?.project_title || task.title;
                                                             return display.length > 30 ? `${display.substring(0, 30)}...` : display;
                                                         })()}
-                                                        <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
+                                                        <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[var(--psd-primary)] flex-shrink-0 transition-opacity" />
                                                     </button>
                                                 </td>
-                                                <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                     {(() => {
                                                         // Resolved through the task's own project, so this works for
                                                         // every application form, not just Project Registration.
@@ -610,12 +620,12 @@ const TaskRegistry: React.FC = () => {
                                                         return fundingAgencyNameMap.get(fundingAgen) || fundingAgen;
                                                     })()}
                                                 </td>
-                                                <td className="px-3 py-2 font-mono text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-mono text-[var(--psd-heading)]">
                                                     {task.doctype === "Fund Received" ? (
                                                         <div className="flex flex-col gap-0.5">
                                                             <span>{task.projectNo || (task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id)}</span>
                                                             {task.depositSlip && (
-                                                                <span className="text-[10px] text-[#D97757] font-semibold">
+                                                                <span className="text-[10px] text-[var(--psd-accent)] font-semibold">
                                                                     Deposit: {task.depositSlip}
                                                                 </span>
                                                             )}
@@ -624,13 +634,13 @@ const TaskRegistry: React.FC = () => {
                                                         task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2 font-mono text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-mono text-[var(--psd-heading)]">
                                                     {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
                                                 </td>
-                                                <td className="px-3 py-2 font-mono text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-mono text-[var(--psd-heading)]">
                                                     {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
                                                 </td>
-                                                <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 text-[var(--psd-body)]">
                                                     {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
                                                 </td>
                                                 <td className="px-3 py-2">
@@ -676,7 +686,7 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                             }
                                                         }}
-                                                        className="text-[11px] px-3 py-1.5"
+                                                        className="text-[11px] !px-3 !py-1"
                                                     >
                                                         View
                                                     </FrappeButton>
@@ -699,7 +709,7 @@ const TaskRegistry: React.FC = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={9} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
+                                            <td colSpan={9} className="p-8 text-center text-[var(--psd-body)] font-semibold">
                                                 {isLoading ? "Loading documents..." : "No documents found matching your criteria."}
                                             </td>
                                         </tr>
@@ -710,9 +720,9 @@ const TaskRegistry: React.FC = () => {
 
                         {/* Pagination Controls */}
                         {allTasks.length > 0 && (
-                            <div className="px-4 py-2 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                            <div className="flex items-center justify-between border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2">
                                 <div>
-                                    <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                    <div className="text-[12px] text-[var(--psd-body)]">
                                         Showing {indexOfFirstTask + 1} to {indexOfFirstTask + currentCount} of {totalCount} entries
                                     </div>
                                 </div>
@@ -807,7 +817,7 @@ const TaskRegistry: React.FC = () => {
                                     else if (t.doctype === 'Loan Settlement') navigate(`/loan-settlement/${t.docname}`);
                                     else navigate(`/task-registry/${t.doctype}/${t.docname}`);
                                 }}
-                                className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"
+                                className="w-full rounded-lg bg-[var(--psd-primary)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--psd-primary-hover)]"
                             >
                                 View Full Details →
                             </button>
