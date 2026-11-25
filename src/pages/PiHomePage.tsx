@@ -662,7 +662,7 @@ export function PiHomePage() {
   }, []);
   const greetingText = `${getGreeting()}, ${fullName}!`;
   const greeting = useTypewriter(greetingText, (!!userData?.full_name && !dashPending) || nameWaited);
-  const { items: activity, isLoading: activityLoading, error: activityError } = useMyRecentApplications(currentUser, 8);
+  const { items: activity, putBacks, isLoading: activityLoading, error: activityError } = useMyRecentApplications(currentUser, 8, 40);
 
   const viewDetail = (path: string) => (
     <button
@@ -911,38 +911,39 @@ export function PiHomePage() {
             </Card>
 
             <Card>
-              <PanelHeader icon={<Megaphone />} title="Recent Updates" tone="amber" />
+              <PanelHeader icon={<RotateCcw />} title="Put Back" tone="coral" />
               <div className="max-h-[340px] overflow-y-auto">
-                {dashboardLoading ? (
-                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">Loading updates...</p>
-                ) : failed ? (
-                  <p role="alert" className="p-4 text-[12px] font-medium text-[var(--psd-returned)]">
-                    Couldn't load updates. Please refresh the page.
-                  </p>
-                ) : recentUpdates.length === 0 ? (
-                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">No recent updates.</p>
+                {activityLoading ? (
+                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">Checking your applications...</p>
+                ) : putBacks.length === 0 ? (
+                  <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">Nothing has been put back to you.</p>
                 ) : (
                   <ul className="divide-y divide-[var(--psd-border)]">
-                    {recentUpdates.map((update, i) => (
-                      <li
-                        key={i}
-                        className={cn(
-                          "flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--psd-primary-light)]/40",
-                          update.title?.toLowerCase().includes("logged out") && "hidden",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "mt-1.5 size-2 shrink-0 rounded-full",
-                            update.type === "announcement" ? "bg-[var(--psd-accent)]" : "bg-[var(--psd-primary)]",
-                          )}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-[var(--psd-heading)]">{update.title}</p>
-                          <p className="mt-0.5 text-[11px] text-[var(--psd-body)]">{update.meta}</p>
-                        </div>
-                      </li>
-                    ))}
+                    {putBacks.map((a) => {
+                      const c = a.latestComment!;
+                      return (
+                        <li key={`${a.doctype}-${a.id}`}>
+                          <button
+                            onClick={() => navigate(a.route)}
+                            className="psd-focus group block w-full px-4 py-2.5 text-left transition-colors hover:bg-[var(--psd-primary-light)]/40"
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="truncate text-[13px] font-bold text-[var(--psd-heading)]">{a.title || a.doctype}</span>
+                              <span className="shrink-0 rounded bg-[var(--psd-returned)] px-1.5 py-px text-[9.5px] font-extrabold uppercase tracking-wider text-white">Put back</span>
+                            </span>
+                            <span className="block truncate font-mono text-[11px] text-[var(--psd-muted)]">
+                              {a.title ? `${a.doctype} · ` : ""}{a.id}{a.projectNo ? `  ·  ${a.projectNo}` : ""}
+                            </span>
+                            <span className="mt-1 block text-[12px]" title={c.text}>
+                              <span className="font-bold text-[var(--psd-heading)]">{c.user}</span>
+                              {c.role && <span className="ml-1 font-semibold text-[#0B6B63] dark:text-teal-300">{c.role}</span>}
+                              <span className="ml-1.5 text-[10.5px] text-[var(--psd-muted)]">{relativeTime(c.timestamp)}</span>
+                              <span className="mt-0.5 line-clamp-2 block font-medium text-[#8F1F2D] dark:text-rose-200">{c.text}</span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

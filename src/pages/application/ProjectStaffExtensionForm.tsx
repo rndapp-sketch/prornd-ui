@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DateInputDMY } from "@/components/ui/date-input-dmy";
+import { usePutBackNotice } from "@/hooks/usePutBackNotice";
 import "@/pages/dashboards/projectStaffDashboard.css";
 import { openIssuedOrder } from "@/utils/extensionOrderPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
@@ -1103,6 +1104,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canEditStaffFields, applicantEmpId, extensionPeriodStaff, incrementStaff, applicantTenures]);
 
+  // "[Put Back]" notice: shown while it is still the latest comment on this extension
+  const putBackNotice = usePutBackNotice("Project Staff Extension", docName);
+  const [putBackDismissed, setPutBackDismissed] = useState(false);
+  useEffect(() => setPutBackDismissed(false), [docName]);
+
   const showCommitSection =
     !!docName &&
     !!projectNo &&
@@ -1485,6 +1491,35 @@ const ProjectStaffExtensionForm: React.FC = () => {
             isLoading={isBusy}
             requireComment={modalRequireComment}
           />
+
+          {/* Put-back push notification: same top-right toast as the other forms (e.g. Fund Received) */}
+          {putBackNotice && !putBackDismissed && (
+            <div className="fixed top-4 right-4 z-[9999] w-full max-w-sm animate-in slide-in-from-right-4 fade-in duration-300">
+              <div role="alert" className="overflow-hidden rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)] shadow-2xl">
+                <div className="h-1 bg-[var(--psd-accent)]" />
+                <div className="flex gap-3 p-4">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--psd-returned-bg)] text-[var(--psd-returned)]">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-0.5 text-[12px] font-bold text-[var(--psd-heading)]">Put Back</p>
+                    <div className="break-words text-[12px] leading-relaxed text-[var(--psd-body)]" dangerouslySetInnerHTML={{ __html: putBackNotice.content }} />
+                    {putBackNotice.timestamp && (
+                      <p className="mt-1 text-[11px] text-[var(--psd-muted)]">{new Date(putBackNotice.timestamp).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPutBackDismissed(true)}
+                    aria-label="Dismiss"
+                    className="h-fit flex-shrink-0 rounded-lg p-1 text-[var(--psd-muted)] transition-colors hover:bg-[var(--psd-bg)] hover:text-[var(--psd-heading)]"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Toast */}
           {toast && (

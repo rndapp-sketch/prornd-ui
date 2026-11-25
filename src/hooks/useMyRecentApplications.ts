@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useFrappeGetDocList } from "frappe-react-sdk";
+import { useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 
 export interface LatestComment {
@@ -187,9 +187,16 @@ async function fetchLatestComment(doctype: string, id: string): Promise<LatestCo
         .then(async (json) => {
             if (!json) return null; // request failed: not cached, may succeed next time
             const list: any[] = Array.isArray(json.message) ? json.message : [];
+            // A put-back is logged on the workflow entry for some forms (and as a comment for others), so
+            // those entries count as comments here; on a tie the put-back wins so it is not hidden by the reason comment.
+            const isPutBack = (e: any) => /put\s*back/i.test(stripHtml(String(e.content ?? "")).slice(0, 40));
             const latest = list
-                .filter((e) => e.type === "comment" && e.content && stripHtml(String(e.content)))
-                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                .filter((e) => e.content && stripHtml(String(e.content)) && (e.type === "comment" || isPutBack(e)))
+                .sort((a, b) => {
+                    const dt = new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+                    if (Math.abs(dt) > 60_000) return dt;
+                    return Number(isPutBack(b)) - Number(isPutBack(a)) || dt;
+                })[0];
             let found: LatestComment | null = null;
             if (latest) {
                 const email: string = latest.user_email || latest.user || "";
@@ -244,7 +251,7 @@ async function fetchProjectNo(doctype: string, id: string): Promise<string | nul
  * The user's latest created/modified applications across all application types, newest first.
  * One failing doctype (e.g. no read permission) is skipped; `error` is true only when every source fails.
  */
-export function useMyRecentApplications(user?: string | null, limit = 8) {
+export function useMyRecentApplications(user?: string | null, limit = 8, scan = 30) {
     // SOURCES is a module constant, so the hook count is stable across renders.
     const results = SOURCES.map((s) =>
         // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -259,6 +266,18 @@ export function useMyRecentApplications(user?: string | null, limit = 8) {
             user ? undefined : null,
             { revalidateOnFocus: false },
         ),
+    );
+
+    // Extensions waiting for this PI (the PI inbox): not owned by the PI, so they come from the pending-application list
+    const { data: pendingPi } = useFrappeGetCall<{ message: { results: any[] } }>(
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
+        {},
+        user ? `pi-inbox-extensions-${user}` : null,
+        { revalidateOnFocus: false },
+    );
+    const extensionRows = useMemo(
+        () => (pendingPi?.message?.results ?? []).filter((r: any) => r.doctype === "Project Staff Extension"),
+        [pendingPi],
     );
 
     const loadedOnce = results.some((r) => r.data !== undefined);
@@ -283,9 +302,20 @@ export function useMyRecentApplications(user?: string | null, limit = 8) {
                 }),
             );
         });
-        return all.sort((a, b) => (a.modified < b.modified ? 1 : -1)).slice(0, limit);
+        extensionRows.forEach((r: any) =>
+            all.push({
+                id: r.name,
+                doctype: "Project Staff Extension",
+                workflow_state: r.workflow_state || "Pending PI Approval",
+                creation: r.creation,
+                modified: r.modified,
+                route: `/project-staff-extension?edit=${encodeURIComponent(r.name)}`,
+            }),
+        );
+        // `scan` rows get their latest comment looked up (so put-backs beyond the first few are still found)
+        return all.sort((a, b) => (a.modified < b.modified ? 1 : -1)).slice(0, Math.max(limit, scan));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [...dataKey, limit]);
+    }, [...dataKey, extensionRows, limit, scan]);
 
     // Fill in each row's project number (projects already carry theirs)
     const [resolved, setResolved] = useState<Record<string, string | null>>({});
@@ -334,5 +364,15 @@ export function useMyRecentApplications(user?: string | null, limit = 8) {
         [items, resolved, comments],
     );
 
-    return { items: withProjectNo, isLoading, error };
+    // Applications whose latest comment is a put-back, wherever they fall in the scanned list
+    const putBacks = useMemo(
+        () => withProjectNo.filter((it) => it.latestComment && /put\s*back/i.test(it.latestComment.text.slice(0, 40))),
+        [withProjectNo],
+    );
+
+    // Put-backs are listed on their own, so the recent-activity list leaves them out
+    const putBackIds = new Set(putBacks.map((it) => `${it.doctype}::${it.id}`));
+    const items2 = withProjectNo.filter((it) => !putBackIds.has(`${it.doctype}::${it.id}`)).slice(0, limit);
+
+    return { items: items2, putBacks, isLoading, error };
 }
