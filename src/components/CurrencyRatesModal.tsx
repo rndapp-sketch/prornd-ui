@@ -143,21 +143,21 @@ function CurrencyWindow({ onClose }: { onClose: () => void }) {
         <div className="fixed inset-0 z-[9999] pointer-events-none" role="dialog" aria-modal="false">
             <div
                 className="pointer-events-auto absolute flex flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-2xl"
-                style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, border: "2px solid #A78BFA" }}
+                style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, border: "2px solid #D4D4D8" }}
             >
-                <header {...moveHandlers} title="Drag to move" className="relative flex items-center justify-between gap-3 px-4 py-3 cursor-move active:cursor-grabbing select-none touch-none border-b border-zinc-300 dark:border-zinc-600 bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 text-white">
+                <header {...moveHandlers} title="Drag to move" className="relative flex items-center justify-between gap-3 px-4 py-3 cursor-move active:cursor-grabbing select-none touch-none border-b border-zinc-300 dark:border-zinc-600 border-l-[4px] border-l-[#F47721] bg-[#FFF8F1] dark:bg-zinc-800 text-[#151B32] dark:text-zinc-100">
                     <div className="flex items-center gap-3 min-w-0">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/25 text-white"><Coins className="h-5 w-5" /></span>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F47721]/15 text-[#F47721]"><Coins className="h-5 w-5" /></span>
                         <div className="min-w-0">
-                            <h2 className="text-base font-bold leading-tight text-white">Currency Rates</h2>
-                            <p className="text-xs text-white/85">Reference rates to INR{pair ? ` · as of ${fmtDate(pair.date)}` : ""}</p>
+                            <h2 className="text-base font-bold leading-tight text-[#151B32] dark:text-zinc-100">Currency Rates</h2>
+                            <p className="text-xs text-[#59647A] dark:text-zinc-400">Reference rates to INR{pair ? ` · as of ${fmtDate(pair.date)}` : ""}</p>
                         </div>
                     </div>
-                    <span className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-white/60" aria-hidden />
-                    <span className="pointer-events-none hidden sm:flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium text-white/90">
+                    <span className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-zinc-300 dark:bg-zinc-600" aria-hidden />
+                    <span className="pointer-events-none hidden sm:flex items-center gap-1 rounded-full bg-[#F47721]/10 px-2 py-0.5 text-[10px] font-medium text-[#C2570C] dark:text-orange-300">
                         <Move className="h-3 w-3" /> Drag to move
                     </span>
-                    <button onClick={onClose} aria-label="Close" className="h-8 w-8 flex items-center justify-center rounded-full text-white hover:bg-white/25">
+                    <button onClick={onClose} aria-label="Close" className="h-8 w-8 flex items-center justify-center rounded-full text-[#59647A] hover:bg-black/5 dark:text-zinc-300 dark:hover:bg-white/10">
                         <X className="h-4 w-4" />
                     </button>
                 </header>

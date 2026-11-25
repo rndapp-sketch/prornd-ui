@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { ThinkingOrbs } from "@/components/ui/thinking-orbs";
 import {
     Search,
@@ -92,16 +93,16 @@ const sourceIcon = (source: string) => {
 const stateColor = (state?: string) => {
     const s = (state || "").toLowerCase();
     if (s.includes("reject")) {
-        return { bg: "bg-red-50 dark:bg-red-950/30", text: "text-red-700 dark:text-red-400", border: "border-red-200 dark:border-red-800", solid: "bg-red-600" };
+        return { bg: "bg-[var(--psd-returned-bg)]", text: "text-[#C02B3D] dark:text-rose-300", border: "border-[var(--psd-returned)]/40", solid: "bg-[var(--psd-returned)]" };
     }
     if (s.includes("approved") || s === "po generated" || s.includes("delivered") || s.includes("published")) {
-        return { bg: "bg-emerald-50 dark:bg-emerald-950/30", text: "text-emerald-700 dark:text-emerald-400", border: "border-emerald-200 dark:border-emerald-800", solid: "bg-emerald-600" };
+        return { bg: "bg-[var(--psd-approved-bg)]", text: "text-[#0A8A60] dark:text-emerald-300", border: "border-[var(--psd-approved)]/40", solid: "bg-[var(--psd-approved)]" };
     }
     if (s.includes("draft")) {
-        return { bg: "bg-zinc-100 dark:bg-zinc-800", text: "text-zinc-600 dark:text-zinc-400", border: "border-zinc-200 dark:border-zinc-700", solid: "bg-zinc-500" };
+        return { bg: "bg-[var(--psd-bg)]", text: "text-[var(--psd-body)]", border: "border-[var(--psd-border)]", solid: "bg-[var(--psd-muted)]" };
     }
     // Anything "Pending ..." / in-flight
-    return { bg: "bg-amber-50 dark:bg-amber-950/30", text: "text-amber-700 dark:text-amber-400", border: "border-amber-200 dark:border-amber-800", solid: "bg-amber-500" };
+    return { bg: "bg-[var(--psd-review-bg)]", text: "text-[#B26A00] dark:text-amber-300", border: "border-[var(--psd-review)]/40", solid: "bg-[var(--psd-review)]" };
 };
 
 const RECENT_KEY = "track-application-recent";
@@ -129,20 +130,20 @@ const Panel = ({
 }) => (
     <section
         className={cn(
-            "bg-white dark:bg-[#27272A] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden",
+            "psd-card overflow-hidden !rounded-xl",
             className,
         )}
     >
         {title && (
-            <header className="px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2 bg-[#F8FAFF] dark:bg-black/10">
-                {Icon && <Icon className="w-4 h-4 text-[#4F46E5] dark:text-[#A5B4FC]" />}
-                <h3 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">
+            <header className="flex items-center gap-2 border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-3.5 py-2">
+                {Icon && <Icon className="h-4 w-4 text-[var(--psd-accent)]" />}
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-[var(--psd-heading)]">
                     {title}
                 </h3>
                 {action && <div className="ml-auto">{action}</div>}
             </header>
         )}
-        <div className="p-4">{children}</div>
+        <div className="p-3.5">{children}</div>
     </section>
 );
 
@@ -159,17 +160,17 @@ const StatTile = ({
     icon: React.ElementType;
     mono?: boolean;
 }) => (
-    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3.5 py-3 shadow-sm min-w-0">
-        <p className="flex items-center gap-1.5 text-[#71717A] dark:text-[#A1A1AA] font-bold uppercase text-[10px] tracking-wider mb-1.5">
-            <span className="w-5 h-5 rounded-md bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 flex items-center justify-center">
-                <Icon className="w-3 h-3 text-[#4F46E5] dark:text-[#A5B4FC]" />
+    <div className="psd-card min-w-0 !rounded-xl border-l-[3px] !border-l-[var(--psd-primary)] px-3 py-2.5">
+        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--psd-primary-light)]">
+                <Icon className="h-3 w-3 text-[var(--psd-primary)]" />
             </span>
             {label}
         </p>
-        <p className={cn("text-[13.5px] font-extrabold text-[#18181B] dark:text-[#FAFAF9] truncate", mono && "font-mono")}>
+        <p className={cn("text-[13.5px] font-bold text-[var(--psd-heading)] truncate", mono && "font-mono")}>
             {value}
         </p>
-        {sub && <p className="text-[11.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-0.5 truncate">{sub}</p>}
+        {sub && <p className="text-[11.5px] text-[var(--psd-body)] mt-0.5 truncate">{sub}</p>}
     </div>
 );
 
@@ -178,8 +179,8 @@ const Chip = ({ children, tone = "indigo" }: { children: React.ReactNode; tone?:
         className={cn(
             "px-2.5 py-1 rounded-full text-[11.5px] font-bold border",
             tone === "indigo"
-                ? "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#3730A3] dark:text-[#C7D2FE] border-[#C7D2FE] dark:border-[#4A6CF7]/30"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700",
+                ? "bg-[var(--psd-primary-light)] text-[var(--psd-primary)] border-[var(--psd-primary)]/30"
+                : "bg-[var(--psd-bg)] text-[var(--psd-body)] border-[var(--psd-border)]",
         )}
     >
         {children}
@@ -188,14 +189,14 @@ const Chip = ({ children, tone = "indigo" }: { children: React.ReactNode; tone?:
 
 const PersonList = ({ label, icon: Icon, items }: { label: string; icon?: React.ElementType; items: string[] }) => (
     <div>
-        <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+        <p className="flex items-center gap-1 text-[10.5px] font-bold text-[var(--psd-body)] uppercase tracking-wider mb-2">
             {Icon && <Icon className="w-3 h-3" />} {label}
         </p>
         <div className="space-y-1.5">
             {items.map((a) => (
                 <p
                     key={a}
-                    className="text-[12px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] bg-[#F8FAFF] dark:bg-[#18181B]/60 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1.5 truncate"
+                    className="text-[12px] font-mono font-semibold text-[var(--psd-heading)] bg-[var(--psd-bg)] border border-[var(--psd-border)] rounded-lg px-2.5 py-1.5 truncate"
                 >
                     {a}
                 </p>
@@ -278,85 +279,81 @@ const TrackApplication: React.FC = () => {
     const pendingColors = stateColor(result?.pending_with?.state);
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <main className="flex-1 pb-6 w-full space-y-4">
+        <div className="psd-root min-h-screen font-sans">
+            <main className="flex-1 pb-6 w-full space-y-2.5">
                 {/* Hero: title + search */}
-                <div className="rounded-xl overflow-hidden border border-[#C7D2FE] dark:border-[#4A6CF7]/30 shadow-sm bg-gradient-to-br from-[#EEF2FF] via-white to-[#F8FAFF] dark:from-[#4A6CF7]/10 dark:via-[#27272A] dark:to-[#27272A]">
-                    <div className="px-5 pt-4 pb-5">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#4F46E5] dark:text-[#A5B4FC]">
-                                    Application Tracking
-                                </span>
-                                <h1 className="text-[22px] font-black tracking-tight text-[#1E3A8A] dark:text-[#E0E7FF] leading-tight flex items-center gap-2.5">
-                                    <Activity className="w-6 h-6 text-[#4F46E5] dark:text-[#A5B4FC]" />
-                                    Track Application
-                                </h1>
-                                <p className="mt-1 text-[12.5px] font-medium text-[#52525B] dark:text-[#A1A1AA] max-w-xl">
-                                    Enter a document number to see its status, who it is pending with, and its recent activity.
-                                </p>
+                <header className="psd-hero relative overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                            <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                                <Activity className="size-4" strokeWidth={1.8} />
                             </div>
-                            <button
-                                onClick={() => setShowGuide((prev) => !prev)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-white/80 dark:bg-[#18181B]/60 hover:bg-white text-[#3730A3] dark:text-[#C7D2FE] transition-colors shrink-0"
-                            >
-                                <HelpCircle className="w-3.5 h-3.5" />
-                                {showGuide ? "Hide guide" : "How to use"}
-                                {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            </button>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Application Tracking</div>
+                                <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Track Application</h1>
+                            </div>
                         </div>
-
-                        <div className="mt-4 flex flex-col sm:flex-row items-stretch gap-2.5 max-w-3xl">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
-                                <input
-                                    type="text"
-                                    value={docname}
-                                    onChange={(e) => setDocname(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Document number, e.g. 2026082110002856"
-                                    className="h-12 w-full pl-10 pr-3 rounded-xl border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-white dark:bg-[#18181B] text-[14px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] placeholder:text-[#A1A1AA] placeholder:font-sans placeholder:font-normal focus:outline-none focus:border-[#4F46E5] focus:ring-[3px] focus:ring-[#4F46E5]/15 transition-colors"
-                                />
-                            </div>
-                            <button
-                                onClick={() => handleTrack()}
-                                disabled={loading || !docname.trim()}
-                                className={cn(
-                                    "h-12 px-7 rounded-xl text-[14px] font-bold bg-[#4F46E5] hover:bg-[#3730A3] text-white transition-colors disabled:cursor-not-allowed shrink-0 shadow-sm flex items-center justify-center",
-                                    !loading && "disabled:opacity-50",
-                                    loading ? "w-20" : "min-w-[96px]",
-                                )}
-                            >
-                                {loading ? <ThinkingOrbs /> : "Track"}
-                            </button>
-                        </div>
-
-                        {recent.length > 0 && (
-                            <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
-                                    <History className="w-3 h-3" /> Recent
-                                </span>
-                                {recent.map((r) => (
-                                    <button
-                                        key={r}
-                                        onClick={() => handleTrack(r)}
-                                        disabled={loading}
-                                        className="px-2.5 py-1 rounded-full text-[11.5px] font-mono font-semibold border border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-white/80 dark:bg-[#18181B]/60 text-[#3730A3] dark:text-[#C7D2FE] hover:bg-[#EEF2FF] dark:hover:bg-[#4A6CF7]/15 transition-colors"
-                                    >
-                                        {r}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={forgetRecent}
-                                    aria-label="Clear recent searches"
-                                    className="p-1 rounded-full text-[#71717A] hover:text-[#18181B] dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10 transition-colors"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        )}
+                        <p className="hidden text-xs text-[var(--psd-body)] lg:block">Enter a document number to see its status, who it is pending with, and its recent activity.</p>
+                        <button
+                            onClick={() => setShowGuide((prev) => !prev)}
+                            className="psd-focus inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-[12px] font-bold text-[var(--psd-heading)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+                        >
+                            <HelpCircle className="h-3.5 w-3.5" />
+                            {showGuide ? "Hide guide" : "How to use"}
+                            {showGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
                     </div>
-                </div>
+
+                    <div className="mt-3 flex max-w-3xl flex-col items-stretch gap-2 sm:flex-row">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--psd-muted)]" />
+                            <input
+                                type="text"
+                                value={docname}
+                                onChange={(e) => setDocname(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Document number, e.g. 2026082110002856"
+                                className="h-10 w-full rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] pl-9 pr-3 font-mono text-[13.5px] font-semibold text-[var(--psd-heading)] transition-colors placeholder:font-sans placeholder:font-normal placeholder:text-[var(--psd-muted)] focus:border-[var(--psd-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--psd-primary)]/15"
+                            />
+                        </div>
+                        <button
+                            onClick={() => handleTrack()}
+                            disabled={loading || !docname.trim()}
+                            className={cn(
+                                "flex h-10 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-primary)] px-6 text-[13.5px] font-bold text-white shadow-sm transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98] disabled:cursor-not-allowed",
+                                !loading && "disabled:opacity-50",
+                                loading ? "w-20" : "min-w-[96px]",
+                            )}
+                        >
+                            {loading ? <ThinkingOrbs /> : "Track"}
+                        </button>
+                    </div>
+
+                    {recent.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
+                                <History className="h-3 w-3" /> Recent
+                            </span>
+                            {recent.map((r) => (
+                                <button
+                                    key={r}
+                                    onClick={() => handleTrack(r)}
+                                    disabled={loading}
+                                    className="rounded-full border border-[var(--psd-primary)]/30 bg-[var(--psd-primary-light)] px-2.5 py-0.5 font-mono text-[11.5px] font-semibold text-[var(--psd-primary)] transition-colors hover:bg-[var(--psd-primary)] hover:text-white"
+                                >
+                                    {r}
+                                </button>
+                            ))}
+                            <button
+                                onClick={forgetRecent}
+                                aria-label="Clear recent searches"
+                                className="rounded-full p-1 text-[var(--psd-muted)] transition-colors hover:bg-[var(--psd-bg)] hover:text-[var(--psd-heading)]"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    )}
+                </header>
 
                 {showGuide && (
                     <Panel title="How it works" icon={BookOpen}>
@@ -364,36 +361,37 @@ const TrackApplication: React.FC = () => {
                             {GUIDE_STEPS.map((step) => (
                                 <div
                                     key={step.n}
-                                    className="flex items-start gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#F8FAFF] dark:bg-[#18181B]/50 p-3.5"
+                                    className="flex items-start gap-3 rounded-xl border border-[var(--psd-border)] bg-[var(--psd-bg)] p-3"
                                 >
-                                    <span className="w-7 h-7 rounded-lg bg-[#4F46E5] text-white font-black text-[13px] flex items-center justify-center shrink-0">
+                                    <span className="w-7 h-7 rounded-full bg-[var(--psd-primary)] text-white font-bold text-[13px] flex items-center justify-center shrink-0">
                                         {step.n}
                                     </span>
                                     <div>
-                                        <h5 className="text-[13px] font-bold text-[#18181B] dark:text-[#FAFAF9]">{step.title}</h5>
-                                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed mt-0.5">{step.body}</p>
+                                        <h5 className="text-[13px] font-bold text-[var(--psd-heading)]">{step.title}</h5>
+                                        <p className="text-[12px] text-[var(--psd-body)] leading-snug mt-0.5">{step.body}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                        <p className="mt-3 flex items-center gap-1.5 text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">
-                            <Info className="w-3.5 h-3.5 text-[#4F46E5]" />
+                        <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-[var(--psd-body)]">
+                            <Info className="w-3.5 h-3.5 text-[var(--psd-info)]" />
                             You will see the workflow state, pending approvers, the linked project and the activity trail.
                         </p>
                     </Panel>
                 )}
 
                 {error && (
-                    <div className="flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-[13px] font-semibold text-red-700 dark:text-red-400">
+                    <div className="flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-[var(--psd-returned)]/40 bg-[var(--psd-returned-bg)] text-[13px] font-semibold text-[#C02B3D] dark:text-rose-300">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         {error}
                     </div>
                 )}
 
                 {loading && (
-                    <div className="py-16 text-center">
-                        <ThinkingOrbs size="w-3.5 h-3.5" color="bg-[#4F46E5]" className="gap-2.5 mb-4" />
-                        <p className="text-[13px] font-semibold text-[#71717A]">
+                    <div className="py-10 text-center">
+                        <div className="psd-loadbar mx-auto mb-4 max-w-xs" />
+                        <ThinkingOrbs size="w-3.5 h-3.5" color="bg-[#6842D9]" className="gap-2.5 mb-3" />
+                        <p className="text-[13px] font-semibold text-[var(--psd-body)]">
                             Tracking {docname.trim() || "application"}…
                         </p>
                     </div>
@@ -405,20 +403,20 @@ const TrackApplication: React.FC = () => {
                         <Panel>
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#4F46E5] dark:text-[#A5B4FC]">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--psd-primary)]">
                                         {result.doctype || "Application"}
                                     </p>
-                                    <p className="text-[20px] font-black font-mono tracking-tight text-[#18181B] dark:text-[#FAFAF9] break-all">
+                                    <p className="text-[19px] font-bold font-mono tracking-tight text-[var(--psd-heading)] break-all">
                                         {result.docname}
                                     </p>
                                     {result.title && (
-                                        <p className="text-[12.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-0.5">{result.title}</p>
+                                        <p className="text-[12.5px] text-[var(--psd-body)] mt-0.5">{result.title}</p>
                                     )}
                                 </div>
                                 {result.current_status && (
                                     <span
                                         className={cn(
-                                            "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-extrabold border",
+                                            "inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-[12.5px] font-bold border",
                                             statusColors.bg,
                                             statusColors.text,
                                             statusColors.border,
@@ -431,10 +429,10 @@ const TrackApplication: React.FC = () => {
                             </div>
 
                             {result.workflow_progress && (
-                                <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2.5 flex-wrap">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#A1A1AA]">Progress</span>
+                                <div className="mt-3 pt-3 border-t border-[var(--psd-border)] flex items-center gap-2.5 flex-wrap">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--psd-muted)]">Progress</span>
                                     <Chip tone="zinc">{result.workflow_progress.previous_state}</Chip>
-                                    <ArrowRight className="w-4 h-4 text-[#A1A1AA]" />
+                                    <ArrowRight className="w-4 h-4 text-[var(--psd-muted)]" />
                                     <span
                                         className={cn(
                                             "px-2.5 py-1 rounded-full text-[11.5px] font-extrabold border",
@@ -450,7 +448,7 @@ const TrackApplication: React.FC = () => {
                         </Panel>
 
                         {/* Key facts */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
                             <StatTile
                                 label="Project"
                                 icon={Hash}
@@ -483,7 +481,7 @@ const TrackApplication: React.FC = () => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-2.5 items-start">
                             {/* Activity */}
                             <Panel title="Recent activity" icon={Activity} className="xl:col-span-2">
                                 {result.recent_activity?.length ? (
@@ -494,17 +492,17 @@ const TrackApplication: React.FC = () => {
                                             return (
                                                 <li key={i} className="flex gap-3">
                                                     <div className="flex flex-col items-center">
-                                                        <div className="w-8 h-8 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 border border-[#C7D2FE] dark:border-[#4A6CF7]/30 flex items-center justify-center shrink-0">
-                                                            <Icon className="w-4 h-4 text-[#4F46E5] dark:text-[#A5B4FC]" />
+                                                        <div className="w-8 h-8 rounded-full bg-[var(--psd-primary-light)] border border-[var(--psd-primary)]/30 flex items-center justify-center shrink-0">
+                                                            <Icon className="w-4 h-4 text-[var(--psd-primary)]" />
                                                         </div>
-                                                        {!isLast && <div className="w-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46] my-1" />}
+                                                        {!isLast && <div className="w-px flex-1 bg-[var(--psd-border)] my-1" />}
                                                     </div>
                                                     <div className={cn("pb-4 min-w-0", isLast && "pb-0")}>
-                                                        <p className="text-[13px] text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                            <span className="font-extrabold text-[#18181B] dark:text-[#FAFAF9]">{entry.user}</span>{" "}
-                                                            <span className="text-[#52525B] dark:text-[#D4D4D8]">{entry.detail}</span>
+                                                        <p className="text-[13px] text-[var(--psd-body)]">
+                                                            <span className="font-bold text-[var(--psd-heading)]">{entry.user}</span>{" "}
+                                                            <span>{entry.detail}</span>
                                                         </p>
-                                                        <p className="text-[11px] font-semibold text-[#A1A1AA] mt-0.5">
+                                                        <p className="text-[11px] font-semibold text-[var(--psd-muted)] mt-0.5">
                                                             {entry.source} · {fmtDateTime(entry.timestamp)}
                                                         </p>
                                                     </div>
@@ -513,7 +511,7 @@ const TrackApplication: React.FC = () => {
                                         })}
                                     </ol>
                                 ) : (
-                                    <p className="text-[12.5px] text-[#71717A] dark:text-[#A1A1AA]">No activity recorded yet.</p>
+                                    <p className="text-[12.5px] text-[var(--psd-body)]">No activity recorded yet.</p>
                                 )}
                             </Panel>
 
@@ -522,13 +520,13 @@ const TrackApplication: React.FC = () => {
                                 <Panel title="Pending with" icon={UserIcon}>
                                     <div className="space-y-4">
                                         <div className={cn("rounded-xl border px-3.5 py-3", pendingColors.bg, pendingColors.border)}>
-                                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] mb-1">State</p>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--psd-body)] mb-1">State</p>
                                             <p className={cn("text-[15px] font-extrabold", pendingColors.text)}>{result.pending_with.state}</p>
                                         </div>
 
                                         {!!result.pending_with.roles?.length && (
                                             <div>
-                                                <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                <p className="flex items-center gap-1 text-[10.5px] font-bold text-[var(--psd-body)] uppercase tracking-wider mb-2">
                                                     <UsersIcon className="w-3 h-3" /> Roles
                                                 </p>
                                                 <div className="flex flex-wrap gap-1.5">
@@ -545,7 +543,7 @@ const TrackApplication: React.FC = () => {
                                             <PersonList label="Assigned to" items={result.pending_with.assigned_to} />
                                         )}
                                         {result.pending_with.is_terminal && (
-                                            <div className="flex items-center gap-1.5 text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                                            <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#0A8A60] dark:text-emerald-300">
                                                 <CheckCircle2 className="w-4 h-4" />
                                                 Final state — no further action pending
                                             </div>
@@ -558,10 +556,10 @@ const TrackApplication: React.FC = () => {
                 )}
 
                 {!result && !error && !loading && !showGuide && (
-                    <div className="py-12 px-6 text-center bg-white dark:bg-[#27272A] rounded-xl border border-dashed border-[#C7D2FE] dark:border-[#4A6CF7]/30">
-                        <FileText className="w-9 h-9 mx-auto mb-3 text-[#4F46E5] dark:text-[#A5B4FC]" />
-                        <h3 className="text-[15px] font-extrabold text-[#18181B] dark:text-[#FAFAF9]">No application loaded</h3>
-                        <p className="text-[12.5px] text-[#71717A] dark:text-[#A1A1AA] max-w-md mx-auto mt-1">
+                    <div className="py-10 px-6 text-center psd-card !rounded-xl border-dashed">
+                        <FileText className="w-9 h-9 mx-auto mb-3 text-[var(--psd-primary)]" />
+                        <h3 className="text-[15px] font-bold text-[var(--psd-heading)]">No application loaded</h3>
+                        <p className="text-[12.5px] text-[var(--psd-body)] max-w-md mx-auto mt-1">
                             Enter a document number above to see where it stands.
                         </p>
                     </div>

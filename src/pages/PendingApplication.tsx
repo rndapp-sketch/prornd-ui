@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
+import { FormSelect } from '@/components/FormSelect';
+import '@/pages/dashboards/projectStaffDashboard.css';
 import { ActivityIcon, ClipboardCheck, Users2, CalendarClock } from 'lucide-react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -63,7 +65,7 @@ interface PendingApplicationResponse {
 }
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
+    <div className={cn("psd-card !rounded-xl", className)}>
         {children}
     </div>
 );
@@ -79,11 +81,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm hover:shadow-md",
-            variant === 'ghost' && "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100",
-            variant === 'outline' && "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-[12.5px] transition-all duration-200",
+            "psd-focus",
+            variant === 'primary' && "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm active:scale-[0.98]",
+            variant === 'ghost' && "bg-transparent text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)] hover:text-[var(--psd-primary)]",
+            variant === 'outline' && "bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -157,7 +159,7 @@ const PendingApplication: React.FC = () => {
     };
 
     const getStatusBadge = () =>
-        cn("px-2 py-0.5 rounded-full text-[10px] font-medium border bg-amber-50 text-amber-700 border-amber-200");
+        cn("inline-flex items-center rounded-full border border-[var(--psd-review)]/40 bg-[var(--psd-review-bg)] px-2.5 py-0.5 text-[10.5px] font-bold text-[#B26A00] dark:text-amber-300");
 
     const getPageNumbers = () => {
         const pages: (number | string)[] = [];
@@ -185,13 +187,13 @@ const PendingApplication: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="psd-root flex h-screen items-center justify-center">
                 <FrappeCard className="p-12 text-center max-w-md w-full">
-                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FaExclamationCircle className="h-6 w-6 text-red-600" />
+                    <div className="w-12 h-12 bg-[var(--psd-returned-bg)] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FaExclamationCircle className="h-6 w-6 text-[var(--psd-returned)]" />
                     </div>
-                    <h2 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Unable to Load Applications</h2>
-                    <p className="text-zinc-500 dark:text-zinc-400">{error.message}</p>
+                    <h2 className="text-[17px] font-bold text-[var(--psd-heading)] mb-2">Unable to Load Applications</h2>
+                    <p className="text-[var(--psd-body)]">{error.message}</p>
                     <FrappeButton onClick={() => window.location.reload()} variant="outline" className="mt-6">
                         Retry
                     </FrappeButton>
@@ -202,89 +204,87 @@ const PendingApplication: React.FC = () => {
 
     return (
         <>
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
+        <div className="psd-root min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full space-y-2.5">
                 {/* Header */}
-                <div className="mb-3 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
-                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start gap-3 px-4 py-2.5">
+                <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                    <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                         <button
                             onClick={() => navigate(-1)}
-                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                            className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
                             aria-label="Back to dashboard"
                         >
                             <FaArrowLeft className="h-3.5 w-3.5" />
                         </button>
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
-                            <ClipboardCheck className="h-5 w-5" />
+                        <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <ClipboardCheck className="size-4" strokeWidth={1.8} />
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">PI Inbox</span>
-                            <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Applications</h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Leave, extension and other-PI applications awaiting your approval as Principal Investigator.</p>
+                            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">PI Inbox</div>
+                            <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Pending Applications</h1>
                         </div>
                     </div>
-                </div>
+                    <p className="relative z-10 hidden max-w-xl text-right text-xs text-[var(--psd-body)] md:block">Leave, extension and other-PI applications awaiting your approval as Principal Investigator.</p>
+                </header>
+
+                {isLoading && (
+                    <div role="status" aria-live="polite" className="space-y-1">
+                        <div className="psd-loadbar" />
+                        <p className="text-[11.5px] font-semibold text-[var(--psd-body)]">Fetching pending applications…</p>
+                    </div>
+                )}
 
                 {/* Info banner */}
-                <div className="mb-3 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800/50 dark:bg-blue-950/30">
-                    <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                        <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <div className="psd-card flex items-center gap-2.5 !rounded-xl border-l-[3px] !border-l-[var(--psd-info)] px-3 py-1.5">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-info-bg)] text-[var(--psd-info)]">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                         </svg>
                     </div>
-                    <div>
-                        <p className="text-[13px] font-bold text-blue-800 dark:text-blue-300">Open an application to approve or reject it.</p>
-                        <p className="mt-0.5 text-[12px] font-medium leading-5 text-blue-700 dark:text-blue-400">Click a row's application number to peek at its activity log, or press View to review and act on it as PI.</p>
-                    </div>
+                    <p className="text-[12px] leading-snug text-[var(--psd-body)]">
+                        <b className="font-bold text-[var(--psd-heading)]">Open an application to approve or reject it.</b>{" "}
+                        Click a row's application number to peek at its activity log, or press View to review and act on it as PI.
+                    </p>
                 </div>
 
                 {/* Stat cards */}
-                <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <FrappeCard className="flex items-center gap-3 px-3 py-2.5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
-                            <ClipboardCheck className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Awaiting Approval</p>
-                            <p className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">{allApplications.length}</p>
-                        </div>
-                    </FrappeCard>
-                    <FrappeCard className="flex items-center gap-3 px-3 py-2.5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">
-                            <Users2 className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Applicants</p>
-                            <p className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">{uniqueApplicantCount}</p>
-                        </div>
-                    </FrappeCard>
-                    <FrappeCard className="flex items-center gap-3 px-3 py-2.5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400">
-                            <CalendarClock className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Oldest Pending</p>
-                            <p className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">
-                                {oldestApplication?.creation
-                                    ? new Date(oldestApplication.creation).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                                    : "-"}
-                            </p>
-                        </div>
-                    </FrappeCard>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    {[
+                        { label: "Awaiting Approval", value: allApplications.length, icon: ClipboardCheck, color: "#d9830f", bg: "var(--psd-review-bg)" },
+                        { label: "Applicants", value: uniqueApplicantCount, icon: Users2, color: "#6842d9", bg: "var(--psd-primary-light)" },
+                        {
+                            label: "Oldest Pending",
+                            value: oldestApplication?.creation
+                                ? new Date(oldestApplication.creation).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                                : "-",
+                            icon: CalendarClock,
+                            color: "#d6364a",
+                            bg: "var(--psd-returned-bg)",
+                        },
+                    ].map((k) => (
+                        <FrappeCard key={k.label} className="flex items-center gap-3 border-l-[3px] px-3 py-2" >
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: k.bg, color: k.color }}>
+                                <k.icon className="h-[18px] w-[18px]" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--psd-body)]">{k.label}</p>
+                                <p className="text-[19px] font-bold leading-tight tabular-nums text-[var(--psd-heading)]">{k.value}</p>
+                            </div>
+                        </FrappeCard>
+                    ))}
                 </div>
 
                 {/* Filter Section */}
-                <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
-                    <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
-                        Showing <span className="text-zinc-900 dark:text-zinc-200 font-semibold">{filteredApplications.length}</span> applications
+                <div className="psd-card flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 !rounded-xl px-3 py-2">
+                    <div className="whitespace-nowrap text-[12px] font-medium text-[var(--psd-body)]">
+                        Showing <span className="font-bold text-[var(--psd-heading)]">{filteredApplications.length}</span> applications
                     </div>
 
                     <div className="flex items-center gap-3">
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--psd-muted)]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                             </span>
                             <input
@@ -294,90 +294,102 @@ const PendingApplication: React.FC = () => {
                                 placeholder="Search by employee, type…"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
-                                className="h-10 pl-9 pr-9 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 shadow-sm transition-all"
+                                className="h-9 w-56 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] pl-9 pr-9 text-[13px] text-[var(--psd-heading)] placeholder:text-[var(--psd-muted)] transition-all focus:border-[var(--psd-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--psd-primary)]/15"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={handleClearSearch}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--psd-muted)] transition-colors hover:text-[var(--psd-heading)]"
                                     title="Clear search"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                                 </button>
                             )}
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap hidden sm:inline">Rows:</span>
-                            <select
-                                value={itemsPerPage}
-                                onChange={(e) => {
-                                    setItemsPerPage(Number(e.target.value));
-                                    setCurrentPage(1);
-                                }}
-                                className="h-8 pl-2 pr-8 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-                            >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
+                        <div className="flex items-center gap-2">
+                            <span className="hidden whitespace-nowrap text-[12px] font-semibold text-[var(--psd-body)] sm:inline">Rows:</span>
+                            <div className="w-[72px]">
+                                <FormSelect
+                                    compact
+                                    value={String(itemsPerPage)}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                </FormSelect>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Table */}
                 <FrappeCard className="overflow-hidden p-0">
-                    <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                            <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                                 <tr>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Application</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Employee</th>
-                                    <th className="px-3 py-2 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Status</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Type</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Application</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Date</th>
+                                    <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">Employee</th>
+                                    <th className="px-3 py-2 text-end text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
-                                {currentApplications.length > 0 ? (
+                            <tbody className="divide-y divide-[var(--psd-border)] bg-[var(--psd-surface)] text-xs">
+                                {isLoading ? (
+                                    Array.from({ length: 6 }).map((_, i) => (
+                                        <tr key={i} className="psd-row-in" style={{ animationDelay: `${i * 70}ms` }}>
+                                            {[50, 45, 70, 45, 55, 30].map((w, c) => (
+                                                <td key={c} className="px-3 py-2.5">
+                                                    <div className="psd-shimmer h-4" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                ) : currentApplications.length > 0 ? (
                                     currentApplications.map((app) => (
-                                        <tr key={app.name} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group">
+                                        <tr key={app.name} className="group transition-colors hover:bg-[var(--psd-primary-light)]/40">
                                             <td className="px-3 py-2 align-middle">
                                                 <span className={getStatusBadge()}>
                                                     {app.workflow_state}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
-                                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800">
+                                            <td className="px-3 py-2 align-middle text-[var(--psd-body)] font-medium">
+                                                <span className="inline-block rounded-full border border-[var(--psd-primary)]/30 bg-[var(--psd-primary-light)] px-2.5 py-0.5 text-[10.5px] font-bold text-[var(--psd-primary)]">
                                                     {getAppDoctype(app)}
                                                 </span>
                                                 {app.leave_type && (
-                                                    <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{app.leave_type}</div>
+                                                    <div className="mt-1 text-[11px] text-[var(--psd-body)]">{app.leave_type}</div>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                            <td className="px-3 py-2 align-middle font-semibold text-[var(--psd-heading)]">
                                                 <button
                                                     className={cn(
-                                                        "text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title",
-                                                        selectedApp === app.name && "text-[#D97757]",
+                                                        "text-left hover:text-[var(--psd-primary)] transition-colors flex items-center gap-1.5 group/title",
+                                                        selectedApp === app.name && "text-[var(--psd-primary)]",
                                                     )}
                                                     onClick={() => setSelectedApp((prev) => (prev === app.name ? null : app.name))}
                                                     title="Click to open the floating activity log"
                                                 >
                                                     {app.name}
                                                     <ActivityIcon className={cn(
-                                                        "w-3.5 h-3.5 flex-shrink-0 transition-opacity text-[#D97757]",
+                                                        "w-3.5 h-3.5 flex-shrink-0 transition-opacity text-[var(--psd-primary)]",
                                                         selectedApp === app.name ? "opacity-100" : "opacity-0 group-hover/title:opacity-100",
                                                     )} />
                                                 </button>
                                             </td>
-                                            <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                 {app.creation ? new Date(app.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                                             </td>
-                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">
+                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--psd-primary-light)] text-xs font-bold text-[var(--psd-primary)]">
                                                         {(app.username || app.owner || "?").charAt(0).toUpperCase()}
                                                     </div>
                                                     <span className="truncate max-w-[140px]">{app.username || app.owner}</span>
@@ -396,7 +408,7 @@ const PendingApplication: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={6} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
+                                        <td colSpan={6} className="p-12 text-center text-[var(--psd-body)]">
                                             No applications pending your PI approval.
                                         </td>
                                     </tr>
@@ -406,9 +418,9 @@ const PendingApplication: React.FC = () => {
                     </div>
 
                     {filteredApplications.length > 0 && (
-                        <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
-                            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                                Showing <span className="font-medium text-zinc-900 dark:text-zinc-200">{indexOfFirstApp + 1}</span> to <span className="font-medium text-zinc-900 dark:text-zinc-200">{Math.min(indexOfLastApp, filteredApplications.length)}</span> of {filteredApplications.length} entries
+                        <div className="flex items-center justify-between border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2">
+                            <div className="text-[12px] text-[var(--psd-body)]">
+                                Showing <span className="font-bold text-[var(--psd-heading)]">{indexOfFirstApp + 1}</span> to <span className="font-bold text-[var(--psd-heading)]">{Math.min(indexOfLastApp, filteredApplications.length)}</span> of {filteredApplications.length} entries
                             </div>
                             <div className="flex gap-1">
                                 <FrappeButton
@@ -425,10 +437,10 @@ const PendingApplication: React.FC = () => {
                                         onClick={() => typeof page === 'number' && handlePageChange(page)}
                                         disabled={typeof page !== 'number'}
                                         className={cn(
-                                            "w-9 h-9 rounded-lg text-sm font-medium transition-colors flex items-center justify-center",
+                                            "flex h-8 w-8 items-center justify-center rounded-lg text-[12px] font-semibold transition-colors",
                                             page === currentPage
-                                                ? "bg-zinc-900 text-white shadow-sm"
-                                                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700",
+                                                ? "bg-[var(--psd-primary)] text-white shadow-sm"
+                                                : "text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)]",
                                             typeof page !== 'number' && "cursor-default hover:bg-transparent"
                                         )}
                                     >

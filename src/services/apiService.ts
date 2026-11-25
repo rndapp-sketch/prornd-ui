@@ -161,6 +161,15 @@ export const sanctionSheetAPI = {
     performAction: `${API_BASE}.sanction_sheet.sanction_sheet.perform_sanction_sheet_action`,
 };
 
+// Recruitment Advertisment (publish state of an approved Recruitment Adhoc Contractual)
+export const recruitmentAdvertismentAPI = {
+    save: `${API_BASE}.recruitment_advertisment.recruitment_advertisment.save_recruitment_advertisment`,
+    get: `${API_BASE}.recruitment_advertisment.recruitment_advertisment.get_recruitment_advertisment`,
+    getMany: `${API_BASE}.recruitment_advertisment.recruitment_advertisment.get_recruitment_advertisments`,
+    // Approved recruitments: not yet published by default; published=1 -> published only; published=all -> everything
+    listApproved: `${API_BASE}.recruitment_advertisment.recruitment_advertisment.list_approved_recruitments`,
+};
+
 // Recruitment Adhoc Contractual API endpoints
 export const recruitmentAdhocContractualAPI = {
     getFields: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_recruitment_adhoc_contractual_fields`,

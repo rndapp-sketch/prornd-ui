@@ -1,4 +1,5 @@
 import { FRAPPE_BASE_URL, rewriteFrappeLinks } from "@/utils/frappeUrl";
+import { fetchRoleLabel } from "@/hooks/useMyRecentApplications";
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -147,6 +148,20 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
 
     const [designation, setDesignation] = useState<string>("");
     const [fullName, setFullName] = useState<string>("");
+    const [roleText, setRoleText] = useState<string>("");
+
+    // Portal role(s) of whoever wrote the entry, shown beside their name (batched + cached)
+    useEffect(() => {
+        let cancelled = false;
+        if (entry.user_email) {
+            fetchRoleLabel(entry.user_email).then((label) => {
+                if (!cancelled && label) setRoleText(label);
+            });
+        }
+        return () => {
+            cancelled = true;
+        };
+    }, [entry.user_email]);
 
     useEffect(() => {
         if (!entry.user_email) return;
@@ -207,6 +222,11 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
                     <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[130px]">
                         {fullName || entry.user || entry.user_email}
                     </span>
+                    {(roleText || designation) && (
+                        <span className="flex-shrink-0 max-w-[150px] truncate rounded-full border border-[#0B6B63]/30 bg-[#DDF3F0] px-1.5 py-px text-[10px] font-bold text-[#0B6B63] dark:border-teal-400/30 dark:bg-teal-500/15 dark:text-teal-300" title={roleText || designation}>
+                            {roleText || designation}
+                        </span>
+                    )}
                     {designation && (
                         <span className="designation-text" style={{ display: "none" }}>
                             {designation}
@@ -235,7 +255,7 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
 
                 {/* Comment content */}
                 {entry.content && (
-                    <div className="mt-1.5 p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed prose prose-xs dark:prose-invert max-w-none line-clamp-4"
+                    <div className="mt-1.5 p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed prose prose-xs dark:prose-invert max-w-none max-h-36 overflow-y-auto overscroll-contain whitespace-pre-wrap [overflow-wrap:anywhere] custom-scrollbar"
                         dangerouslySetInnerHTML={{ __html: rewriteFrappeLinks(entry.content) }}
                     />
                 )}

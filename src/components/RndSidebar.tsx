@@ -57,6 +57,8 @@ import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { HelpModule } from "./HelpModule";
 import { AddStudentModal } from "./AddStudentModal";
+import { useRecruitmentAdvertisementPending } from "@/hooks/useRecruitmentAdvertisementPending";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { isProjectStaffApplicant } from "@/hooks/useProjectStaffApplicant";
 
 // --- LOGIC: Interfaces (Unchanged) ---
@@ -104,6 +106,8 @@ export function AppSidebar() {
     const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
     const isRndStaffRole = roles?.includes("staff, RnD") ?? false;
+    // Approved recruitments not yet published (staff, RnD only), split by project type
+    const recruitmentPending = useRecruitmentAdvertisementPending(isRndStaffRole && !!currentUser);
     const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
     const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
     const isDoRnd = roles?.includes("Dean, RnD") ?? false;
@@ -271,6 +275,7 @@ export function AppSidebar() {
                 "head_approver_1",
             ]),
         },
+        { label: "Recruitment Advertisement", path: "/recruitment-advertisement", visible: hasAnyRole(["staff, RnD"]) },
         { label: "ID Card Management", path: "/hr-id-card-management", visible: hasAnyRole(["staff, RnD"]) },
         { label: "Upload Director PDF", path: "/director-pdf-upload", visible: canUploadDirectorPdf },
         { label: "Faculty Admission PDF Upload", path: "/top-up-fellowship-faculty-admission", visible: canUploadDirectorPdf },
@@ -613,7 +618,27 @@ export function AppSidebar() {
     };
 
     // --- LOGIC: Path Checking (Unchanged) ---
+    // "Home" links to /dashboard, which only redirects each user to their own landing page, so Home
+    // must count as active on any of those pages (not just on /dashboard itself).
+    const HOME_LANDING_PATHS = [
+        "/dashboard",
+        "/home",
+        "/pihomepage",
+        "/dean-dashboard",
+        "/ado-rnd-dashboard",
+        "/head-dashboard",
+        "/hos-rnd-dashboard",
+        "/rnd-staff-dashboard",
+        "/project-staff-dashboard",
+        "/student-dashboard",
+        "/independent-researcher-dashboard",
+    ];
+
     const isActivePath = (path: string) => {
+        if (path === "/dashboard") {
+            return HOME_LANDING_PATHS.includes(location.pathname);
+        }
+
         if (path === "/home") {
             return (
                 location.pathname === "/home" ||
@@ -655,8 +680,8 @@ export function AppSidebar() {
 
     // Groups get a tinted panel so they read as one block instead of loose items
     const GROUP_TINT: Record<string, string> = {
-        [TASK_GROUP_LABEL]: "bg-[#EEF2FF] ring-1 ring-[#C7D2FE] dark:bg-[#312E81]/20 dark:ring-[#4338CA]/40",
-        [FINANCE_GROUP_LABEL]: "bg-[#ECFDF5] ring-1 ring-[#A7F3D0] dark:bg-[#064E3B]/20 dark:ring-[#047857]/40",
+        [TASK_GROUP_LABEL]: "bg-[var(--psd-review-bg)]/70 ring-1 ring-[var(--psd-review)]/25",
+        [FINANCE_GROUP_LABEL]: "bg-[var(--psd-approved-bg)]/70 ring-1 ring-[var(--psd-approved)]/25",
     };
 
     // Right-aligned notification badges: orange = pending, red = secondary
@@ -669,6 +694,7 @@ export function AppSidebar() {
             "Upload Director PDF": { count: pendingDirectorPdfCount, tone: "orange" },
             "ID Card Management": { count: pendingIdCardCount, tone: "red" },
             "ID Card Request": { count: returnedIdCardCount, tone: "red" },
+            "Recruitment Advertisement": { count: recruitmentPending.total, tone: "orange" },
         };
         if (label === TASK_GROUP_LABEL) {
             // Group badge = sum of its entries, so pending work is visible while collapsed
@@ -692,52 +718,55 @@ export function AppSidebar() {
 
     const navButtonClass = (active: boolean) =>
         cn(
-            "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
+            "relative w-full rounded-[10px] text-[12px] transition-all duration-150",
             expanded ? "px-3 py-1.5 !h-auto min-h-[34px] justify-start items-center "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
             active
-                ? "bg-[#BFD3FF] text-[#1E3A8A] font-semibold dark:bg-[#2563EB]/40 dark:text-[#BFDBFE]"
-                : "text-[#0F172A] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
+                ? "bg-[#F3DA94] text-[#5A3F06] font-semibold shadow-sm dark:bg-[#7A5A1A]/55 dark:text-[#F6E3B0]"
+                : "text-[var(--psd-body)] font-medium hover:bg-[#FBEFCF]/90 hover:text-[#5A3F06] dark:hover:bg-[#4A3D22]/60 dark:hover:text-[#F6E3B0]",
         );
 
     const UTIL_TONES = {
         manual: {
-            idle: "text-[#1E293B] hover:bg-[#C7D2FE] hover:text-[#3730A3] dark:text-[#A5B4FC]",
-            active: "bg-[#C7D2FE] text-[#3730A3] font-semibold",
-            icon: "text-[#4F46E5]",
+            idle: "text-[var(--psd-body)] hover:bg-[#FBEFCF]/90 hover:text-[#5A3F06] dark:hover:bg-[#4A3D22]/60",
+            active: "bg-[#F3DA94] text-[#5A3F06] font-semibold dark:bg-[#7A5A1A]/55 dark:text-[#F6E3B0]",
+            icon: "text-[var(--psd-primary)]",
         },
         support: {
-            idle: "text-[#1E293B] hover:bg-[#A7F3D0] hover:text-[#065F46] dark:text-[#6EE7B7]",
-            active: "bg-[#A7F3D0] text-[#065F46] font-semibold",
-            icon: "text-[#059669]",
+            idle: "text-[var(--psd-body)] hover:bg-[var(--psd-approved-bg)] hover:text-[#0A7F58]",
+            active: "bg-[var(--psd-approved-bg)] text-[#0A7F58] font-semibold",
+            icon: "text-[var(--psd-approved)]",
         },
     } as const;
 
     const utilButtonClass = (active: boolean, tone?: keyof typeof UTIL_TONES) =>
         cn(
-            "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
+            "relative w-full rounded-[10px] text-[12px] transition-all duration-150",
             expanded ? "px-3 py-1.5 !h-auto min-h-[34px] justify-start gap-3 "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
             tone
                 ? cn("font-medium", active ? UTIL_TONES[tone].active : UTIL_TONES[tone].idle)
                 : active
-                ? "bg-[#BFD3FF] text-[#1E3A8A] font-semibold dark:bg-[#2563EB]/40 dark:text-[#BFDBFE]"
-                : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
+                ? "bg-[#F3DA94] text-[#5A3F06] font-semibold shadow-sm dark:bg-[#7A5A1A]/55 dark:text-[#F6E3B0]"
+                : "text-[var(--psd-body)] font-medium hover:bg-[#FBEFCF]/90 hover:text-[#5A3F06] dark:hover:bg-[#4A3D22]/60 dark:hover:text-[#F6E3B0]",
         );
 
     const subButtonClass = (active: boolean) =>
         cn(
             "w-full h-auto min-h-[28px] px-3 py-1.5 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150 !overflow-visible [&>span]:!overflow-visible [&>span]:!whitespace-normal [&>span]:![text-overflow:clip]",
             active
-                ? "bg-[#BFD3FF] text-[#1E3A8A] font-semibold dark:bg-[#2563EB]/40 dark:text-[#BFDBFE]"
-                : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
+                ? "bg-[#F3DA94] text-[#5A3F06] font-semibold shadow-sm dark:bg-[#7A5A1A]/55 dark:text-[#F6E3B0]"
+                : "text-[var(--psd-body)] font-medium hover:bg-[#FBEFCF]/90 hover:text-[#5A3F06] dark:hover:bg-[#4A3D22]/60 dark:hover:text-[#F6E3B0]",
         );
 
-    const subListClass = "ml-[1.6rem] mt-0.5 pl-3 border-l border-[#CBD5E1] dark:border-[#3F3F46] space-y-0.5";
+    const subListClass = "ml-[1.6rem] mt-0.5 pl-3 border-l border-[var(--psd-border)] space-y-0.5";
 
     const ActiveBar = () => (
-        <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#1E40AF]" />
+        <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#C98A0B]" />
     );
 
-    const sidebarBg = "bg-[#FAFAFA] dark:bg-[#18181B]";
+    // The gradient lives on the sidebar itself; header, menu and footer are transparent so it reads as one surface.
+    const sidebarGradient =
+        "!bg-[linear-gradient(180deg,#FFFFFF_0%,#F2F6EC_45%,#E3ECD5_100%)] dark:!bg-[linear-gradient(180deg,#27272A_0%,#262D25_50%,#2C3627_100%)]";
+    const sidebarBg = "!bg-transparent";
 
     return (
         <>
@@ -745,11 +774,12 @@ export function AppSidebar() {
             <Sidebar
                 collapsible="icon"
                 variant="sidebar"
-                className={cn("border-r border-[#CBD5E1] dark:border-[#3F3F46] z-50 [&_[data-slot=sidebar-container]]:z-50", sidebarBg)}
+                className={cn("psd-root border-r border-[var(--psd-border)] z-50 [&_[data-slot=sidebar-container]]:z-50", sidebarGradient)}
                 style={{ "--sidebar-width": "14.5rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
             >
                 {/* Header / Branding */}
-                <SidebarHeader className={cn("sidebar-glass-header gap-0 p-0 h-[55px] box-border justify-center")}>
+                <SidebarHeader className="relative gap-0 p-0 h-[55px] box-border justify-center overflow-hidden border-b border-[var(--psd-border)] bg-[var(--psd-surface)]/60 backdrop-blur-sm">
+                    <div aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
                     <div className={cn(
                         "flex items-center transition-all duration-200",
                         expanded ? "px-[18px] gap-3 h-full" : "justify-center px-0 h-full",
@@ -760,10 +790,10 @@ export function AppSidebar() {
                         </div>
                         {expanded && (
                             <div className="flex flex-col overflow-hidden min-w-0">
-                                <span className="text-[13px] font-bold tracking-tight text-[#123B7A] dark:text-[#93C5FD] whitespace-nowrap leading-tight">
+                                <span className="text-[13px] font-extrabold tracking-tight text-[var(--psd-heading)] whitespace-nowrap leading-tight">
                                     PRAGATI R&D
                                 </span>
-                                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#475569] whitespace-nowrap leading-tight mt-0.5">
+                                <span className="text-[9px] font-semibold tracking-[0.14em] text-[var(--psd-muted)] whitespace-nowrap leading-tight mt-0.5">
                                     IIT GUWAHATI
                                 </span>
                             </div>
@@ -775,7 +805,7 @@ export function AppSidebar() {
                 <SidebarContent className={cn("px-3 py-3", sidebarBg)}>
                     <SidebarGroup className="p-0">
                         {expanded && (
-                            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#64748B]">
+                            <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--psd-muted)]">
                                 Main
                             </div>
                         )}
@@ -811,7 +841,7 @@ export function AppSidebar() {
                                     <SidebarMenuItem
                                         key={item.label}
                                         className={cn(
-                                            showDivider && "border-t border-[#CBD5E1] dark:border-[#52525B] mt-1.5 pt-1.5",
+                                            showDivider && "border-t border-[var(--psd-border)] mt-1.5 pt-1.5",
                                             expanded && groupTint && cn("rounded-xl p-1 my-1", groupTint),
                                         )}
                                     >
@@ -824,7 +854,7 @@ export function AppSidebar() {
                                             <item.icon
                                                 className={cn(
                                                     "!w-5 !h-5 flex-shrink-0",
-                                                    isActive ? "text-[#1D4ED8] dark:text-[#BFDBFE]" : "text-[#475569]",
+                                                    isActive ? "text-[#9A6A06] dark:text-[#F0D68A]" : "text-[var(--psd-body)]",
                                                 )}
                                                 strokeWidth={1.75}
                                             />
@@ -842,7 +872,7 @@ export function AppSidebar() {
                                                 <ChevronDownIcon
                                                     className={cn(
                                                         "w-4 h-4 transition-transform flex-shrink-0 ml-auto",
-                                                        isActive ? "text-[#1D4ED8]" : "text-[#64748B]",
+                                                        isActive ? "text-[#9A6A06]" : "text-[var(--psd-muted)]",
                                                         isSubMenuOpen && "rotate-180",
                                                     )}
                                                     strokeWidth={2}
@@ -858,8 +888,28 @@ export function AppSidebar() {
                                                             onClick={() => handleSubMenuItemClick(subItem)}
                                                             className={subButtonClass(isActivePath(subItem.path))}
                                                         >
-                                                            <span className="min-w-0 break-words">{subItem.label}</span>
-                                                            {(() => {
+                                                            {subItem.label === "Recruitment Advertisement" ? (
+                                                                <div className="flex w-full min-w-0 items-center gap-2">
+                                                                    <span className="min-w-0 flex-1 !whitespace-normal [overflow-wrap:normal] [word-break:normal]">{subItem.label}</span>
+                                                                    {(recruitmentPending.research > 0 || recruitmentPending.consultancy > 0) && (
+                                                                        <span className="ml-auto flex shrink-0 flex-col items-center gap-1 whitespace-nowrap">
+                                                                            {recruitmentPending.research > 0 && (
+                                                                                <span title={`${recruitmentPending.research} Research pending`} className="inline-flex h-[18px] min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#6842D9] px-1.5 text-[10px] font-bold leading-none text-white">
+                                                                                    {recruitmentPending.research > 99 ? "99+" : recruitmentPending.research}
+                                                                                </span>
+                                                                            )}
+                                                                            {recruitmentPending.consultancy > 0 && (
+                                                                                <span title={`${recruitmentPending.consultancy} Consultancy pending`} className="inline-flex h-[18px] min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#0DA875] px-1.5 text-[10px] font-bold leading-none text-white">
+                                                                                    {recruitmentPending.consultancy > 99 ? "99+" : recruitmentPending.consultancy}
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="min-w-0 flex-1 break-words">{subItem.label}</span>
+                                                            )}
+                                                            {subItem.label === "Recruitment Advertisement" ? null : (() => {
                                                                 const subBadge = getBadge(subItem.label);
                                                                 return subBadge ? <NavBadge {...subBadge} /> : null;
                                                             })()}
@@ -876,8 +926,8 @@ export function AppSidebar() {
                 </SidebarContent>
 
                 {/* Footer: utility links + profile */}
-                <SidebarFooter className={cn("p-0 border-t border-[#CBD5E1] dark:border-[#3F3F46]", sidebarBg)}>
-                    <div className="mx-3 mt-3 mb-2 p-1.5 space-y-0.5 rounded-xl bg-[#EEF2F7] dark:bg-[#27272A]">
+                <SidebarFooter className={cn("p-0 border-t border-[var(--psd-border)]", sidebarBg)}>
+                    <div className="mx-3 mt-3 mb-2 p-1.5 space-y-0.5 rounded-xl bg-[var(--psd-surface)]/70 ring-1 ring-[var(--psd-border)] backdrop-blur-sm">
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 onClick={() => setIsHelpOpen(true)}
@@ -911,7 +961,7 @@ export function AppSidebar() {
                                 )}
                                 tooltip="Log out"
                             >
-                                <LogOutIcon className="!w-5 !h-5 flex-shrink-0 text-[#475569]" strokeWidth={1.75} />
+                                <LogOutIcon className="!w-5 !h-5 flex-shrink-0 text-[var(--psd-body)]" strokeWidth={1.75} />
                                 {expanded && <span>Log out</span>}
                             </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -926,11 +976,11 @@ export function AppSidebar() {
                                 className={cn(
                                     "flex items-center cursor-pointer transition-colors duration-150",
                                     expanded
-                                        ? "gap-3 px-3 py-2.5 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F4F4F5] dark:bg-[#27272A] dark:border-[#3F3F46]"
+                                        ? "gap-3 px-3 py-2.5 rounded-xl bg-[var(--psd-surface)] border border-[var(--psd-border)] hover:border-[var(--psd-primary)]/50 hover:shadow-sm"
                                         : "justify-center",
                                 )}
                             >
-                                <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-full bg-[#DBEAFE] text-[#2563EB] font-semibold text-[14px]">
+                                <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white font-bold text-[14px] shadow-sm">
                                     {userDoc?.user_image ? (
                                         <img src={frappeUrl(userDoc.user_image)} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                     ) : (
@@ -940,14 +990,14 @@ export function AppSidebar() {
                                 {expanded && (
                                     <>
                                         <div className="flex-1 min-w-0 text-left">
-                                            <div className="truncate text-[12px] font-semibold text-[#1E293B] dark:text-[#E4E4E7] leading-tight">
+                                            <div className="truncate text-[12px] font-bold text-[var(--psd-heading)] leading-tight">
                                                 {userDoc?.full_name || "User Name"}
                                             </div>
-                                            <div className="truncate text-[9px] text-[#475569] leading-tight mt-0.5">
+                                            <div className="truncate text-[9.5px] text-[var(--psd-muted)] leading-tight mt-0.5">
                                                 {userDoc?.email || ""}
                                             </div>
                                         </div>
-                                        <ChevronRightIcon className="w-4 h-4 flex-shrink-0 text-[#475569]" strokeWidth={2} />
+                                        <ChevronRightIcon className="w-4 h-4 flex-shrink-0 text-[var(--psd-muted)]" strokeWidth={2} />
                                     </>
                                 )}
                             </div>

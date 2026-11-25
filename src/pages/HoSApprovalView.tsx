@@ -1,3 +1,4 @@
+import { FundReceivedFiles } from "@/components/FundReceivedFiles";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { ArrowLeft, FileText, Building2, Printer, Pencil, Save, X, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -1013,6 +1014,9 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 )}
                         </div>
                     </FrappeCard>
+
+                    {/* Files uploaded for this Fund Received (MinIO) */}
+                    <FundReceivedFiles project={fundReceived?.prjreg_title || fundReceived?.project_reference} />
 
                     {/* Formula Reference — explains how the derived rows above are computed, not a live recalculation */}
                     <FrappeCard

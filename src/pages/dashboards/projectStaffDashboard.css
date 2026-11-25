@@ -74,3 +74,253 @@
   outline: 2px solid var(--psd-primary);
   outline-offset: 2px;
 }
+
+/* ── Universal Registration form: dashboard look for the shared DynamicFormRenderer (scoped, styling only) ── */
+.psd-uform .form-section-card {
+  background: linear-gradient(180deg, var(--psd-surface) 0%, color-mix(in srgb, var(--psd-primary) 3%, var(--psd-surface)) 100%);
+  border: 1px solid var(--psd-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(21, 27, 50, 0.04);
+  overflow: visible; /* dropdowns (country, link search) must be able to extend past the card */
+}
+.psd-uform .form-section-header {
+  background: var(--psd-bg);
+  border-bottom: 1px solid var(--psd-border);
+  border-left: 3px solid var(--psd-accent);
+  padding: 0.5rem 0.875rem;
+}
+.psd-uform .form-section-header-accent { display: none; }
+.psd-uform .form-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--psd-heading);
+}
+.psd-uform .form-section-body { padding: 0.875rem; }
+.psd-uform .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+
+/* labels: plain small caps instead of the blue pill */
+.psd-uform label[for] {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: var(--psd-body) !important;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* inputs: softer, a bit shorter, purple focus */
+.psd-uform input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.psd-uform select,
+.psd-uform textarea {
+  border-color: var(--psd-border) !important;
+  background-color: var(--psd-surface) !important;
+  border-radius: 0.5rem !important;
+  color: var(--psd-heading);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.psd-uform input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(textarea) { min-height: 2.25rem; height: 2.25rem; }
+.psd-uform input:hover:not(:disabled),
+.psd-uform select:hover:not(:disabled),
+.psd-uform textarea:hover:not(:disabled) { border-color: color-mix(in srgb, var(--psd-primary) 45%, var(--psd-border)) !important; }
+.psd-uform input:focus-visible,
+.psd-uform select:focus-visible,
+.psd-uform textarea:focus-visible {
+  border-color: var(--psd-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--psd-primary) 15%, transparent) !important;
+  outline: none;
+}
+.psd-uform input:disabled,
+.psd-uform select:disabled,
+.psd-uform textarea:disabled { background-color: var(--psd-bg) !important; }
+
+/* action bar */
+.psd-uform .form-action-bar,
+.psd-uform.form-action-bar {
+  background: color-mix(in srgb, var(--psd-surface) 92%, transparent);
+  border-top: 1px solid var(--psd-border);
+  padding: 0.625rem 1rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+/* section headers: a different tint per section */
+.psd-uform .space-y-6 > :nth-child(5n+1) { --sec: #6842d9; }
+.psd-uform .space-y-6 > :nth-child(5n+2) { --sec: #0da875; }
+.psd-uform .space-y-6 > :nth-child(5n+3) { --sec: #4775e8; }
+.psd-uform .space-y-6 > :nth-child(5n+4) { --sec: #d9830f; }
+.psd-uform .space-y-6 > :nth-child(5n+5) { --sec: #c9418f; }
+.psd-uform .form-section-card { --sec: #6842d9; }
+.psd-uform .form-section-header {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sec) 16%, var(--psd-surface)) 0%, color-mix(in srgb, var(--sec) 4%, var(--psd-surface)) 100%);
+  border-left: 4px solid var(--sec);
+  border-bottom-color: color-mix(in srgb, var(--sec) 25%, var(--psd-border));
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+.psd-uform .form-section-title { color: color-mix(in srgb, var(--sec) 70%, var(--psd-heading)); }
+
+/* child tables (rows of a table field) */
+.psd-uform .ct-title {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sec, #6842d9) 14%, var(--psd-surface)), var(--psd-surface));
+  border: 1px solid color-mix(in srgb, var(--sec, #6842d9) 30%, var(--psd-border));
+  border-left: 4px solid var(--sec, #6842d9);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.75rem;
+}
+.psd-uform .ct-title span { background: var(--sec, #6842d9) !important; }
+.psd-uform .ct-title h3 { color: var(--psd-heading) !important; letter-spacing: 0.1em; }
+.psd-uform .ct-row {
+  overflow: visible !important;
+  border: 1px solid var(--psd-border);
+  border-radius: 0.625rem;
+  box-shadow: none;
+  background: var(--psd-surface);
+}
+.psd-uform .ct-row:nth-child(even) { background: color-mix(in srgb, var(--sec, #6842d9) 3%, var(--psd-surface)); }
+.psd-uform .ct-row-head {
+  background: var(--psd-bg) !important;
+  border-bottom: 1px solid var(--psd-border) !important;
+  padding: 0.375rem 0.75rem !important;
+}
+.psd-uform .ct-row-head > span { color: var(--psd-heading) !important; }
+.psd-uform .ct-row-body { padding: 0.75rem !important; gap: 0.75rem 1rem !important; }
+.psd-uform .ct-row-body h4 { color: var(--sec, #6842d9) !important; }
+
+/* read-only tables */
+.psd-uform .frappe-table thead { background: color-mix(in srgb, var(--sec, #6842d9) 12%, var(--psd-surface)); }
+.psd-uform .frappe-table th { color: var(--psd-heading); border-color: var(--psd-border); }
+.psd-uform .frappe-table td { border-color: var(--psd-border); }
+.psd-uform .frappe-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--sec, #6842d9) 3%, transparent); }
+.psd-uform .frappe-table tbody tr:hover td { background: color-mix(in srgb, var(--sec, #6842d9) 8%, transparent); }
+
+/* ── Child-table redesign (Universal Registration; design only) ── */
+.psd-uform .ct-title { padding: 0.5rem 0.75rem; box-shadow: 0 1px 0 color-mix(in srgb, var(--sec, #6842d9) 12%, transparent); }
+.psd-uform .ct-title > span:first-child { width: 0.25rem; height: 1.125rem; border-radius: 999px; }
+.psd-uform .ct-title h3 { font-size: 0.75rem; font-weight: 700; }
+
+/* an open row: card with a coloured top edge, tinted head, field grid in a soft panel */
+.psd-uform .ct-row { border-top: 3px solid var(--sec, #6842d9); box-shadow: 0 2px 8px -4px rgba(21, 27, 50, 0.18); }
+.psd-uform .ct-row-head {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sec, #6842d9) 10%, var(--psd-surface)), var(--psd-surface)) !important;
+  padding: 0.5rem 0.875rem !important;
+}
+.psd-uform .ct-row-head > span {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.75rem !important; font-weight: 700 !important; letter-spacing: 0.04em !important; text-transform: none !important;
+}
+.psd-uform .ct-row-head > span::before {
+  content: ""; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--sec, #6842d9);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sec, #6842d9) 20%, transparent);
+}
+.psd-uform .ct-row-body { background: color-mix(in srgb, var(--sec, #6842d9) 2.5%, var(--psd-surface)); }
+
+/* group headings inside a row (e.g. "Bank Details") become ruled caption bars */
+.psd-uform .ct-sectionbreak {
+  display: flex; align-items: center; gap: 0.5rem;
+  border: 0 !important; padding: 0.125rem 0 !important; margin-top: 0.25rem;
+}
+.psd-uform .ct-sectionbreak h4 { font-size: 0.6875rem !important; font-weight: 700 !important; letter-spacing: 0.1em !important; white-space: nowrap; }
+.psd-uform .ct-sectionbreak::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--sec, #6842d9) 35%, var(--psd-border)), transparent); }
+
+/* buttons */
+.psd-uform .ct-row-head button { border-radius: 0.5rem !important; height: 1.75rem; padding: 0 0.75rem !important; font-size: 0.6875rem !important; font-weight: 700 !important; }
+.psd-uform .ct-done { background: var(--psd-approved, #0da875) !important; border-color: var(--psd-approved, #0da875) !important; color: #fff !important; }
+.psd-uform .ct-done:hover { filter: brightness(0.93); }
+.psd-uform .ct-remove { background: transparent !important; color: var(--psd-returned, #d6364a) !important; border: 1px solid color-mix(in srgb, var(--psd-returned, #d6364a) 40%, transparent) !important; }
+.psd-uform .ct-remove:hover { background: color-mix(in srgb, var(--psd-returned, #d6364a) 10%, transparent) !important; }
+.psd-uform .ct-edit { background: color-mix(in srgb, var(--psd-primary) 10%, transparent) !important; color: var(--psd-primary) !important; border-color: color-mix(in srgb, var(--psd-primary) 35%, transparent) !important; border-radius: 0.5rem !important; }
+
+/* a collapsed (Done) row: a compact summary strip */
+.psd-uform .ct-collapsed { border-left: 4px solid var(--sec, #6842d9) !important; background: var(--psd-surface) !important; padding: 0.5rem 0.875rem !important; }
+.psd-uform .ct-num { background: var(--sec, #6842d9) !important; color: #fff !important; border: 0 !important; font-weight: 700; }
+
+/* empty state and "+ Add Row" */
+.psd-uform .ct-empty { border-color: color-mix(in srgb, var(--sec, #6842d9) 35%, var(--psd-border)) !important; background: color-mix(in srgb, var(--sec, #6842d9) 4%, var(--psd-surface)) !important; padding-block: 1.25rem; }
+.psd-uform .ct-add {
+  border: 1.5px dashed color-mix(in srgb, var(--sec, #6842d9) 55%, transparent) !important;
+  color: var(--sec, #6842d9) !important;
+  background: color-mix(in srgb, var(--sec, #6842d9) 5%, transparent);
+  font-weight: 700; letter-spacing: 0.08em; border-radius: 0.625rem !important;
+}
+.psd-uform .ct-add:hover { background: color-mix(in srgb, var(--sec, #6842d9) 12%, transparent) !important; border-style: solid !important; }
+
+/* ── File upload (design only) ── */
+.psd-uform input[type="file"] {
+  height: auto !important;
+  min-height: 2.5rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem !important;
+  cursor: pointer;
+  border: 1.5px dashed color-mix(in srgb, var(--sec, #6842d9) 45%, var(--psd-border)) !important;
+  border-radius: 0.625rem !important;
+  background: linear-gradient(180deg, var(--psd-surface), color-mix(in srgb, var(--sec, #6842d9) 5%, var(--psd-surface))) !important;
+  color: var(--psd-body) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+.psd-uform input[type="file"]:hover:not(:disabled) {
+  border-style: solid !important;
+  border-color: var(--sec, #6842d9) !important;
+  background: color-mix(in srgb, var(--sec, #6842d9) 8%, var(--psd-surface)) !important;
+}
+.psd-uform input[type="file"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sec, #6842d9) 18%, transparent) !important; }
+.psd-uform input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.3125rem 0.875rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--sec, #6842d9);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+}
+.psd-uform input[type="file"]:hover::file-selector-button { filter: brightness(0.92); }
+.psd-uform input[type="file"]:active::file-selector-button { transform: scale(0.97); }
+
+/* the already-uploaded file: a chip */
+.psd-uform .file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  height: 2rem;
+  padding: 0 0.625rem !important;
+  border: 1px solid color-mix(in srgb, var(--psd-approved) 40%, var(--psd-border)) !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--psd-approved) 9%, var(--psd-surface)) !important;
+  color: color-mix(in srgb, var(--psd-approved) 70%, var(--psd-heading)) !important;
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  text-transform: none !important;
+  text-decoration: none !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.psd-uform .file-link:hover { background: color-mix(in srgb, var(--psd-approved) 18%, var(--psd-surface)) !important; border-color: var(--psd-approved) !important; }
+
+/* ── Loading effects (shimmer skeletons + indeterminate bar) ── */
+@keyframes psd-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes psd-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+@keyframes psd-row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.psd-shimmer {
+  border-radius: 0.375rem;
+  background: linear-gradient(100deg, var(--psd-border) 30%, color-mix(in srgb, var(--psd-primary) 18%, var(--psd-surface)) 50%, var(--psd-border) 70%);
+  background-size: 200% 100%;
+  animation: psd-shimmer 1.4s linear infinite;
+}
+.psd-loadbar { position: relative; height: 3px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--psd-primary) 12%, transparent); }
+.psd-loadbar::after {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 30%; border-radius: inherit;
+  background: linear-gradient(90deg, #6842d9, #4775e8, #0da875, #f59e0b);
+  animation: psd-bar 1.2s ease-in-out infinite;
+}
+.psd-row-in { animation: psd-row-in 0.35s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .psd-shimmer, .psd-loadbar::after { animation: none; } .psd-row-in { animation: none; } }
