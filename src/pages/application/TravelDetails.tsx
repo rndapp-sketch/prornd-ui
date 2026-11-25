@@ -830,7 +830,7 @@ const TravelDetails: React.FC = () => {
                                 >
                                     <option value="">Select project…</option>
                                     {otherPiProjects.map((p) => {
-                                        const blocked = needsAdvance && pfmsOtherPiProjects.has(p.value);
+                                        const blocked = advanceRequested && pfmsOtherPiProjects.has(p.value);
                                         return (
                                             <option key={p.value} value={p.value} disabled={blocked}>
                                                 {blocked ? `${p.label} (PFMS – advance not allowed)` : p.label}
@@ -838,7 +838,7 @@ const TravelDetails: React.FC = () => {
                                         );
                                     })}
                                 </select>
-                                {needsAdvance && pfmsOtherPiProjects.size > 0 && (
+                                {advanceRequested && pfmsOtherPiProjects.size > 0 && (
                                     <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                                         This travel requests an advance, so PFMS projects cannot be selected.
                                     </p>
