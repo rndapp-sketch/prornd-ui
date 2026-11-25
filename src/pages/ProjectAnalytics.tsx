@@ -234,7 +234,7 @@ const ProjectAnalytics = () => {
         <div className="psd-root min-h-screen font-sans">
             <div className="w-full px-0 pb-6 pt-0">
                 {/* Header */}
-                <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
+                <header className="psd-hero relative mb-3 flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
                     <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                         <button
                             onClick={() => navigate(-1)}

@@ -27,6 +27,8 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   onAsyncSearch?: (query: string) => Promise<Option[]>;
   /** On selection, store/display "label (value)" instead of just the label or value */
   combineLabelValue?: boolean;
+  /** "psd" = redesigned popup (the popup is portalled to <body>, so it uses literal colours, not tokens). */
+  variant?: "default" | "psd";
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -42,6 +44,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   strictMatch = false,
   onAsyncSearch,
   combineLabelValue = false,
+  variant = "default",
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -146,7 +149,11 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   const dropdown = isOpen && (asyncLoading || filteredOptions.length > 0 || footerMessage || showNoResults) ? (
     <ul
       style={dropdownStyle}
-      className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto min-w-[200px]"
+      className={
+        variant === "psd"
+          ? "z-[10000] max-h-64 min-w-[220px] overflow-y-auto rounded-xl border border-[#E5E7EF] bg-white p-1.5 shadow-[0_12px_32px_-10px_rgba(21,27,50,0.28)] dark:border-[#3F3F46] dark:bg-[#27272A]"
+          : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto min-w-[200px]"
+      }
     >
       {asyncLoading ? (
         <li className="px-4 py-2.5 text-sm text-zinc-400 dark:text-zinc-500 italic select-none">
@@ -159,7 +166,11 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
       ) : filteredOptions.map((opt, index) => (
         <li
           key={index}
-          className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+          className={
+            variant === "psd"
+              ? "cursor-pointer rounded-lg px-3 py-2 text-[13px] font-medium text-[#151B32] transition-colors hover:bg-[#F0EBFF] hover:text-[#5632C5] dark:text-[#F4F4F5] dark:hover:bg-[#8B6CF0]/20 dark:hover:text-[#D9CCFF]"
+              : "px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+          }
           onMouseDown={(e) => {
             e.preventDefault();
             const combined = `${opt.label} (${opt.value})`;
@@ -176,7 +187,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
         </li>
       ))}
       {footerMessage && (
-        <li className="px-4 py-2 text-xs text-zinc-400 dark:text-zinc-500 italic border-t border-zinc-100 dark:border-zinc-800 select-none">
+        <li className={variant === "psd" ? "mt-1 rounded-lg bg-[#F8F9FC] px-3 py-2 text-[11.5px] font-medium text-[#59647A] select-none dark:bg-[#18181B] dark:text-[#A1A1AA]" : "px-4 py-2 text-xs text-zinc-400 dark:text-zinc-500 italic border-t border-zinc-100 dark:border-zinc-800 select-none"}>
           {footerMessage}
         </li>
       )}

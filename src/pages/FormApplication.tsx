@@ -6,6 +6,7 @@ import {
 } from "frappe-react-sdk";
 import {
     FileText,
+    ClipboardList,
     XCircle,
     Search,
     ChevronDown,
@@ -16,6 +17,8 @@ import {
 } from "lucide-react";
 import { FaArrowLeft } from "react-icons/fa";
 import { cn } from "@/lib/utils";
+import { FormSelect } from "@/components/FormSelect";
+import "@/pages/dashboards/projectStaffDashboard.css";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { CancellationModal } from "@/components/CancellationModal";
 import { MyCancellationRequests, type CancellationRequestRow } from "@/components/MyCancellationRequests";
@@ -162,26 +165,19 @@ const FormApplication: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         const s = status?.toLowerCase() || "";
-        let style = "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800/40";
-        if (
-            ["pending", "under review", "approval pending"].some((t) =>
-                s.includes(t)
-            )
-        ) {
-            style = "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40";
+        let style = "bg-[var(--psd-review-bg)] text-[#B26A00] border-[var(--psd-review)]/40 dark:text-amber-300";
+        if (["pending", "under review", "approval pending"].some((t) => s.includes(t))) {
+            style = "bg-[var(--psd-review-bg)] text-[#B26A00] border-[var(--psd-review)]/40 dark:text-amber-300";
         } else if (s.includes("submitted")) {
-            style = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800/40";
+            style = "bg-[var(--psd-info-bg)] text-[#2F5BC4] border-[var(--psd-info)]/35 dark:text-blue-300";
         } else if (s.includes("verified") || s.includes("forwarded")) {
-            style = "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800/40";
+            style = "bg-[var(--psd-primary-light)] text-[var(--psd-primary)] border-[var(--psd-primary)]/35";
         } else if (s.includes("draft")) {
-            style = "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
+            style = "bg-[var(--psd-bg)] text-[var(--psd-body)] border-[var(--psd-border)]";
         } else if (["approved", "completed"].some((t) => s.includes(t))) {
-            style = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40";
+            style = "bg-[var(--psd-approved-bg)] text-[#0A8A60] border-[var(--psd-approved)]/40 dark:text-emerald-300";
         }
-        return cn(
-            "inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold border",
-            style
-        );
+        return cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold", style);
     };
 
     const formatDate = (dateStr: string) => {
@@ -262,20 +258,20 @@ const FormApplication: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-[60vh] items-center justify-center">
-                <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-12 text-center max-w-md w-full">
+            <div className="psd-root flex h-[60vh] items-center justify-center">
+                <div className="psd-card !rounded-2xl p-10 text-center max-w-md w-full">
                     <div className="w-12 h-12 bg-red-50 dark:bg-red-950/30 rounded-full flex items-center justify-center mx-auto mb-4">
                         <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
                     </div>
-                    <h2 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">
+                    <h2 className="text-[17px] font-bold text-[var(--psd-heading)] mb-2">
                         Unable to Load Applications
                     </h2>
-                    <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
+                    <p className="text-[13px] text-[var(--psd-body)]">
                         {error.message || "An unexpected error occurred."}
                     </p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="mt-6 px-4 py-2 rounded-lg text-[13px] font-semibold bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors"
+                        className="mt-6 rounded-lg bg-[var(--psd-primary)] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-[var(--psd-primary-hover)]"
                     >
                         Retry
                     </button>
@@ -286,54 +282,65 @@ const FormApplication: React.FC = () => {
 
     return (
         <>
-            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
+            <div className="psd-root min-h-screen font-sans">
                 <GlobalLoader isLoading={isLoading} />
 
-                <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
+                <main className="flex-1 px-0 pt-0 pb-4 w-full space-y-2.5">
                     {/* Header */}
-                    <div className="mb-3 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
-                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                        <div className="flex items-start gap-3 px-4 py-2.5">
+                    <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                        <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                                className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
                                 aria-label="Go back"
                             >
                                 <FaArrowLeft className="h-3.5 w-3.5" />
                             </button>
-                            <div className="min-w-0 flex-1">
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                                    My Submissions
-                                </span>
-                                <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                    Form Application
-                                </h1>
-                                <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                    View and manage all your pending applications. Cancel
-                                    applications that are no longer needed.
-                                </p>
+                            <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                                <ClipboardList className="size-4" strokeWidth={1.8} />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">My Submissions</div>
+                                <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Form Application</h1>
                             </div>
                         </div>
-                    </div>
+                        <p className="relative z-10 hidden text-xs text-[var(--psd-body)] md:block">
+                            View and manage all your pending applications. Cancel applications that are no longer needed.
+                        </p>
+                    </header>
+
+                    {isLoading && (
+                        <div role="status" aria-live="polite" className="space-y-1">
+                            <div className="psd-loadbar" />
+                            <p className="text-[11.5px] font-semibold text-[var(--psd-body)]">Fetching your applications…</p>
+                        </div>
+                    )}
 
                     {/* Tabs */}
-                    <div className="mb-3 flex items-center gap-1 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-1 shadow-sm w-fit">
+                    <div role="tablist" className="flex items-center gap-1.5">
                         {([
-                            ["applications", "My Applications"],
-                            ["cancellations", "Cancellation Requests"],
-                        ] as const).map(([key, label]) => (
-                            <button
-                                key={key}
-                                onClick={() => setActiveTab(key)}
-                                className={`px-4 py-2 rounded-lg text-[12px] font-bold transition-colors ${
-                                    activeTab === key
-                                        ? "bg-[#D97757] text-white shadow-sm"
-                                        : "text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]"
-                                }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                            ["applications", "My Applications", allRecords.length],
+                            ["cancellations", "Cancellation Requests", cancellationRows.length],
+                        ] as const).map(([key, label, count]) => {
+                            const on = activeTab === key;
+                            return (
+                                <button
+                                    key={key}
+                                    role="tab"
+                                    aria-selected={on}
+                                    onClick={() => setActiveTab(key)}
+                                    className={cn(
+                                        "psd-focus flex h-9 items-center gap-2 rounded-full border px-3.5 text-[12.5px] font-bold transition-all duration-200",
+                                        on
+                                            ? "border-transparent bg-[var(--psd-primary)] text-white shadow-sm"
+                                            : "border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
+                                    )}
+                                >
+                                    {label}
+                                    <span className={cn("rounded-full px-1.5 text-[11px] leading-[18px] tabular-nums", on ? "bg-white/25" : "bg-[var(--psd-bg)]")}>{count}</span>
+                                </button>
+                            );
+                        })}
                     </div>
 
                     {activeTab === "cancellations" ? (
@@ -341,17 +348,17 @@ const FormApplication: React.FC = () => {
                     ) : (
                     <>
                     {/* Filter Section */}
-                    <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
+                    <div className="psd-card flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 !rounded-xl px-3 py-2">
                         <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <select
+                            <div className="w-[210px]">
+                                <FormSelect
                                     id="module-filter"
+                                    compact
                                     value={selectedModule}
                                     onChange={(e) => {
                                         setSelectedModule(e.target.value);
                                         setCurrentPage(1);
                                     }}
-                                    className="h-10 pl-4 pr-10 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-200 appearance-none shadow-sm cursor-pointer min-w-[180px]"
                                 >
                                     <option value="all">
                                         All Modules ({allRecords.length})
@@ -366,17 +373,14 @@ const FormApplication: React.FC = () => {
                                             </option>
                                         );
                                     })}
-                                </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                                    <ChevronDown className="w-4 h-4" />
-                                </div>
+                                </FormSelect>
                             </div>
 
                             {selectedModule !== "all" && (
                                 <>
-                                    <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700" />
+                                    <div className="h-6 w-px bg-[var(--psd-border)]" />
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        <span className="rounded-full bg-[var(--psd-primary-light)] px-2.5 py-0.5 text-[12px] font-bold text-[var(--psd-primary)]">
                                             {selectedModule}
                                         </span>
                                         <button
@@ -396,7 +400,7 @@ const FormApplication: React.FC = () => {
 
                         <div className="flex items-center gap-3">
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--psd-muted)] pointer-events-none">
                                     <Search className="w-[15px] h-[15px]" />
                                 </span>
                                 <input
@@ -409,7 +413,7 @@ const FormApplication: React.FC = () => {
                                         setSearchQuery(e.target.value);
                                         setCurrentPage(1);
                                     }}
-                                    className="h-10 pl-9 pr-9 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 shadow-sm transition-all"
+                                    className="h-9 w-56 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] pl-9 pr-9 text-[13px] text-[var(--psd-heading)] placeholder:text-[var(--psd-muted)] transition-all focus:border-[var(--psd-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--psd-primary)]/15"
                                 />
                                 {searchQuery && (
                                     <button
@@ -423,27 +427,29 @@ const FormApplication: React.FC = () => {
                                     </button>
                                 )}
                             </div>
-                            <div className="flex items-center gap-3 border-r border-zinc-200 dark:border-zinc-700 pr-3 mr-1">
-                                <span className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap hidden sm:inline">
+                            <div className="flex items-center gap-2 border-r border-[var(--psd-border)] pr-3 mr-1">
+                                <span className="hidden whitespace-nowrap text-[12px] font-semibold text-[var(--psd-body)] sm:inline">
                                     Rows:
                                 </span>
-                                <select
-                                    value={itemsPerPage}
-                                    onChange={(e) => {
-                                        setItemsPerPage(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    className="h-8 pl-2 pr-8 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-                                >
-                                    <option value={5}>5</option>
-                                    <option value={10}>10</option>
-                                    <option value={20}>20</option>
-                                    <option value={50}>50</option>
-                                </select>
+                                <div className="w-[72px]">
+                                    <FormSelect
+                                        compact
+                                        value={String(itemsPerPage)}
+                                        onChange={(e) => {
+                                            setItemsPerPage(Number(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
+                                    >
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                        <option value="50">50</option>
+                                    </FormSelect>
+                                </div>
                             </div>
-                            <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
+                            <div className="whitespace-nowrap text-[12px] font-medium text-[var(--psd-body)]">
                                 Showing{" "}
-                                <span className="text-zinc-900 dark:text-zinc-200 font-semibold">
+                                <span className="font-bold text-[var(--psd-heading)]">
                                     {filteredRecords.length}
                                 </span>{" "}
                                 applications
@@ -452,37 +458,47 @@ const FormApplication: React.FC = () => {
                     </div>
 
                     {/* Table */}
-                    <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden p-0">
-                        <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="psd-card overflow-hidden !rounded-xl p-0">
+                        <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                <thead className="bg-[#DCE6CD] dark:bg-[#34402B]">
                                     <tr>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">
                                             Status
                                         </th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">
                                             Module
                                         </th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">
                                             Title / Document
                                         </th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">
                                             Created
                                         </th>
-                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider border-r border-[#9DAE85]/50 dark:border-[#5C6D4D]">
                                             Last Updated
                                         </th>
-                                        <th className="px-3 py-2 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                                        <th className="px-3 py-2 text-end text-[10.5px] font-bold text-[#33441F] dark:text-[#D5E2C2] uppercase tracking-wider">
                                             Actions
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
-                                    {currentRecords.length > 0 ? (
+                                <tbody className="divide-y divide-[var(--psd-border)] bg-[var(--psd-surface)] text-xs">
+                                    {isLoading ? (
+                                        Array.from({ length: 6 }).map((_, i) => (
+                                            <tr key={i} className="psd-row-in" style={{ animationDelay: `${i * 70}ms` }}>
+                                                {[45, 40, 75, 45, 45, 50].map((w, c) => (
+                                                    <td key={c} className="px-3 py-2.5">
+                                                        <div className="psd-shimmer h-4" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))
+                                    ) : currentRecords.length > 0 ? (
                                         currentRecords.map((record) => (
                                             <tr
                                                 key={`${record.doctype}-${record.name}`}
-                                                className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group"
+                                                className="transition-colors group hover:bg-[var(--psd-primary-light)]/40"
                                             >
                                                 <td className="px-3 py-2 align-middle">
                                                     <span
@@ -493,43 +509,43 @@ const FormApplication: React.FC = () => {
                                                         {record.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                                <td className="px-3 py-2 align-middle text-[var(--psd-body)] font-medium">
                                                     <div className="flex items-center gap-2">
-                                                        <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                                                        <FileText className="w-3.5 h-3.5 text-[var(--psd-primary)] flex-shrink-0" />
                                                         {record.doctype}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-2 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                                <td className="px-3 py-2 align-middle font-semibold text-[var(--psd-heading)]">
                                                     <div className="flex flex-col gap-0.5">
                                                         <span className="truncate max-w-[250px]">
                                                             {record.title?.length > 45
                                                                 ? `${record.title.substring(0, 45)}...`
                                                                 : record.title || record.name}
                                                         </span>
-                                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                                                        <span className="text-[10.5px] font-mono text-[var(--psd-muted)]">
                                                             {record.name}
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                     <div className="flex items-center gap-1.5">
-                                                        <Clock className="w-3 h-3 text-zinc-400" />
+                                                        <Clock className="w-3 h-3 text-[var(--psd-muted)]" />
                                                         {formatDate(record.creation)}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-[var(--psd-body)]">
                                                     {formatDate(record.modified)}
                                                 </td>
                                                 <td className="px-3 py-2 align-middle text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
                                                             onClick={() => handleViewClick(record)}
-                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm hover:shadow-md transition-all"
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm transition-all active:scale-[0.98]"
                                                         >
                                                             View
                                                         </button>
                                                         {record.cancellation?.status === "Approved" ? (
-                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--psd-bg)] text-[var(--psd-body)] border border-[var(--psd-border)]">
                                                                 <Ban className="w-3 h-3" />
                                                                 Cancelled
                                                             </span>
@@ -546,7 +562,7 @@ const FormApplication: React.FC = () => {
                                                                         ? `Cancellation request awaiting approval from ${awaitingLabel(record.cancellation?.workflow_state)}`
                                                                         : "Cancellation request awaiting approval"
                                                                 }
-                                                                className="inline-flex flex-col items-start px-3 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors disabled:cursor-default"
+                                                                className="inline-flex flex-col items-start px-3 py-1 rounded-lg text-[11px] font-semibold bg-[var(--psd-review-bg)] text-[#B26A00] border border-[var(--psd-review)]/40 dark:text-amber-300 hover:brightness-95 transition-colors disabled:cursor-default"
                                                             >
                                                                 <span className="inline-flex items-center gap-1">
                                                                     <Clock className="w-3 h-3" />
@@ -563,7 +579,7 @@ const FormApplication: React.FC = () => {
                                                                 onClick={() =>
                                                                     handleCancelClick(record)
                                                                 }
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white dark:bg-zinc-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40 hover:bg-red-50 dark:hover:bg-red-950/20 hover:border-red-300 dark:hover:border-red-700 transition-all"
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-transparent text-[var(--psd-returned)] border border-[var(--psd-returned)]/40 hover:bg-[var(--psd-returned-bg)] hover:border-[var(--psd-returned)] transition-all"
                                                             >
                                                                 <Ban className="w-3 h-3" />
                                                                 Cancel
@@ -580,16 +596,16 @@ const FormApplication: React.FC = () => {
                                                 className="p-16 text-center"
                                             >
                                                 <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-14 h-14 rounded-lg bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 flex items-center justify-center">
-                                                        <CheckCircle2 className="w-7 h-7 text-[#4A6CF7] dark:text-[#93C5FD]" />
+                                                    <div className="w-14 h-14 rounded-2xl bg-[var(--psd-approved-bg)] flex items-center justify-center">
+                                                        <CheckCircle2 className="w-7 h-7 text-[var(--psd-approved)]" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                        <p className="text-[14px] font-bold text-[var(--psd-heading)]">
                                                             {searchQuery || selectedModule !== "all"
                                                                 ? "No applications found"
                                                                 : "All caught up!"}
                                                         </p>
-                                                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mt-1">
+                                                        <p className="text-[12px] text-[var(--psd-body)] mt-1">
                                                             {searchQuery || selectedModule !== "all"
                                                                 ? "Try adjusting your search or filter criteria."
                                                                 : "You don't have any pending applications at the moment."}
@@ -605,14 +621,14 @@ const FormApplication: React.FC = () => {
 
                         {/* Pagination */}
                         {filteredRecords.length > 0 && (
-                            <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
-                                <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                            <div className="flex items-center justify-between border-t border-[var(--psd-border)] bg-[var(--psd-bg)] px-4 py-2">
+                                <div className="text-[12px] text-[var(--psd-body)]">
                                     Showing{" "}
-                                    <span className="font-medium text-zinc-900 dark:text-zinc-200">
+                                    <span className="font-bold text-[var(--psd-heading)]">
                                         {indexOfFirstRecord + 1}
                                     </span>{" "}
                                     to{" "}
-                                    <span className="font-medium text-zinc-900 dark:text-zinc-200">
+                                    <span className="font-bold text-[var(--psd-heading)]">
                                         {Math.min(
                                             indexOfLastRecord,
                                             filteredRecords.length
@@ -626,7 +642,7 @@ const FormApplication: React.FC = () => {
                                             setCurrentPage((p) => Math.max(1, p - 1))
                                         }
                                         disabled={currentPage === 1}
-                                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-[12px] font-semibold text-[var(--psd-heading)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         Previous
                                     </button>
@@ -639,10 +655,10 @@ const FormApplication: React.FC = () => {
                                             }
                                             disabled={typeof page !== "number"}
                                             className={cn(
-                                                "w-9 h-9 rounded-lg text-sm font-medium transition-colors flex items-center justify-center",
+                                                "flex h-8 w-8 items-center justify-center rounded-lg text-[12px] font-semibold transition-colors",
                                                 page === currentPage
-                                                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm"
-                                                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700",
+                                                    ? "bg-[var(--psd-primary)] text-white shadow-sm"
+                                                    : "text-[var(--psd-body)] hover:bg-[var(--psd-primary-light)]",
                                                 typeof page !== "number" &&
                                                     "cursor-default hover:bg-transparent"
                                             )}
@@ -657,7 +673,7 @@ const FormApplication: React.FC = () => {
                                             )
                                         }
                                         disabled={currentPage === totalPages || totalPages === 0}
-                                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-[12px] font-semibold text-[var(--psd-heading)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         Next
                                     </button>

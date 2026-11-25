@@ -573,8 +573,7 @@ export default function CoProjectView() {
 
     return (
         <div className="psd-root w-full mx-auto space-y-2.5 animate-in fade-in duration-500">
-            <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
-                <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+            <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
                 <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                     <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
                         <UsersIcon className="size-4" strokeWidth={1.8} />
@@ -588,6 +587,20 @@ export default function CoProjectView() {
                     Projects where you are listed as an Additional PI or Co-Investigator.
                 </p>
             </header>
+
+            {isLoading && (
+                <div role="status" aria-live="polite" className="space-y-1">
+                    <div className="psd-loadbar" />
+                    <p className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--psd-body)]">
+                        <span className="inline-flex gap-0.5" aria-hidden>
+                            {[0, 1, 2].map((i) => (
+                                <span key={i} className="size-1.5 animate-bounce rounded-full bg-[var(--psd-primary)]" style={{ animationDelay: `${i * 140}ms` }} />
+                            ))}
+                        </span>
+                        Fetching your co-projects…
+                    </p>
+                </div>
+            )}
 
             <div className="psd-card flex flex-col sm:flex-row gap-2.5 justify-between items-center !rounded-xl px-3 py-2">
                 <div className="relative w-full sm:w-80">
@@ -659,11 +672,11 @@ export default function CoProjectView() {
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    Array.from({ length: 5 }).map((_, index) => (
-                                        <TableRow key={index}>
-                                            {Array.from({ length: 6 }).map((__, cellIndex) => (
-                                                <TableCell key={cellIndex} className="px-3 py-2">
-                                                    <div className="h-4 w-full max-w-32 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
+                                    Array.from({ length: 6 }).map((_, index) => (
+                                        <TableRow key={index} className="psd-row-in" style={{ animationDelay: `${index * 70}ms` }}>
+                                            {[60, 90, 70, 55, 65, 30].map((w, cellIndex) => (
+                                                <TableCell key={cellIndex} className="px-3 py-2.5">
+                                                    <div className="psd-shimmer h-4" style={{ width: `${w}%`, animationDelay: `${index * 120}ms` }} />
                                                 </TableCell>
                                             ))}
                                         </TableRow>

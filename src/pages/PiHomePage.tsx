@@ -678,8 +678,7 @@ export function PiHomePage() {
       <main className="flex w-full flex-1 flex-col overflow-x-clip px-0 pb-0 pt-0">
         <div className="flex w-full flex-1 flex-col">
           {/* Hero */}
-          <header className="psd-hero relative mb-2 flex flex-col gap-2 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-            <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+          <header className="psd-hero relative mb-2 flex flex-col gap-2 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative z-10 flex min-w-0 items-center gap-2.5">
               <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
                 <LayoutGrid className="size-4" strokeWidth={1.8} />

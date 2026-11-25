@@ -150,8 +150,7 @@ export function PiFinancialDashboard() {
         <div className="psd-root min-h-screen font-sans">
             <div className="w-full space-y-3 px-0 pb-6 pt-0">
                 {/* Hero */}
-                <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
-                    <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+                <header className="psd-hero relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
                     <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                         <button onClick={() => navigate(-1)} aria-label="Go back" className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]">
                             <ArrowLeft className="size-4" />

@@ -7473,17 +7473,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             </div>
                                         ) : (
                                             <div className="max-h-[70vh] overflow-y-auto p-1 min-w-0">
-                                                <div className="hidden xl:grid grid-cols-[repeat(11,minmax(0,1fr))] rounded-t-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 overflow-hidden">
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Date / TID</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Particulars</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Module</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">App ID</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">BMR</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Received</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit Bal</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Paid</div>
-                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Pay Bal</div>
+                                                <div className="hidden xl:grid grid-cols-[repeat(11,minmax(0,1fr))] rounded-t-lg border border-[#9DAE85] bg-[#DCE6CD] text-[10px] font-extrabold uppercase tracking-widest text-[#33441F] dark:border-[#5C6D4D] dark:bg-[#34402B] dark:text-[#D5E2C2] overflow-hidden">
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">Date / TID</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">Particulars</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">Module</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">App ID</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D]">BMR</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#BFE6D2] text-[#0B6B4A] dark:bg-[#1E4D3B] dark:text-[#9BE3C4]">Received</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#F6DFA8] text-[#8A5A00] dark:bg-[#5A4416] dark:text-[#F3D58A]">Commit</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#E4DAF6] text-[#4B2FA8] dark:bg-[#3A2F5C] dark:text-[#CFC1F5]">Commit Bal</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#F5C9CE] text-[#A4202F] dark:bg-[#5A2A31] dark:text-[#F5B5BC]">Paid</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#9DAE85]/60 dark:border-[#5C6D4D] text-right bg-[#CFE0F8] text-[#1F4FB0] dark:bg-[#243A5E] dark:text-[#B5CDF5]">Pay Bal</div>
                                                     <div className="px-1.5 py-1.5 text-center">Status</div>
                                                 </div>
                                                 {sortedTransactions.map((txn, idx) => (

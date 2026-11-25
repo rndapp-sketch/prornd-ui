@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import ProInvButton from "@/components/ProInvButton";
+import { LocalDraftsButton } from "@/components/LocalProjectDraftUi";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -1468,8 +1469,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   return (
     <div className="psd-root w-full mx-auto space-y-2.5 animate-in fade-in duration-500">
       {/* Header */}
-      <header className="psd-hero relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)]/70 px-3 py-2">
-        <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] bg-[linear-gradient(to_right,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)]" />
+      <header className="psd-hero relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
         <div className="relative z-10 flex min-w-0 items-center gap-2.5">
           <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
             <FolderKanban className="size-4" strokeWidth={1.8} />
@@ -1479,37 +1479,58 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Projects</h1>
           </div>
           <span aria-hidden className="mx-1 hidden h-6 w-px bg-[var(--psd-border)] sm:block" />
-          <div role="tablist" aria-label="Projects" className="inline-flex items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-bg)] p-0.5">
-            {[
+          {/* Glass toggle: frosted track, and a frosted pill that slides between the two options */}
+          {(() => {
+            const scopes = [
               { id: "myProjects", label: "My Projects", total: myProjects?.length || 0 },
               { id: "delegated", label: "Delegated", total: visibleDelegatedProjects.length },
-            ].map((scope) => {
-              const active = activeTab === scope.id;
-              return (
-                <button
-                  key={scope.id}
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setActiveTab(scope.id);
-                    setCurrentPage(1);
-                  }}
-                  className={cn(
-                    "psd-focus inline-flex h-8 items-center gap-2 rounded-md px-3.5 text-[12.5px] font-semibold transition-all duration-200",
-                    active
-                      ? "bg-[var(--psd-primary)] font-bold text-white shadow-md shadow-[var(--psd-primary)]/35"
-                      : "text-[var(--psd-body)] hover:text-[var(--psd-primary)]",
-                  )}
-                >
-                  {scope.label}
-                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums", active ? "bg-white/25 text-white" : "bg-[var(--psd-surface)] text-[var(--psd-body)]")}>
-                    {scope.total}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+            ];
+            const idx = Math.max(0, scopes.findIndex((sc) => sc.id === activeTab));
+            return (
+              <div
+                role="tablist"
+                aria-label="Projects"
+                className="relative grid grid-cols-2 rounded-xl border border-white/70 bg-white/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_22px_-10px_rgba(21,27,50,0.35)] ring-1 ring-[var(--psd-primary)]/25 backdrop-blur-xl dark:border-white/10 dark:bg-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_-10px_rgba(0,0,0,0.6)]"
+              >
+                {/* sliding pill */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg border border-white/40 bg-gradient-to-br from-[#7D5BEA]/90 to-[#5632C5]/90 shadow-[0_8px_20px_-6px_rgba(104,66,217,0.6),inset_0_1px_0_rgba(255,255,255,0.45)] backdrop-blur-md transition-transform duration-500 ease-[cubic-bezier(0.34,1.25,0.64,1)] motion-reduce:transition-none"
+                  style={{ transform: `translateX(${idx * 100}%)` }}
+                />
+                {scopes.map((scope) => {
+                  const active = activeTab === scope.id;
+                  return (
+                    <button
+                      key={scope.id}
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => {
+                        setActiveTab(scope.id);
+                        setCurrentPage(1);
+                      }}
+                      className={cn(
+                        "psd-focus relative z-10 inline-flex h-8 min-w-[118px] items-center justify-center gap-2 rounded-lg px-3 text-[12.5px] transition-colors duration-300",
+                        active ? "font-bold text-white" : "font-semibold text-[var(--psd-body)] hover:text-[var(--psd-primary)]",
+                      )}
+                    >
+                      {scope.label}
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums transition-colors duration-300",
+                          active ? "bg-white/25 text-white" : "bg-white/60 text-[var(--psd-body)] dark:bg-white/10",
+                        )}
+                      >
+                        {scope.total}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
+        <LocalDraftsButton className="relative z-10" />
       </header>
 
       {/* Project type toggle */}
