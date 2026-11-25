@@ -14,6 +14,8 @@ import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
 import { ErrorModal } from '@/components/ErrorModal';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
+import { useProjectStaffApplicant } from '@/hooks/useProjectStaffApplicant';
+import { ProjectStaffPiNotice } from '@/components/ProjectStaffPiNotice';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -544,6 +546,25 @@ const Reimbursement: React.FC = () => {
         }
     }, [handleChange, fetchPiDetails, fetchProjectDetails]);
 
+    // Project staff raise the reimbursement as an Other-PI one for their PI, who picks
+    // the project and account head at the "Pending PI Approval" step.
+    const projectStaff = useProjectStaffApplicant();
+    const staffMode = projectStaff.isProjectStaff;
+    const staffPrefilled = React.useRef(false);
+    useEffect(() => {
+        if (!staffMode || projectStaff.isLoading || !dataLoaded || editDocName || staffPrefilled.current) return;
+        staffPrefilled.current = true;
+        setFormData(prev => ({ ...prev, self_other: 'Other', project_name: '', project_number: '', account_head: '' }));
+        // Goes through the side-effect handler so the PI's designation / department fill in.
+        if (projectStaff.piEmail) handleFieldChangeWithSideEffects('reimbursement_for_id', projectStaff.piEmail);
+    }, [staffMode, projectStaff.isLoading, projectStaff.piEmail, dataLoaded, editDocName, handleFieldChangeWithSideEffects]);
+    const renderedFields = React.useMemo(() => {
+        if (!staffMode) return fields;
+        const locked = ['self_other', 'project_name', 'project_number', 'account_head',
+            ...(projectStaff.piEmail ? ['reimbursement_for_id'] : [])];
+        return fields.map(f => (locked.includes(f.fieldname) ? { ...f, read_only: 1, read_only_depends_on: undefined } : f));
+    }, [fields, staffMode, projectStaff.piEmail]);
+
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
@@ -694,10 +715,11 @@ const Reimbursement: React.FC = () => {
                 />
 
                 <form onSubmit={handleSubmit}>
+                    {staffMode && formData.docstatus !== 1 && <ProjectStaffPiNotice piEmail={projectStaff.piEmail} />}
                     <FrappeCard className="space-y-12">
                         <DynamicFormRenderer
                             overheadFund={isOverheadProject}
-                            fields={fields}
+                            fields={renderedFields}
                             formData={formData}
                             linkOptions={linkOptions}
                             onChange={handleChange}

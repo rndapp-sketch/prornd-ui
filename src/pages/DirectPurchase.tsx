@@ -1582,6 +1582,8 @@ import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
+import { useProjectStaffApplicant } from "@/hooks/useProjectStaffApplicant";
+import { ProjectStaffPiNotice } from "@/components/ProjectStaffPiNotice";
 import {
     useIsOverheadProject,
     budgetHeadFieldnamesOf,
@@ -2263,6 +2265,30 @@ const DirectPurchase: React.FC = () => {
     const [commentModalOpen, setCommentModalOpen] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
+    // Project staff raise the purchase as an Other-PI one charged to their PI, who
+    // picks the project and account head at the "Pending Other PI" step.
+    const projectStaff = useProjectStaffApplicant();
+    const staffMode = projectStaff.isProjectStaff;
+    const staffPrefilled = React.useRef(false);
+    useEffect(() => {
+        if (!staffMode || projectStaff.isLoading || !dataLoaded || editDocName || staffPrefilled.current) return;
+        staffPrefilled.current = true;
+        setFormData(prev => ({
+            ...prev,
+            dp_other_pi: 'Other',
+            dp_other_pi_id: projectStaff.piEmail || prev.dp_other_pi_id || '',
+            project_no: '',
+            project_name: '',
+            account_head: '',
+        }));
+    }, [staffMode, projectStaff.isLoading, projectStaff.piEmail, dataLoaded, editDocName]);
+    const staffLockedFields = React.useMemo(
+        () => (staffMode
+            ? ['dp_other_pi', 'project_no', 'project_name', 'account_head', ...(projectStaff.piEmail ? ['dp_other_pi_id'] : [])]
+            : []),
+        [staffMode, projectStaff.piEmail],
+    );
+
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>(
         directPurchaseAPI.getFields
     );
@@ -2792,6 +2818,10 @@ const DirectPurchase: React.FC = () => {
             });
             return;
         }
+        if (staffMode) {
+            navigate('/project-staff-dashboard?tab=tracking');
+            return;
+        }
         if (formData.dp_other_pi === 'Other') {
             navigate('/other-pi');
             return;
@@ -2965,6 +2995,8 @@ const DirectPurchase: React.FC = () => {
 
                 <CurrencyHint show={showConverterHint}>{converterHint}</CurrencyHint>
 
+                {staffMode && <ProjectStaffPiNotice piEmail={projectStaff.piEmail} />}
+
                 <form onSubmit={handleFormSubmit}>
                     <div className="space-y-5">
                         {sections.map((section, index) => (
@@ -2995,6 +3027,8 @@ const DirectPurchase: React.FC = () => {
                                         let isReadOnly = field.read_only === 1;
                                         // An overhead fund has no other head to pick.
                                         if (overheadHeadFields.includes(field.fieldname)) isReadOnly = true;
+                                        // Project staff: the PI chooses project / head, the Other PI is their own PI.
+                                        if (staffLockedFields.includes(field.fieldname)) isReadOnly = true;
                                         if (field.read_only_depends_on || field.read_only_depends_on_eval) {
                                             const roExpr = field.read_only_depends_on_eval || field.read_only_depends_on;
                                             if (evaluateDependsOn(roExpr, effectiveFormData)) {

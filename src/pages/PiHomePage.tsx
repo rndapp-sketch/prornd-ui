@@ -11,6 +11,7 @@ import {
 } from "frappe-react-sdk";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import PendingLoansAlert from "@/components/dashboard/PendingLoansAlert";
+import ProjectStaffApprovalsAlert from "@/components/dashboard/ProjectStaffApprovalsAlert";
 import {
   PlusCircle,
   LayoutGrid,
@@ -571,6 +572,7 @@ export function PiHomePage() {
 
           <SectionDivider title="Overview" />
           <PendingLoansAlert />
+          <ProjectStaffApprovalsAlert />
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
             {/* Project Analytics */}
             <Card>

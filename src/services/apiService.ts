@@ -139,6 +139,20 @@ export const p11FormAPI = {
     performAction: `${API_BASE}.p_11_form.p_11_form.perform_p_11_form_action`,
 };
 
+// Vendor Payment API endpoints
+export const vendorPaymentAPI = {
+    getFields: `${API_BASE}.vendor_payment.vendor_payment.get_vendor_payment_fields`,
+    getUserDetails: `${API_BASE}.vendor_payment.vendor_payment.get_user_details_vendor_payment`,
+    getDoc: `${API_BASE}.vendor_payment.vendor_payment.get_vendor_payment`,
+    getMine: `${API_BASE}.vendor_payment.vendor_payment.get_my_vendor_payments`,
+    getPending: `${API_BASE}.vendor_payment.vendor_payment.get_pending_vendor_payments`,
+    save: `${API_BASE}.vendor_payment.vendor_payment.save_vendor_payment_data`,
+    submit: `${API_BASE}.vendor_payment.vendor_payment.submit_vendor_payment`,
+    delete: `${API_BASE}.vendor_payment.vendor_payment.delete_vendor_payment`,
+    getWorkflowActions: `${API_BASE}.vendor_payment.vendor_payment.get_vendor_payment_workflow_actions`,
+    performAction: `${API_BASE}.vendor_payment.vendor_payment.perform_vendor_payment_action`,
+};
+
 // Sanction Sheet API endpoints (Stage 3)
 export const sanctionSheetAPI = {
     getFields: `${API_BASE}.sanction_sheet.sanction_sheet.get_sanction_sheet_fields`,

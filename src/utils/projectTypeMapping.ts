@@ -179,6 +179,10 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'Top Up Fellowship': {
         primary: { type: 'pr_project_no', field: 'project_no' },
     },
+    'Vendor Payment': {
+        primary:  { type: 'pr_name',       field: 'project_name' },
+        fallback: { type: 'pr_project_no', field: 'project_number' },
+    },
 };
 
 // ── Lookup helpers ───────────────────────────────────────────────────────────
