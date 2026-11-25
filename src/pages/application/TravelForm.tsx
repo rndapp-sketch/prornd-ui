@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
+import { withTravelHints } from '@/utils/travelFieldHints';
 import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
@@ -251,6 +252,45 @@ const TravelForm: React.FC = () => {
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+    // Searches Users AND Universal Registration profiles (people registered but without a login), like the other forms do
+    const { call: fetchUserProfile } = useFrappePostCall<{ message: any }>(commonAPI.getUserRegistrationProfile);
+    // The enabled-user list loaded with the form: an async search replaces the field's own filtering, so these are
+    // searched here too, or ordinary accounts that have no registration would no longer be found.
+    const linkOptionsRef = useRef(linkOptions);
+    linkOptionsRef.current = linkOptions;
+    const travelerSearch = useMemo(() => async (query: string): Promise<LinkOption[]> => {
+        if (!query || query.length < 2) return [];
+        const q = query.toLowerCase();
+        const localMatches: LinkOption[] = (linkOptionsRef.current.traveler_webmail_id || [])
+            .filter((o) => o.value.toLowerCase().includes(q) || o.label.toLowerCase().includes(q))
+            .slice(0, 30);
+        try {
+            // include_all_profile_types: also finds registrations of every profile type, by name, email or UNIREG id,
+            // and registrations that have no official email (returned with the owner's email and email_missing = 1)
+            const result = await fetchUserProfile({ search: query, include_all_profile_types: 1 });
+            const list: any[] = Array.isArray(result?.message) ? result.message : result?.message ? [result.message] : [];
+            const seen = new Set<string>();
+            return [...localMatches, ...list
+                .map((p: any): LinkOption => {
+                    const email = p.email || p.email_address_u_r || p.name || '';
+                    const name = p.full_name || p.full_name_u_r || '';
+                    const base = name ? `${name} (${email})` : email;
+                    const reg = p.name && String(p.name).startsWith('UNIREG') ? ` · ${p.name}` : '';
+                    return { value: email, label: p.email_missing ? `${base}${reg} · no email on file` : `${base}${reg}` };
+                })
+            ].filter((o) => {
+                if (!o.value || seen.has(o.value)) return false;
+                seen.add(o.value);
+                return true;
+            });
+        } catch {
+            return localMatches;
+        }
+    }, [fetchUserProfile]);
+    const travelerAsyncSearch = useMemo(
+        () => ({ traveler_webmail_id: travelerSearch, other_traveler: travelerSearch }),
+        [travelerSearch],
+    );
 
     // Budget Heads sanctioned/received against the selected project, used to narrow the
     // Account Head dropdown down from the global Budget Head list.
@@ -718,9 +758,26 @@ const TravelForm: React.FC = () => {
                 return;
             }
             try {
-                const result = await fetchUserDetailsByEmail({ user_email: value });
-                if (result?.message) {
-                    const user = result.message;
+                // The user's account details, plus their Universal Registration profile for people who have no login
+                const [result, profileRes] = await Promise.all([
+                    fetchUserDetailsByEmail({ user_email: value }).catch(() => null),
+                    fetchUserProfile({ search: value, include_all_profile_types: 1 }).catch(() => null),
+                ]);
+                const profiles: any[] = Array.isArray(profileRes?.message) ? profileRes.message : profileRes?.message ? [profileRes.message] : [];
+                const profile =
+                    profiles.find((p: any) => String(p.email || p.email_address_u_r || p.name || '').toLowerCase() === value.toLowerCase()) ||
+                    profiles[0] || null;
+                const fromProfile = profile
+                    ? {
+                        full_name: profile.full_name || profile.full_name_u_r || '',
+                        designation: profile.designation || profile.designation_u_r || profile.profile_type_u_r || '',
+                        department: profile.department || profile.department_u_r || '',
+                        inst_name_address: profile.inst_name_address || profile.org_name_u_r || profile.institute_name_u_r || '',
+                        address: profile.address || '',
+                    }
+                    : null;
+                if (result?.message || fromProfile) {
+                    const user = { ...(fromProfile || {}), ...Object.fromEntries(Object.entries(result?.message || {}).filter(([, v]) => v)) } as Record<string, any>;
                     const displayName = user.full_name || user.name || value;
 
                     setLinkOptions(prev => ({
@@ -747,7 +804,7 @@ const TravelForm: React.FC = () => {
             } catch (err) {
             }
         }
-    }, [handleChange, fetchUserDetailsByEmail]);
+    }, [handleChange, fetchUserDetailsByEmail, fetchUserProfile]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
@@ -1065,7 +1122,7 @@ const TravelForm: React.FC = () => {
                                 )}
                                 <DynamicFormRenderer
                                                                         overheadFund={isOverheadProject}
-                                    fields={staffMode ? staffVisibleFields : visibleFields}
+                                    fields={withTravelHints(staffMode ? staffVisibleFields : visibleFields)}
                                     formData={formData}
                                     linkOptions={linkOptions}
                                     onChange={handleChange}
@@ -1077,6 +1134,7 @@ const TravelForm: React.FC = () => {
                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
                                     readOnly={!!formData.workflow_state && formData.workflow_state !== "Draft"}
                                     autocompleteFields={TRAVEL_AUTOCOMPLETE_FIELDS}
+                                    asyncSearchFields={travelerAsyncSearch}
                                     fieldMessages={sclFieldMessages}
                                 />
 

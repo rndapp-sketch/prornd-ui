@@ -6,11 +6,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle, CheckCircle2, XCircle, Clock, ChevronRight } from 'lucide-react';
-import { PageHeader } from '@/components/common/PageHeader';
+import { ArrowLeft, Plane, CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle, CheckCircle2, XCircle, Clock, ChevronRight } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { hideForProjectStaff } from '@/utils/travelProjectStaff';
+import { withTravelHints } from '@/utils/travelFieldHints';
+import '@/pages/dashboards/projectStaffDashboard.css';
 import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
@@ -56,13 +57,13 @@ const FrappeCard = ({
 }) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm",
+            "psd-card !rounded-xl",
             className,
         )}
     >
         {title && (
-            <div className="px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+            <div className="px-4 py-2 border-b border-[var(--psd-border)]">
+                <h3 className="text-sm font-bold text-[var(--psd-heading)] uppercase tracking-wider">
                     {title}
                 </h3>
             </div>
@@ -91,9 +92,9 @@ const FrappeButton = ({
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400",
             variant === "primary" &&
-                "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-md border border-[#C66A4E]",
+                "bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-md border border-[#C66A4E]",
             variant === "ghost" &&
-                "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700",
+                "bg-transparent text-[var(--psd-heading)] hover:bg-zinc-200 dark:hover:bg-zinc-700",
             variant === "outline" &&
                 "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
             "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -169,15 +170,15 @@ const WorkflowTimeline: React.FC<{ currentState: string; isInternational?: boole
     const stages = buildTravelTimelineStages(currentState || 'Draft', isInternational);
 
     const iconForStatus = (status: StageStatus) => {
-        if (status === 'completed') return <CheckCircle2 className="w-4 h-4 text-white" />;
-        if (status === 'in-progress') return <Clock className="w-4 h-4 text-white" />;
-        if (status === 'rejected') return <XCircle className="w-4 h-4 text-white" />;
-        return <span className="w-2 h-2 rounded-full bg-white/60" />;
+        if (status === 'completed') return <CheckCircle2 className="w-3 h-3 text-white" />;
+        if (status === 'in-progress') return <Clock className="w-3 h-3 text-white" />;
+        if (status === 'rejected') return <XCircle className="w-3 h-3 text-white" />;
+        return <span className="w-1.5 h-1.5 rounded-full bg-white/60" />;
     };
 
     const bgForStatus = (status: StageStatus) => {
         if (status === 'completed') return 'bg-emerald-500';
-        if (status === 'in-progress') return 'bg-[#D97757]';
+        if (status === 'in-progress') return 'bg-[var(--psd-primary)]';
         if (status === 'rejected') return 'bg-red-500';
         return 'bg-zinc-300 dark:bg-zinc-600';
     };
@@ -186,23 +187,23 @@ const WorkflowTimeline: React.FC<{ currentState: string; isInternational?: boole
         status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm p-3">
-            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+        <div className="psd-card !rounded-xl px-3 py-2">
+            <h3 className="text-[10px] font-bold text-[var(--psd-body)] uppercase tracking-wider mb-1.5">
                 Workflow Progress
             </h3>
-            <div className="flex items-start overflow-x-auto pb-1">
+            <div className="flex items-start overflow-x-auto pb-0.5">
                 {stages.map((stage, idx) => (
                     <React.Fragment key={stage.label}>
-                        <div className="flex flex-col items-center min-w-[90px] max-w-[110px]">
+                        <div className="flex flex-col items-center min-w-[72px] max-w-[88px]">
                             <div className={cn(
-                                'w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0',
+                                'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
                                 bgForStatus(stage.status),
                             )}>
                                 {iconForStatus(stage.status)}
                             </div>
                             <p className={cn(
-                                'mt-2 text-center text-xs leading-tight px-1',
-                                stage.status === 'in-progress' ? 'font-bold text-[#D97757]' : '',
+                                'mt-1 text-center text-[10px] leading-tight px-0.5',
+                                stage.status === 'in-progress' ? 'font-bold text-[var(--psd-primary)]' : '',
                                 stage.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : '',
                                 stage.status === 'pending' ? 'text-zinc-400 dark:text-zinc-500' : '',
                                 stage.status === 'rejected' ? 'text-red-500 font-bold' : '',
@@ -210,15 +211,15 @@ const WorkflowTimeline: React.FC<{ currentState: string; isInternational?: boole
                                 {stage.label}
                             </p>
                             {stage.status === 'in-progress' && (
-                                <span className="mt-1 text-[10px] font-bold text-white bg-[#D97757] px-2 py-0.5 rounded-full">
+                                <span className="mt-0.5 text-[9px] font-bold text-white bg-[var(--psd-primary)] px-1.5 py-px rounded-full">
                                     Pending Here
                                 </span>
                             )}
                         </div>
                         {idx < stages.length - 1 && (
-                            <div className="flex-1 flex items-center pt-4 min-w-[20px]">
-                                <div className={cn('h-1 w-full rounded', connectorColor(stage.status))} />
-                                <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
+                            <div className="flex-1 flex items-center pt-2 min-w-[12px]">
+                                <div className={cn('h-0.5 w-full rounded', connectorColor(stage.status))} />
+                                <ChevronRight className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0 -ml-1" />
                             </div>
                         )}
                     </React.Fragment>
@@ -248,7 +249,7 @@ const TravelDetails: React.FC = () => {
     // Override account_head fieldtype to Link so DynamicFormRenderer uses BudgetHeadName overlay
     const renderedFields = useMemo(() => {
         const withHeadLink = fields.map(f => f.fieldname === 'account_head' ? { ...f, fieldtype: 'Link' } : f);
-        return applicantIsProjectStaff ? hideForProjectStaff(withHeadLink) : withHeadLink;
+        return withTravelHints(applicantIsProjectStaff ? hideForProjectStaff(withHeadLink) : withHeadLink);
     }, [fields, applicantIsProjectStaff]);
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -765,16 +766,43 @@ const TravelDetails: React.FC = () => {
     if (loading) return <GlobalLoader isLoading={true} />;
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            
-            <main className="flex-1 p-0 w-full overflow-hidden">
+        <div className="psd-root min-h-screen">
+
+            <main className="flex-1 p-0 w-full space-y-2.5">
                 {/* Header */}
-                <PageHeader
-                    title={formData.name || docName || "Travel"}
-                    status={formData.workflow_state || "Draft"}
-                    projectName={resolvedProjectTitle || formData.travel_project_title}
-                    projectNumber={resolvedProjectNo || formData.travel_project_number}
-                >
+                <header className="psd-hero relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                    <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+                                else navigate('/');
+                            }}
+                            title="Go Back"
+                            aria-label="Go Back"
+                            className="psd-focus grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] transition-colors hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                        </button>
+                        <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                            <Plane className="size-4" strokeWidth={1.8} />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Travel</span>
+                                <span className="inline-flex items-center rounded-full border border-[var(--psd-review)]/40 bg-[var(--psd-review-bg)] px-2.5 py-0.5 text-[10px] font-bold text-[#B26A00] dark:text-amber-300">
+                                    {formData.workflow_state || 'Draft'}
+                                </span>
+                            </div>
+                            <h1 className="mt-0.5 font-mono text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">{formData.name || docName || 'Travel'}</h1>
+                        </div>
+                    </div>
+                    <div className="relative z-10 flex flex-wrap items-center gap-2">
+                        {(resolvedProjectNo || formData.travel_project_number) && (
+                            <span className="hidden font-mono text-xs font-semibold text-[var(--psd-body)] md:block" title={resolvedProjectTitle || formData.travel_project_title}>
+                                {resolvedProjectNo || formData.travel_project_number}
+                            </span>
+                        )}
                     <ViewProjectButton doctype="Travel" data={formData} />
                     {!cancellationStatus?.message?.has_pending && docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
                         <TravelActionButtons
@@ -801,7 +829,7 @@ const TravelDetails: React.FC = () => {
                             <button
                                 onClick={handleSubmitDraft}
                                 disabled={isSubmitting}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm transition-all disabled:opacity-50"
                             >
                                 <Send className="w-4 h-4" />
                                 {isSubmitting ? "Submitting..." : "Submit Application"}
@@ -821,13 +849,14 @@ const TravelDetails: React.FC = () => {
                     {showSettleButton && docName && (
                         <button
                             onClick={() => navigate(`/ta-da-settlement?project=${resolvedProjectNo || formData.travel_project_number}&travel_ref=${docName}`)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[var(--psd-primary)] text-white hover:bg-[var(--psd-primary-hover)] shadow-sm transition-all"
                         >
                             <ReceiptText className="w-4 h-4" />
                             Settle Travel
                         </button>
                     )}
-                </PageHeader>
+                    </div>
+                </header>
 
                 {/* Workflow Timeline */}
                 <div className="mt-0 mb-3">
@@ -844,22 +873,22 @@ const TravelDetails: React.FC = () => {
 
                 {/* Other-PI approval: pick which of your projects funds this travel */}
                 {isOtherPiStep && (
-                    <div className="mb-3 px-3 py-2 rounded-lg border border-[#D97757]/30 bg-[#FFF7ED] dark:bg-[#D97757]/10 shadow-sm">
-                        <div className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mb-1">
+                    <div className="mb-3 px-3 py-2 rounded-lg border border-[#D97757]/30 bg-[#FFF7ED] dark:bg-[var(--psd-primary)]/10 shadow-sm">
+                        <div className="text-[13px] font-bold text-[var(--psd-heading)] mb-0.5">
                             Approve against one of your projects
                         </div>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
+                        <p className="text-xs text-[var(--psd-body)] mb-3">
                             This travel is charged to your project. Select the project and account head, then use Actions → Forward.
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
                             <div>
-                                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1">
+                                <label className="block text-[11px] font-bold uppercase tracking-wide text-[var(--psd-body)] mb-1">
                                     Project
                                 </label>
                                 <select
                                     value={otherPiProject}
                                     onChange={(e) => setOtherPiProject(e.target.value)}
-                                    className="w-full min-w-0 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                                    className="w-full min-w-0 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-2 text-sm text-[var(--psd-heading)]"
                                 >
                                     <option value="">Select project…</option>
                                     {otherPiProjects.map((p) => {
@@ -872,20 +901,20 @@ const TravelDetails: React.FC = () => {
                                     })}
                                 </select>
                                 {advanceRequested && pfmsOtherPiProjects.size > 0 && (
-                                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                    <p className="mt-1 text-[11px] text-[var(--psd-body)]">
                                         This travel requests an advance, so PFMS projects cannot be selected.
                                     </p>
                                 )}
                             </div>
                             <div>
-                                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1">
+                                <label className="block text-[11px] font-bold uppercase tracking-wide text-[var(--psd-body)] mb-1">
                                     Account Head
                                 </label>
                                 <select
                                     value={otherPiHead}
                                     onChange={(e) => setOtherPiHead(e.target.value)}
                                     disabled={!otherPiProject}
-                                    className="w-full min-w-0 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                                    className="w-full min-w-0 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-2 text-sm text-[var(--psd-heading)] disabled:opacity-50"
                                 >
                                     <option value="">Select account head…</option>
                                     {otherPiHeads.map((h) => (
@@ -900,7 +929,7 @@ const TravelDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                     {/* Main Content — read-only form */}
                     <div className="lg:col-span-3">
-                        <FrappeCard className="space-y-4">
+                        <FrappeCard className="psd-uform space-y-3">
                             <TravelApplicantSummary
                                 webmail={formData.webmail_id_travel}
                                 fullName={formData.applicant_name_travel}
@@ -928,9 +957,9 @@ const TravelDetails: React.FC = () => {
                         {/* TA/DA settlement status (the travel's own workflow state / last
                             modified are intentionally not shown here) */}
                         {tadaSettlement && (
-                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="psd-card !rounded-xl p-3">
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-zinc-600 dark:text-zinc-400">TA/DA Settlement</span>
+                                    <span className="text-[var(--psd-body)]">TA/DA Settlement</span>
                                     <span
                                         className={cn(
                                             "px-3 py-1 text-xs font-bold rounded-full",
@@ -964,11 +993,11 @@ const TravelDetails: React.FC = () => {
                         {/* Director Approval — International travel only.
                             See docs/travel-director-approval-implementation.md */}
                         {showDirectorPanel && (
-                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-[12px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide mb-2">
+                            <div className="psd-card !rounded-xl p-3">
+                                <h3 className="text-[12px] font-extrabold text-[var(--psd-heading)] uppercase tracking-wide mb-2">
                                     Director Approval
                                 </h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
+                                <p className="text-xs text-[var(--psd-body)] mb-4 leading-relaxed">
                                     This is an International travel application and requires Director
                                     approval before the Dean can give final approval.
                                 </p>
@@ -979,7 +1008,7 @@ const TravelDetails: React.FC = () => {
                                         <button
                                             onClick={handlePrintAndSendToDirector}
                                             disabled={isSendingToDirector}
-                                            className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
+                                            className="w-full flex items-center justify-center gap-2 bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
                                         >
                                             <Printer className="w-4 h-4" />
                                             {isSendingToDirector ? "Sending…" : "Print & Send for Director Approval"}
@@ -990,7 +1019,7 @@ const TravelDetails: React.FC = () => {
                                     {isDeanRnd && isPendingDirectorApproval && !directorSignedPdf && (
                                         <button
                                             onClick={handleDownloadDirectorReview}
-                                            className="w-full flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                                            className="w-full flex items-center justify-center gap-2 bg-[var(--psd-surface)] border border-[var(--psd-border)] text-[var(--psd-heading)] hover:bg-zinc-50 dark:hover:bg-zinc-700 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
                                         >
                                             <Download className="w-4 h-4" />
                                             Download for Director Approval
@@ -999,7 +1028,7 @@ const TravelDetails: React.FC = () => {
 
                                     {/* staff, RnD: upload the Director-signed copy once sent */}
                                     {isRnDStaff && isPendingDirectorApproval && !directorSignedPdf && (
-                                        <label className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer disabled:opacity-50">
+                                        <label className="w-full flex items-center justify-center gap-2 bg-[var(--psd-primary)] hover:bg-[var(--psd-primary-hover)] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer disabled:opacity-50">
                                             <UploadCloud className="w-4 h-4" />
                                             {isUploadingDirectorPdf ? "Uploading…" : "Upload Director-Signed Copy"}
                                             <input
@@ -1013,7 +1042,7 @@ const TravelDetails: React.FC = () => {
                                     )}
 
                                     {isPendingDeanApproval && !isDeanRnd && (
-                                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                        <p className="text-xs text-[var(--psd-body)]">
                                             Awaiting the Dean to send this application for Director approval.
                                         </p>
                                     )}
@@ -1039,13 +1068,14 @@ const TravelDetails: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Project Budget */}
-                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        {/* Project Budget: hidden when there is no balance to show (₹ 0 and no head with funds) */}
+                        {(commitableBalance || 0) !== 0 || budgetHeads.some((h) => headBalances[h] && headBalances[h]?.received !== 0) ? (
+                        <div className="psd-card !rounded-xl px-4 py-3">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                <span className="text-xs font-semibold text-[var(--psd-body)] uppercase tracking-wider">
                                     Commitable Balance
                                 </span>
-                                <span className={`text-sm font-bold ${commitableBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
+                                <span className={`text-sm font-bold ${commitableBalance < 0 ? "text-red-500" : "text-[var(--psd-primary)]"}`}>
                                     ₹ {(commitableBalance || 0).toLocaleString("en-IN")}
                                 </span>
                             </div>
@@ -1061,7 +1091,7 @@ const TravelDetails: React.FC = () => {
                                             const isNegative = bal.commitable < 0;
                                             return (
                                                 <div key={head} className="flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50">
-                                                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[130px]" title={head}>
+                                                    <span className="text-[11px] text-[var(--psd-body)] truncate max-w-[130px]" title={head}>
                                                         {head}
                                                     </span>
                                                     <span className={`text-[11px] font-bold tabular-nums ${isNegative ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>
@@ -1072,7 +1102,7 @@ const TravelDetails: React.FC = () => {
                                         })}
                                     <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700">
                                         <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide">Total</span>
-                                        <span className={`text-[11px] font-bold tabular-nums ${commitableBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
+                                        <span className={`text-[11px] font-bold tabular-nums ${commitableBalance < 0 ? "text-red-500" : "text-[var(--psd-primary)]"}`}>
                                             ₹ {(commitableBalance || 0).toLocaleString("en-IN")}
                                         </span>
                                     </div>
@@ -1081,12 +1111,13 @@ const TravelDetails: React.FC = () => {
 
                             <button
                                 onClick={() => setIsLedgerOpen(true)}
-                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-semibold text-xs hover:bg-[#B2DFDB] transition-colors"
+                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[var(--psd-primary)] font-semibold text-xs hover:bg-[#B2DFDB] transition-colors"
                             >
                                 <LedgerIcon className="w-4 h-4" />
                                 View Project Ledger
                             </button>
                         </div>
+                        ) : null}
 
                         {/* Commit Payment — right below Project Budget */}
                         {showCommitSection && (
@@ -1108,8 +1139,8 @@ const TravelDetails: React.FC = () => {
 
                         {/* HoS read-only commitment view */}
                         {showCommitReadOnly && (
-                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                            <div className="psd-card !rounded-xl p-3">
+                                <h3 className="text-sm font-bold text-[var(--psd-body)] uppercase tracking-wider mb-4">
                                     Commitment by R&D Staff
                                 </h3>
                                 <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col gap-1">
@@ -1130,8 +1161,8 @@ const TravelDetails: React.FC = () => {
 
                         {/* Record Payment */}
                         {!cancellationFrozen && showCommitSection && isCommitted && (
-                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                            <div className="psd-card !rounded-xl p-3">
+                                <h3 className="text-sm font-bold text-[var(--psd-body)] uppercase tracking-wider mb-4">
                                     Record Payment
                                 </h3>
                                 <div className="space-y-4">
@@ -1149,12 +1180,12 @@ const TravelDetails: React.FC = () => {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                            <label className="block text-sm font-medium text-[var(--psd-heading)] mb-1">
                                                 Payment Amount (₹)
                                             </label>
                                             <input
                                                 type="number"
-                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                                className="w-full px-3 py-2 border border-[var(--psd-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
                                                 placeholder="e.g., 5000"
                                                 value={paymentAmount}
                                                 onChange={(e) => setPaymentAmount(e.target.value)}
