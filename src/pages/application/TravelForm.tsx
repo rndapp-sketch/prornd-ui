@@ -853,8 +853,8 @@ const TravelForm: React.FC = () => {
     };
 
     // --- Apply depends_on logic to filter visible fields ---
-    // Project staff raise the travel as an Other-PI one charged to their PI, who picks
-    // the project and account head at the "Pending Other PI" step.
+    // Project staff leave the project and account head to their PI, who picks them at
+    // the "Pending PI Approval" step.
     const projectStaff = useProjectStaffApplicant();
     const staffMode = projectStaff.isProjectStaff;
     const staffPrefilled = React.useRef(false);
@@ -870,12 +870,22 @@ const TravelForm: React.FC = () => {
         });
         return answers;
     }, [fields]);
+    // Project staff are routed by the workflow's own project-staff transition
+    // (Draft → Pending PI Approval); the "Other" choice has no transition for their role,
+    // and a backend without the project-staff handling rejects the submit with
+    // "Submit action is not available for your role". So "Other PI" stays "Self" — also on
+    // a draft saved earlier as "Other", or a form opened with ?other_pi=1 — and the PI is
+    // only recorded in travel_other_pi_id.
+    useEffect(() => {
+        if (!staffMode || !dataLoaded || !editDocName) return;
+        setFormData(prev => (prev.travel_other_pi === 'Other' ? { ...prev, travel_other_pi: 'Self' } : prev));
+    }, [staffMode, dataLoaded, editDocName]);
     useEffect(() => {
         if (!staffMode || projectStaff.isLoading || !dataLoaded || editDocName || staffPrefilled.current) return;
         staffPrefilled.current = true;
         setFormData(prev => ({
             ...prev,
-            travel_other_pi: 'Other',
+            travel_other_pi: 'Self',
             travel_other_pi_id: projectStaff.piEmail || prev.travel_other_pi_id || '',
             travel_project_title: '',
             travel_project_number: '',
