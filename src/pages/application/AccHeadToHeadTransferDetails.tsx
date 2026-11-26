@@ -6,7 +6,7 @@ import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import {
     CalendarIcon, EditIcon, Send, CheckCircle2, UserIcon, IndianRupeeIcon,
-    Briefcase, ArrowLeftRight, ArrowLeft, X, ExternalLink, FileTextIcon,
+    Briefcase, ArrowRight, ArrowLeft, X, ExternalLink, FileTextIcon,
     Paperclip, BookOpen as LedgerIcon,
 } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -372,7 +372,7 @@ const AccHeadToHeadTransferDetails: React.FC = () => {
 
                         {/* Transfer Details */}
                         <FrappeCard>
-                            <CardHeader icon={ArrowLeftRight} label="Fund Transfer Details" accent />
+                            <CardHeader icon={ArrowRight} label="Fund Transfer Details" accent />
                             <div className="p-5 space-y-5">
                                 {amountFmt && (
                                     <div className="flex items-center gap-3 p-4 rounded-xl bg-[#FFF7F4] dark:bg-[#D97757]/10 border border-[#D97757]/20">
@@ -396,7 +396,7 @@ const AccHeadToHeadTransferDetails: React.FC = () => {
                                         <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#A1A1AA]">From</p>
                                         <p className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">{fromLabel || '—'}</p>
                                     </div>
-                                    <ArrowLeftRight className="w-5 h-5 text-[#D97757] flex-shrink-0" />
+                                    <ArrowRight className="w-5 h-5 text-[#D97757] flex-shrink-0" />
                                     <div className="min-w-0">
                                         <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#A1A1AA]">To</p>
                                         <p className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">{toLabel || '—'}</p>

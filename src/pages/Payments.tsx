@@ -115,7 +115,7 @@ const Payments: React.FC = () => {
 
     // New State for Commits and Tabs
     const [pendingCommits, setPendingCommits] = useState<CommitRecord[]>([]);
-    const [activeTab, setActiveTab] = useState<'history' | 'commits' | 'misc' | 'paid'>('commits'); // Default to commits context
+    const [activeTab, setActiveTab] = useState<'history' | 'commits' | 'partial' | 'misc' | 'paid'>('commits'); // Default to commits context
     const [commitPage, setCommitPage] = useState(1);
     const commitsPerPage = 50;
     const itemsPerPage = 10;
@@ -418,19 +418,75 @@ const Payments: React.FC = () => {
         });
     }, [pendingCommits, moduleNameMap]);
 
+    // Per commit: what is PAID, and what is IN PROCESS (a payment submitted but not yet paid). Rejected / failed
+    // payments count for neither. Both are spoken for, so together they are what can no longer be paid again.
+    const paymentTotalsByCommit = React.useMemo(() => {
+        const m = new Map<string, { paid: number; pending: number }>();
+        payments.forEach(p => {
+            const status = String(p.payment_status || '').toUpperCase();
+            if (status !== 'PAID' && status !== 'PENDING') return;
+            const key = commitKey(p.source, p.transaction_commit_number);
+            if (key == null) return;
+            const cur = m.get(key) || { paid: 0, pending: 0 };
+            if (status === 'PAID') cur.paid += Number(p.payment_amount) || 0;
+            else cur.pending += Number(p.payment_amount) || 0;
+            m.set(key, cur);
+        });
+        return m;
+    }, [payments]);
+    const paymentsOf = React.useCallback((commit: CommitRecord): { paid: number; pending: number } => {
+        const key = commitKey(commit.source, commit.transactionCommitNumber);
+        return (key != null && paymentTotalsByCommit.get(key)) || { paid: 0, pending: 0 };
+    }, [paymentTotalsByCommit]);
+
+    // Part of the committed amount is paid or in process, but not all of it: more can be paid, up to what is left.
+    // The ledger's own PARTIALLY_PAID status is trusted; otherwise it is worked out from the payments (the status can lag).
+    // Settlement commits (advance / TA-DA) are paid on a different basis, so only their status counts.
+    // Salary and recruitment commits (module 11, Recruitment Adhoc Contractual) and Miscellaneous Commit (25) are paid in one go
+    // from their own tabs / the Salary Module, so they are never offered as "partially paid".
+    const isOneShotCommit = React.useCallback((commit: CommitRecord): boolean => {
+        const id = String(commit.moduleId ?? '');
+        const name = (moduleNameMap[id] || '').toLowerCase();
+        return id in MISC_TAB_MODULE_IDS || /recruitment|salary|miscellaneous/.test(name);
+    }, [moduleNameMap]);
+    const isPartiallyPaid = React.useCallback((commit: CommitRecord): boolean => {
+        if (isOneShotCommit(commit)) return false;
+        if (commit.status === 'PARTIALLY_PAID') return true;
+        if (['8', '13'].includes(String(commit.moduleId ?? ''))) return false;
+        const total = Number(commit.commitAmount) || 0;
+        const { paid, pending } = paymentsOf(commit);
+        const used = paid + pending;
+        return used > 0 && total > 0 && used < total - 0.005;
+    }, [paymentsOf, isOneShotCommit]);
+    const partialCommits = React.useMemo(() => filteredPendingCommits.filter(isPartiallyPaid), [filteredPendingCommits, isPartiallyPaid]);
+    const unpaidCommits = React.useMemo(() => filteredPendingCommits.filter(c => !isPartiallyPaid(c)), [filteredPendingCommits, isPartiallyPaid]);
+
+    const [partialSearch, setPartialSearch] = useState('');
+    const [partialPage, setPartialPage] = useState(1);
+    const partialPerPage = 20;
+    const searchedPartialCommits = React.useMemo(() => {
+        const q = partialSearch.trim().toLowerCase();
+        if (!q) return partialCommits;
+        return partialCommits.filter(c => {
+            const head = budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId || '');
+            const mod = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
+            return [c.projectNumber, c.frapAppId, c.commitParticular, c.refDetails, head, mod].some(v => String(v ?? '').toLowerCase().includes(q));
+        });
+    }, [partialCommits, partialSearch, budgetHeadMap, moduleNameMap]);
+
     // Module names present in the pending commits, for the "filter by module" dropdown
     const commitModuleOptions = React.useMemo(() => {
         const names = new Set<string>();
-        filteredPendingCommits.forEach(c => {
+        unpaidCommits.forEach(c => {
             const name = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : null;
             if (name) names.add(name);
         });
         return Array.from(names).sort();
-    }, [filteredPendingCommits, moduleNameMap]);
+    }, [unpaidCommits, moduleNameMap]);
 
     // Search + module filter applied on top of filteredPendingCommits
     const searchedPendingCommits = React.useMemo(() => {
-        let result = filteredPendingCommits;
+        let result = unpaidCommits;
 
         if (selectedCommitModule) {
             result = result.filter(c => {
@@ -456,7 +512,7 @@ const Payments: React.FC = () => {
         }
 
         return result;
-    }, [filteredPendingCommits, debouncedCommitSearch, selectedCommitModule, budgetHeadMap, moduleNameMap]);
+    }, [unpaidCommits, debouncedCommitSearch, selectedCommitModule, budgetHeadMap, moduleNameMap]);
 
     // --- Paid tab: every payment the ledger reports as PAID (all modules, nothing excluded) ---
     const [paidSearch, setPaidSearch] = useState('');
@@ -721,7 +777,7 @@ const Payments: React.FC = () => {
     // does the same); PENDING / REJECTED ones are listed but not subtracted.
     const previousPaidTotal = React.useMemo(
         () => previousPayments
-            .filter(p => String(p.payment_status || '').toUpperCase() === 'PAID')
+            .filter(p => ['PAID', 'PENDING'].includes(String(p.payment_status || '').toUpperCase()))
             .reduce((sum, p) => sum + (Number(p.payment_amount) || 0), 0),
         [previousPayments],
     );
@@ -826,7 +882,8 @@ const Payments: React.FC = () => {
                 {/* Tabs */}
                 <div className="mb-3 flex gap-2 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35 overflow-x-auto" role="tablist">
                     {([
-                        ['commits', 'Pending Commits', filteredPendingCommits.length],
+                        ['commits', 'Pending Commits', unpaidCommits.length],
+                        ['partial', 'Partially Paid', partialCommits.length],
                         ['misc', 'Miscellaneous Commit', combinedMiscTabRows.length],
                         ['paid', 'Paid', allPaid.length],
                     ] as const).map(([id, label, count]) => {
@@ -1061,6 +1118,97 @@ const Payments: React.FC = () => {
                                     >
                                         Next
                                     </FrappeButton>
+                                </div>
+                            </div>
+                        )}
+                    </FrappeCard>
+                )}
+
+                {activeTab === 'partial' && (
+                    <FrappeCard className="overflow-hidden p-0">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <p className="text-[12px] uppercase tracking-[0.12em] text-[#1E3A8A] dark:text-[#C7D2FE] font-extrabold">Partially Paid Commits</p>
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                Part of the committed amount has been paid. You can pay more, but the total paid can never exceed the committed amount.
+                            </p>
+                        </div>
+                        <div className="px-3 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between gap-3 flex-wrap">
+                            <div className="relative w-full md:w-64">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search documents..."
+                                    value={partialSearch}
+                                    onChange={(e) => { setPartialSearch(e.target.value); setPartialPage(1); }}
+                                    className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:border-[#4A6CF7]"
+                                />
+                            </div>
+                            <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">Total: {searchedPartialCommits.length} commits</div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr>
+                                        {['Project No.', 'Account Head', 'Module', 'App ID', 'Date', 'Particulars', 'Committed', 'Paid', 'Remaining', 'Action'].map((h, i) => (
+                                            <th key={h} className={cn("px-3 py-2 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider", i >= 6 && i <= 8 ? "text-right" : "text-left", i < 9 && "border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25")}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {searchedPartialCommits.length > 0 ? (
+                                        searchedPartialCommits
+                                            .slice((partialPage - 1) * partialPerPage, partialPage * partialPerPage)
+                                            .map((commit, idx) => {
+                                                const total = Number(commit.commitAmount) || 0;
+                                                const { paid, pending } = paymentsOf(commit);
+                                                const remaining = Math.max(0, total - paid - pending);
+                                                const money = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                                                return (
+                                                    <tr key={idx} className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50">
+                                                        <td className="px-3 py-2 text-sm font-mono font-medium">{commit.projectNumber}</td>
+                                                        <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 font-bold">{budgetHeadMap[String(commit.accountHeadId)] || commit.accountHeadId}</td>
+                                                        <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">{commit.moduleId ? (moduleNameMap[String(commit.moduleId)] || commit.moduleId) : '-'}</td>
+                                                        <td className="px-3 py-2 text-sm font-mono text-zinc-600 dark:text-zinc-400">{commit.frapAppId || '-'}</td>
+                                                        <td className="px-3 py-2 text-sm">{commit.commitDate}</td>
+                                                        <td className="px-3 py-2 text-sm">{commit.commitParticular}</td>
+                                                        <td className="px-3 py-2 text-right text-sm font-bold">{money(total)}</td>
+                                                        <td className="px-3 py-2 text-right text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                                                            {money(paid)}
+                                                            {pending > 0 && <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">+ {money(pending)} in process</div>}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right text-sm font-bold text-amber-700 dark:text-amber-400">{money(remaining)}</td>
+                                                        <td className="px-3 py-2">
+                                                            {isRnDStaff && (
+                                                                remaining > 0 ? (
+                                                                    <FrappeButton variant="primary" className="text-xs py-1 px-3" onClick={() => initiatePaymentForCommit(commit)}>
+                                                                        Pay more
+                                                                    </FrappeButton>
+                                                                ) : (
+                                                                    <span className="text-xs text-zinc-400">{pending > 0 ? 'Payment in process' : 'Fully paid'}</span>
+                                                                )
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={10} className="p-8 text-center text-zinc-500 dark:text-zinc-400">No partially paid commits.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {searchedPartialCommits.length > partialPerPage && (
+                            <div className="px-4 py-2 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                    Showing {(partialPage - 1) * partialPerPage + 1} to {Math.min(partialPage * partialPerPage, searchedPartialCommits.length)} of {searchedPartialCommits.length}
+                                </div>
+                                <div className="flex gap-1">
+                                    <FrappeButton onClick={() => setPartialPage(p => Math.max(1, p - 1))} disabled={partialPage === 1} variant="outline">Previous</FrappeButton>
+                                    <FrappeButton onClick={() => setPartialPage(p => p + 1)} disabled={partialPage * partialPerPage >= searchedPartialCommits.length} variant="outline">Next</FrappeButton>
                                 </div>
                             </div>
                         )}
@@ -1597,7 +1745,7 @@ const Payments: React.FC = () => {
                                         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                             <h3 className="text-sm font-bold text-amber-800 dark:text-amber-300">Previous payments on this commit</h3>
                                             <div className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                                                Committed {money(Number(selectedCommit.commitAmount) || 0)} · Paid {money(paid)} · Remaining {money(remaining)}
+                                                Committed {money(Number(selectedCommit.commitAmount) || 0)} · Paid or in process {money(paid)} · Remaining {money(remaining)}
                                             </div>
                                         </div>
                                         <table className="w-full text-xs">

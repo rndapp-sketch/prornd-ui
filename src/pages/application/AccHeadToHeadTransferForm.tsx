@@ -6,7 +6,7 @@ import { useFrappePostCall, useFrappeAuth, useFrappeGetCall, useSWR } from 'frap
 import { cn } from '@/lib/utils';
 import {
     Save, Send, UserIcon, FolderOpen, X, FileTextIcon,
-    ArrowLeftRight, AlertCircle,
+    ArrowRight, AlertCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
@@ -686,7 +686,7 @@ const AccHeadToHeadTransferForm: React.FC = () => {
                     </GroupCard>
 
                     {/* GROUP C — Fund Transfer */}
-                    <GroupCard icon={ArrowLeftRight} label="Fund Transfer Details" badge="C">
+                    <GroupCard icon={ArrowRight} label="Fund Transfer Details" badge="C">
                         <DynamicFormRenderer
                             fields={transferGroup}
                             {...commonRendererProps}
@@ -705,7 +705,7 @@ const AccHeadToHeadTransferForm: React.FC = () => {
                                 <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                                     {headLabel(formData.h2h_transfer_from)}
                                 </span>
-                                <ArrowLeftRight className="w-4 h-4 text-[#D97757]" />
+                                <ArrowRight className="w-4 h-4 text-[#D97757]" />
                                 <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                                     {headLabel(formData.h2h_transfer_to)}
                                 </span>
