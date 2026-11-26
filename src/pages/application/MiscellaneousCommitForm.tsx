@@ -399,8 +399,8 @@ const MiscellaneousCommitForm: React.FC = () => {
             if (res?.message?.status === 'success') {
                 const docname = res.message.docname || savedDocName;
                 if (docname && !savedDocName) setSavedDocName(docname);
-                // Submit stays locked until a draft exists; offer it straight away.
-                setSubmitModalOpen(true);
+                // Save Draft only saves: the commit stays in Draft until Submit is clicked.
+                alert(`Miscellaneous Commit saved as Draft${docname ? ` (${docname})` : ''}.`);
             } else {
                 throw new Error(res?.message?.message || 'Save failed');
             }
@@ -558,7 +558,8 @@ const MiscellaneousCommitForm: React.FC = () => {
                     </FrappeButton>
                     <FrappeButton
                         onClick={openSubmitModal}
-                        disabled={isSaving || isSubmitting || !savedDocName}
+                        // No draft needed first: handleSubmit saves the form before submitting it.
+                        disabled={isSaving || isSubmitting}
                         className="bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm"
                     >
                         <Send className="w-4 h-4" />

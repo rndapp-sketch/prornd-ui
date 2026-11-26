@@ -1263,11 +1263,11 @@ const QuickActions = ({
             icon: IndianRupeeIcon,
             items: ["Reimbursement"],
         },
-        {
-            title: "Vendor Payment",
-            icon: Receipt,
-            items: ["Vendor Payment"],
-        },
+        // Vendor Payment is still under development: hidden from the PI side for now and
+        // shown only to staff, RnD (who also get it in the sidebar).
+        ...(isStaffRnDForCommit
+            ? [{ title: "Vendor Payment", icon: Receipt, items: ["Vendor Payment"] }]
+            : []),
         {
             title: "Advance",
             icon: CreditCard,
