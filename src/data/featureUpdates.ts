@@ -32,6 +32,39 @@ export interface FeatureUpdate {
 
 export const featureUpdates: FeatureUpdate[] = [
     {
+        id: "delegate-account-access",
+        title: "Delegate Account Access & Switch Account",
+        date: "2026-11-27",
+        status: "live",
+        accent: "violet",
+        tags: ["Delegation", "Roles", "Switch Account"],
+        summary: "Give another user access to your account's roles while you are away, and let them switch into it without sharing your password. Found in a new Delegate Account Access tab on the Delegate User page.",
+        highlights: [
+            "Pick a user, tick the roles to give, set the start and end time and a reason, then press Give access. The page lists the access you have given and received, and Revoke ends a grant early",
+            "The person you gave access to sees your account under Switch account in the avatar menu and on their Profile page. A confirmation appears, then the app reloads with that role's menus, dashboard and pending tasks",
+            "While acting, the top bar shows whose account you are using, with a Switch back button. You can switch back at any time",
+            "They keep their own login. What they approve is recorded under their own name, together with the role they acted as",
+            "You can only give roles you hold yourself, access you received cannot be passed on, and access stops by itself when the period ends. Giving or revoking access is not available while you are switched into someone else's account",
+            "The page opens with a short collapsible description of how it works, and moving between the Delegate User and Delegate Account Access tabs is instant",
+        ],
+    },
+    {
+        id: "permanent-staff-registration",
+        title: "Permanent Staff Self-Registration",
+        date: "2026-11-27",
+        status: "live",
+        accent: "teal",
+        tags: ["Registration", "Login", "Permanent Staff"],
+        summary: "A permanent staff member who signs in with a valid institute email and password but has no account yet is now taken to a registration form instead of seeing an error.",
+        highlights: [
+            "The form opens only when the institute login is correct and no PRAGATI account exists. A wrong password still shows the usual error",
+            "Fill in your name, Employee ID, department and designation. The Employee ID is checked for duplicates as you type",
+            "The Head of Department is filled in automatically from the department and cannot be edited; if a department has no head recorded, the field stays empty",
+            "PI Initials are suggested from your first and last name (for example HIGU) and checked as you type. If they are taken, the next option is tried automatically, and you can also type your own 4 letters. The middle name is only used to settle a clash",
+            "After registering you are signed in straight away",
+        ],
+    },
+    {
         id: "currency-converter",
         title: "Currency Rates & Converter",
         date: "2026-11-19",

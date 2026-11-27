@@ -23,6 +23,9 @@ import { DELEGABLE_APPLICATION_DOCTYPES } from "@/utils/applicationRoutes";
 import { usePiLedgerData } from "@/hooks/usePiLedgerSummary";
 import { FormSelect } from "@/components/FormSelect";
 import "@/pages/dashboards/projectStaffDashboard.css";
+import { useSearchParams } from "react-router-dom";
+import RoleDelegation from "@/pages/RoleDelegation";
+import { useActingProfile } from "@/hooks/useActingProfile";
 
 type DelegateUserOption = {
     label: string;
@@ -148,7 +151,7 @@ const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.exception ||
     fallback;
 
-const DelegateUser: React.FC = () => {
+const DelegateUserForm: React.FC = () => {
     const { currentUser } = useFrappeAuth();
 
     const { call: searchUsers } = useFrappePostCall<{ message: DelegateUserOption[] }>(delegateUserAPI.searchUsers);
@@ -1334,5 +1337,51 @@ const Badge = ({ children }: { children: React.ReactNode }) => (
         {children}
     </span>
 );
+
+/** Delegate User page: share documents (existing form) or give access to your account (role delegation). */
+const DelegateUser: React.FC = () => {
+    const [params, setParams] = useSearchParams();
+    const { isActing } = useActingProfile();
+    const tab = params.get("tab") === "account" ? "account" : "documents";
+    const [visited, setVisited] = React.useState({ documents: tab === "documents", account: true }); // account tab is preloaded in the background (no full-screen loader)
+    React.useEffect(() => {
+        setVisited((v) => (v[tab] ? v : { ...v, [tab]: true }));
+    }, [tab]);
+    const TabBtn = ({ id, label }: { id: "documents" | "account"; label: string }) => (
+        <button
+            type="button"
+            onClick={() => setParams(id === "account" ? { tab: "account" } : {})}
+            className={cn(
+                "rounded-xl px-5 py-2 text-[13px] font-bold transition-all duration-300",
+                tab === id
+                    ? "bg-gradient-to-r from-[#6842D9] to-[#4775E8] text-white shadow-md shadow-violet-500/25"
+                    : "text-zinc-600 hover:bg-white/60 dark:text-zinc-300 dark:hover:bg-white/10",
+            )}
+        >
+            {label}
+        </button>
+    );
+    return (
+        // Same violet theme on both tabs; the switcher is a frosted-glass pill.
+        <div className="-m-1 rounded-2xl bg-gradient-to-br from-violet-100/70 via-indigo-50/60 to-transparent p-3 dark:from-violet-950/30 dark:via-indigo-950/20">
+            <div className="mb-3 inline-flex gap-1 rounded-2xl border border-white/60 bg-white/40 p-1 shadow-[0_8px_30px_rgba(31,38,135,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
+                <TabBtn id="documents" label="Delegate User" />
+                <TabBtn id="account" label="Delegate Account Access" />
+            </div>
+            {isActing ? (
+                <div className="p-6 text-[14px] font-semibold text-zinc-600 dark:text-zinc-300">
+                    Delegation is not available while acting on a delegated profile. Switch back to your own profile first.
+                </div>
+            ) : (
+                // Both tabs stay mounted once opened (just hidden), so switching back is instant
+                // instead of reloading each tab's data and showing the loader again.
+                <>
+                    {visited.documents && <div hidden={tab !== "documents"}><DelegateUserForm /></div>}
+                    {visited.account && <div hidden={tab !== "account"}><RoleDelegation /></div>}
+                </>
+            )}
+        </div>
+    );
+};
 
 export default DelegateUser;

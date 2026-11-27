@@ -191,7 +191,7 @@ const LOGIN_STYLES = `
  * credentials are valid but no User exists. A plain 401 is a wrong password and
  * must NOT open the registration form.
  */
-const isUserNotRegistered = (status: number, data: any): boolean =>
+const isUserNotRegistered = (data: any): boolean =>
   data?.registration_required === true || data?.exc_type === 'RegistrationRequiredError';
 
 const Login: React.FC = () => {
@@ -287,7 +287,7 @@ const Login: React.FC = () => {
           body: JSON.stringify({ usr: fullUsername, pwd: password, client_ip: clientIpRef.current }),
         });
         const data = await res.json();
-        if (isUserNotRegistered(res.status, data)) {
+        if (isUserNotRegistered(data)) {
           setRegistering({ email: data.email || fullUsername });
           setIsLoading(false);
           return;
