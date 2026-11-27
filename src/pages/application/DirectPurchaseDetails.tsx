@@ -65,7 +65,7 @@ import { DeclarationFields } from "@/components/DeclarationFields";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
-import { CommitPayment } from "@/components/CommitPayment";
+import { CommitPayment, type CommitPaymentProps } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
@@ -2386,7 +2386,7 @@ const INIT_FS: FSFormData = {
 
 type FSLoadState = "loading" | "ready" | "saving" | "load_error";
 
-const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
+const FinalSettlementTab = ({ dpId, projectNo }: { dpId: string; projectNo?: string }) => {
     const [loadState, setLoadState] = useState<FSLoadState>("loading");
     const [linkOptions, setLinkOptions] = useState<Record<string, Array<Record<string, any>>>>({});
     const [formData, setFormData] = useState<FSFormData>(INIT_FS);
@@ -2688,6 +2688,32 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
     const labelCls =
         "block text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1";
 
+    // Account heads sanctioned for this direct purchase's project (same source as the other commit forms);
+    // falls back to the form's own list until/unless the project call returns something.
+    const { data: projectHeadsRes } = useFrappeGetCall<{
+        message: { name: string; id: number | null; budget_head: string }[];
+    }>(
+        "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_heads_by_project",
+        { project_no: projectNo || "" },
+        projectNo ? `dp-settlement-budget-heads-${projectNo}` : null,
+    );
+    // Keep a head that is already saved on the document selectable even if it is no longer in the project list.
+    const projectHeadOpts = React.useMemo(() => {
+        const rows = projectHeadsRes?.message ?? [];
+        if (rows.length === 0) return null;
+        const opts: Array<Record<string, any>> = rows.map((r) => ({ value: r.name, label: r.budget_head }));
+        const known = new Set(opts.map((o) => String(o.value)));
+        const saved = [formData.account_head, ...formData.settlement_accounts.map((r) => r.account_head)].filter(Boolean);
+        saved.forEach((v) => {
+            if (!known.has(String(v))) {
+                known.add(String(v));
+                const orig = (linkOptions.account_head || []).find((o) => String(o.value) === String(v));
+                opts.push({ value: v, label: orig?.label ?? v });
+            }
+        });
+        return opts;
+    }, [projectHeadsRes, formData.account_head, formData.settlement_accounts, linkOptions.account_head]);
+
     const selectOpts = (opts: Array<Record<string, any>>) =>
         opts.map((o) => (
             <option key={o.value} value={o.value}>
@@ -2697,7 +2723,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
 
     const isSaving = loadState === "saving";
     const childAccountOpts =
-        linkOptions.settlement_accounts_account_head || linkOptions.account_head || [];
+        projectHeadOpts ?? (linkOptions.settlement_accounts_account_head || linkOptions.account_head || []);
 
     const amtStr = (v: number | string) =>
         v !== "" && !isNaN(Number(v))
@@ -2795,7 +2821,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                         disabled={isSaving}
                     >
                         <option value="">— Select —</option>
-                        {selectOpts(linkOptions.account_head || [])}
+                        {selectOpts(projectHeadOpts ?? (linkOptions.account_head || []))}
                     </select>
                     {formData.account_head && (
                         <p className="mt-1 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
@@ -3111,6 +3137,37 @@ const TABS: Tab[] = [
         description: "PO Commit Adjustment",
     },
 ];
+
+// Read-only cards for every commitment already made on a purchase (the first commit and the PO commit).
+// A card is only rendered when that commitment exists, so the column stays empty otherwise.
+const DpCommittedCards = ({
+    id,
+    ...rest
+}: { id: string } & Pick<CommitPaymentProps, "projectName" | "budgetHeads" | "budgetHeadIds" | "actualBalance" | "commitableBalance">) => (
+    <div className="min-w-0 space-y-4 empty:hidden">
+        <CommitPayment
+            readOnly
+            key={`ro-commit-main-${id}`}
+            doctype="Direct Purchase"
+            docName={id}
+            excludeStagingTriggerState="POGenerated"
+            {...rest}
+        />
+        <CommitPayment
+            readOnly
+            key={`ro-commit-po-${id}`}
+            doctype="Direct Purchase"
+            docName={id}
+            triggerState="POGenerated"
+            stagingTriggerState="POGenerated"
+            legacyStagingReferenceName={`${id}-po`}
+            {...rest}
+        />
+    </div>
+);
+
+// Workflow states in which the PO Commit Adjustment (settlement) tab is open.
+const SETTLEMENT_STATES = ["PO Sent", "PO Adjustment", "Completed"];
 
 // --- MAIN COMPONENT ---
 const DirectPurchaseDetails: React.FC = () => {
@@ -3675,7 +3732,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
     // Open the tab the workflow is currently waiting on: Approved / P-11 Submitted → P-11 Form,
     // P-11 Verified / Sanction Created / Print Taken → Sanction Sheet, Sanction Approved / PO Generated
-    // → Purchase Order, PO Sent / Completed → PO Commit Adjustment. Runs on load and again whenever
+    // → Purchase Order, PO Sent / PO Adjustment / Completed → PO Commit Adjustment. POGenerated stays on Purchase Order. Runs on load and again whenever
     // the state moves; an explicit ?tab= in the URL wins on the first load.
     const lastTabStateRef = useRef<string | null>(null);
     useEffect(() => {
@@ -3683,7 +3740,7 @@ const DirectPurchaseDetails: React.FC = () => {
         if (!state) return;
         const isFirst = lastTabStateRef.current === null;
         // The settlement tab is staff-only and roles load after the document, so they are part of the key
-        const key = ["PO Sent", "Completed"].includes(state) ? `${state}|${isStaffRnD}` : state;
+        const key = SETTLEMENT_STATES.includes(state) ? `${state}|${isStaffRnD}` : state;
         if (lastTabStateRef.current === key) return;
         lastTabStateRef.current = key;
         if (isFirst && searchParams.get("tab")) return;
@@ -3692,7 +3749,7 @@ const DirectPurchaseDetails: React.FC = () => {
         if (["Approved", "Pending Staff Verification"].includes(state)) tab = "p11";
         else if (["RDP-11 Verified", "Sanction Sheet Generated", "Sanction Sheet Printed"].includes(state)) tab = "sanction";
         else if (["Sanction Approved", "POGenerated"].includes(state)) tab = "po";
-        else if (["PO Sent", "Completed"].includes(state)) tab = isStaffRnD ? "settlement" : "po";
+        else if (SETTLEMENT_STATES.includes(state)) tab = isStaffRnD ? "settlement" : "po";
         setActiveTab(tab);
     }, [data?.workflow_state, isStaffRnD, searchParams]);
 
@@ -4470,6 +4527,18 @@ const DirectPurchaseDetails: React.FC = () => {
                                         )}
                                     </div>
 
+                                    {/* Right — commitments already made, once the order has been sent */}
+                                    {isStaffRnD && SETTLEMENT_STATES.includes(data?.workflow_state ?? "") && id && (
+                                        <DpCommittedCards
+                                            id={id}
+                                            projectName={projectTitle}
+                                            budgetHeads={budgetHeads}
+                                            budgetHeadIds={budgetHeadIds}
+                                            actualBalance={actualBalance}
+                                            commitableBalance={commitableBalance}
+                                        />
+                                    )}
+
                                     {/* Right — Commit Payment (only when PO tab is unlocked) */}
                                     {isStaffRnD && !!poSanctionData && ["Sanction Approved", "POGenerated"].includes(data?.workflow_state ?? "") && (
                                         <div className="min-w-0 space-y-4">
@@ -4521,7 +4590,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                     description="Submit the PO Commit Adjustment for this direct purchase after the PO is fulfilled."
                                     tone="settlement"
                                 />
-                                {!["PO Sent", "Completed"].includes(data.workflow_state ?? "") ? (
+                                {!SETTLEMENT_STATES.includes(data.workflow_state ?? "") ? (
                                     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
                                         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
                                             <ReceiptIcon className="h-5 w-5" />
@@ -4530,11 +4599,24 @@ const DirectPurchaseDetails: React.FC = () => {
                                             Settlement Locked
                                         </p>
                                         <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
-                                            The PO Commit Adjustment can only be submitted after the Purchase Order has been sent. This section will be available once the status reaches <span className="font-semibold">"PO Sent"</span>.
+                                            The PO Commit Adjustment can only be submitted after the Purchase Order has been sent. This section will be available once the status reaches <span className="font-semibold">"PO Adjustment"</span>.
                                         </p>
                                     </div>
                                 ) : (
-                                    <FinalSettlementTab dpId={id} />
+                                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+                                        <div className="min-w-0">
+                                            <FinalSettlementTab dpId={id} projectNo={resolvedProjectNo || directPurchaseProject} />
+                                        </div>
+                                        {/* Right: every commitment already made for this purchase */}
+                                        <DpCommittedCards
+                                            id={id}
+                                            projectName={projectTitle}
+                                            budgetHeads={budgetHeads}
+                                            budgetHeadIds={budgetHeadIds}
+                                            actualBalance={actualBalance}
+                                            commitableBalance={commitableBalance}
+                                        />
+                                    </div>
                                 )}
                             </>
                         )}
