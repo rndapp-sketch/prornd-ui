@@ -816,7 +816,7 @@ export function PiHomePage() {
               <PanelHeader icon={<History />} title="Application Activity" tone="emerald" />
               <div className="max-h-[340px] overflow-y-auto">
                 {activityLoading ? (
-                  <div className="divide-y divide-[var(--psd-border)]">
+                  <div className="divide-y divide-[#c3c8d8] dark:divide-zinc-600">
                     {[0, 1, 2, 3].map((i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-2.5">
                         <div className="size-2 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
@@ -837,7 +837,7 @@ export function PiHomePage() {
                     No application activity yet. Applications you create or update will appear here.
                   </p>
                 ) : (
-                  <ul className="divide-y divide-[var(--psd-border)]">
+                  <ul className="divide-y divide-[#c3c8d8] dark:divide-zinc-600">
                     {activity.map((a) => {
                       const created = Math.abs(new Date(a.modified.replace(" ", "T")).getTime() - new Date(a.creation.replace(" ", "T")).getTime()) < 60000;
                       return (
@@ -911,16 +911,30 @@ export function PiHomePage() {
             </Card>
 
             <Card>
-              <PanelHeader icon={<RotateCcw />} title="Put Back" tone="coral" />
+              <PanelHeader
+                icon={<RotateCcw />}
+                title="Put Back"
+                tone="coral"
+                action={
+                  !activityLoading && putBacks.length > 0 ? (
+                    <span
+                      className="grid min-w-[22px] place-items-center rounded-full bg-[var(--psd-returned)] px-1.5 py-0.5 text-[11px] font-extrabold leading-none text-white"
+                      aria-label={`${putBacks.length} put back`}
+                    >
+                      {putBacks.length}
+                    </span>
+                  ) : undefined
+                }
+              />
               <div className="max-h-[340px] overflow-y-auto">
                 {activityLoading ? (
                   <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">Checking your applications...</p>
                 ) : putBacks.length === 0 ? (
                   <p className="p-4 text-[12px] font-medium text-[var(--psd-body)]">Nothing has been put back to you.</p>
                 ) : (
-                  <ul className="divide-y divide-[var(--psd-border)]">
+                  <ul className="divide-y divide-[#c3c8d8] dark:divide-zinc-600">
                     {putBacks.map((a) => {
-                      const c = a.latestComment!;
+                      const c = a.latestComment;
                       return (
                         <li key={`${a.doctype}-${a.id}`}>
                           <button
@@ -934,12 +948,18 @@ export function PiHomePage() {
                             <span className="block truncate font-mono text-[11px] text-[var(--psd-muted)]">
                               {a.title ? `${a.doctype} · ` : ""}{a.id}{a.projectNo ? `  ·  ${a.projectNo}` : ""}
                             </span>
-                            <span className="mt-1 block text-[12px]" title={c.text}>
-                              <span className="font-bold text-[var(--psd-heading)]">{c.user}</span>
-                              {c.role && <span className="ml-1 font-semibold text-[#0B6B63] dark:text-teal-300">{c.role}</span>}
-                              <span className="ml-1.5 text-[10.5px] text-[var(--psd-muted)]">{relativeTime(c.timestamp)}</span>
-                              <span className="mt-0.5 line-clamp-2 block font-medium text-[#8F1F2D] dark:text-rose-200">{c.text}</span>
-                            </span>
+                            {c ? (
+                              <span className="mt-1 block text-[12px]" title={c.text}>
+                                <span className="font-bold text-[var(--psd-heading)]">{c.user}</span>
+                                {c.role && <span className="ml-1 font-semibold text-[#0B6B63] dark:text-teal-300">{c.role}</span>}
+                                <span className="ml-1.5 text-[10.5px] text-[var(--psd-muted)]">{relativeTime(c.timestamp)}</span>
+                                <span className="mt-0.5 line-clamp-2 block font-medium text-[#8F1F2D] dark:text-rose-200">{c.text}</span>
+                              </span>
+                            ) : (
+                              <span className="mt-1 block text-[12px] font-medium text-[#8F1F2D] dark:text-rose-200">
+                                {a.workflow_state} · {relativeTime(a.modified)}
+                              </span>
+                            )}
                           </button>
                         </li>
                       );

@@ -140,12 +140,9 @@ export const PendingLoansAlert: React.FC = () => {
   return (
     <div
       role="status"
-      className="relative mb-3 overflow-hidden rounded-lg border border-[#D97757]/50 bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFF7ED] dark:from-[#D97757]/15 dark:via-[#27272A] dark:to-[#D97757]/10 shadow-sm"
+      className="relative mb-3 overflow-hidden rounded-lg border-2 border-[#D97757] bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFF7ED] dark:from-[#D97757]/15 dark:via-[#27272A] dark:to-[#D97757]/10 shadow-sm"
     >
-      {/* Accent strip so it reads as a notification, not another stat card */}
-      <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#D97757] to-[#F59E0B]" />
-
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 pl-5 pr-4 py-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
         <div className="relative shrink-0">
           <div className="size-10 rounded-full bg-[#D97757] text-white flex items-center justify-center shadow-md shadow-[#D97757]/30">
             <BellRing size={19} className="motion-safe:animate-[pulse_2s_ease-in-out_infinite]" />
@@ -186,7 +183,7 @@ export const PendingLoansAlert: React.FC = () => {
         </div>
       </div>
 
-      <div className="mx-4 mb-3 ml-5 rounded-lg border border-[#D97757]/25 bg-white/80 dark:bg-[#18181B]/60 divide-y divide-[#D97757]/15">
+      <div className="mx-4 mb-3 rounded-lg border border-[#D97757]/25 bg-white/80 dark:bg-[#18181B]/60 divide-y divide-[#D97757]/15">
         {visible.map(({ project, loan }) => {
           const unknown = loan.balance_unavailable || loan.outstanding_amount == null;
           return (
