@@ -12,6 +12,10 @@ import {
 } from "frappe-react-sdk";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
+import ProfileSwitcher from "@/components/ProfileSwitcher";
+import ActingBanner from "@/components/ActingBanner";
+import { useActingProfile } from "@/hooks/useActingProfile";
+import { requestSwitch } from "@/lib/actingProfile";
 import {
   SidebarProvider,
   SidebarTrigger,
@@ -173,6 +177,7 @@ function EyeComfortToggle() {
 function AppContent() {
   // --- LOGIC PRESERVED EXACTLY AS PROVIDED ---
   const { currentUser, logout } = useFrappeAuth();
+  const acting = useActingProfile();
   const location = useLocation();
   const navigate = useNavigate();
   const isPublicPage =
@@ -292,6 +297,7 @@ function AppContent() {
             {currentUser && <AppSidebar />}
 
             <SidebarInset className="bg-[#FAFAF9] dark:bg-[#18181B] flex flex-col min-h-screen">
+              <ActingBanner />
               {/* ── Premium Enterprise Navbar ── */}
               <header className="enterprise-navbar">
                 {/* 2px indigo accent line at very top */}
@@ -371,6 +377,21 @@ function AppContent() {
                         <EyeComfortToggle />
                         <ThemeToggle />
 
+                        {/* Switched-account indicator: whose account (roles) this session is acting as */}
+                        {acting.isActing && (
+                          <div className="flex max-w-[16rem] items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[12px] font-semibold text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-300">
+                            <span className="truncate" title={(acting.active?.roles ?? []).join(", ")}>
+                              Acting as {acting.active?.delegator_name || acting.active?.delegator || "delegated account"}
+                            </span>
+                            <button
+                              onClick={() => requestSwitch("self")}
+                              className="shrink-0 rounded bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-amber-600"
+                            >
+                              Switch back
+                            </button>
+                          </div>
+                        )}
+
                         {/* Divider */}
                         <div className="h-5 w-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
 
@@ -401,7 +422,7 @@ function AppContent() {
                                     </div>
                                   )}
                                   {/* Online dot */}
-                                  <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 border-[1.5px] border-[#FAFAF9] dark:border-[#18181B]" />
+                                  <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ${acting.isActing ? "bg-amber-500" : "bg-emerald-500"} border-[1.5px] border-[#FAFAF9] dark:border-[#18181B]`} />
                                 </div>
                                 <div className="hidden xl:block text-left">
                                   <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
@@ -436,9 +457,15 @@ function AppContent() {
                                     <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate font-medium">
                                       {currentUser}
                                     </p>
+                                    {acting.isActing && (
+                                      <p className="text-[11px] font-semibold text-amber-600 truncate">
+                                        Acting as {(acting.active?.roles ?? []).join(", ")}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </div>
+                              <ProfileSwitcher />
                               {/* Menu items */}
                               <div className="p-1.5">
                                 <DropdownMenuItem

@@ -12,6 +12,9 @@ import {
     UserCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import "@/pages/dashboards/projectStaffDashboard.css";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { delegateUserAPI } from "@/services/apiService";
 import { getApplicationRoute } from "@/utils/applicationRoutes";
 import CreateApplicationOnBehalf from "@/pages/CreateApplicationOnBehalf";
 
@@ -28,6 +31,14 @@ interface UserDelegation {
     enabled?: number;
 }
 
+// From get_received_delegations: "Specific Application" rows carry the types the delegate may create and
+// their projects already resolved (the delegate cannot read those projects directly).
+interface ReceivedDelegationInfo {
+    name: string;
+    allowed_doctypes?: string[];
+    project_names?: Project[];
+}
+
 interface Project {
     name: string;
     project_title?: string;
@@ -41,7 +52,7 @@ interface DelegatedApplication {
 }
 
 const cardClasses =
-    "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm";
+    "psd-card !rounded-xl";
 
 const parseJsonArray = <T,>(raw?: string): T[] => {
     if (!raw) return [];
@@ -81,7 +92,7 @@ const formatDelegationDateTime = (value?: string) => {
 };
 
 const Badge = ({ children }: { children: React.ReactNode }) => (
-    <span className="rounded-full border border-[#C7D2FE] bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
+    <span className="rounded-full border border-[var(--psd-primary)]/30 bg-[var(--psd-primary-light)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--psd-primary)]">
         {children}
     </span>
 );
@@ -95,21 +106,21 @@ const SummaryCard = ({
     label: string;
     value: number;
 }) => (
-    <div className={cn(cardClasses, "flex items-center gap-3 p-4")}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
-            <Icon className="h-5 w-5" />
+    <div className={cn(cardClasses, "flex items-center gap-3 border-l-[3px] border-r-[3px] !border-l-[var(--psd-primary)] !border-r-[var(--psd-primary)] px-3 py-2")}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
+            <Icon className="h-[18px] w-[18px]" />
         </div>
         <div>
-            <div className="text-[20px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">{value}</div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">{label}</div>
+            <div className="text-[19px] font-bold leading-tight tabular-nums text-[var(--psd-heading)]">{value}</div>
+            <div className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">{label}</div>
         </div>
     </div>
 );
 
 const EmptyState = ({ label }: { label: string }) => (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed border-[#D4D4D8] bg-[#FAFAF9] p-4 text-center dark:border-[#52525B] dark:bg-[#18181B]">
-        <CheckCircle2 className="mb-2 h-5 w-5 text-[#A1A1AA]" />
-        <p className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed border-[var(--psd-border)] bg-[var(--psd-bg)] p-4 text-center">
+        <CheckCircle2 className="mb-2 h-5 w-5 text-[var(--psd-muted)]" />
+        <p className="text-[12px] font-semibold text-[var(--psd-body)]">{label}</p>
     </div>
 );
 
@@ -142,6 +153,27 @@ const DelegatedToMe: React.FC = () => {
             limit: 1000,
         },
     );
+
+    const [receivedInfo, setReceivedInfo] = React.useState<Map<string, ReceivedDelegationInfo>>(new Map());
+    React.useEffect(() => {
+        if (!currentUser) return;
+        let cancelled = false;
+        fetch(`${FRAPPE_BASE_URL}/api/method/${delegateUserAPI.getReceivedDelegations}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
+            credentials: "include",
+            body: "{}",
+        })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((json) => {
+                if (cancelled || !Array.isArray(json?.message)) return;
+                setReceivedInfo(new Map((json.message as ReceivedDelegationInfo[]).map((d) => [d.name, d])));
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser]);
 
     const activeDelegations = React.useMemo(() => {
         const now = new Date();
@@ -186,9 +218,10 @@ const DelegatedToMe: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex min-h-[55vh] items-center justify-center">
-                <div className="flex items-center gap-2 text-[13px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#4A6CF7]" />
+            <div className="psd-root flex min-h-[55vh] flex-col items-center justify-center gap-3">
+                <div className="psd-loadbar w-56" />
+                <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--psd-body)]">
+                    <Loader2 className="h-4 w-4 animate-spin text-[var(--psd-primary)]" />
                     Loading delegated access...
                 </div>
             </div>
@@ -196,134 +229,136 @@ const DelegatedToMe: React.FC = () => {
     }
 
     return (
-        <div className="space-y-5">
-            <header className={cn(cardClasses, "overflow-hidden")}>
-                <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <div className="mb-2 flex items-center gap-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
-                                <Share2 className="h-4 w-4 text-[#4A6CF7] dark:text-[#93C5FD]" />
-                            </span>
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">Delegation</span>
-                        </div>
-                        <h1 className="text-[22px] font-extrabold tracking-normal text-[#18181B] dark:text-[#E4E4E7]">
-                            Delegated to Me
-                        </h1>
-                        <p className="mt-1 max-w-3xl text-[13px] font-medium leading-6 text-[#71717A] dark:text-[#A1A1AA]">
-                            Projects and applications that other users have shared access to. You can view and act on these based on the access level granted.
-                        </p>
+        <div className="psd-root space-y-2.5">
+            <header className="psd-hero relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border-[2.5px] border-transparent [background:linear-gradient(var(--psd-surface),var(--psd-surface))_padding-box,linear-gradient(135deg,#6842D9,#4775E8,#0DA875,#F59E0B,#F47721)_border-box] px-3 py-2">
+                <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+                    <div className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#6842D9] to-[#4775E8] text-white shadow-sm">
+                        <Share2 className="size-4" strokeWidth={1.8} />
                     </div>
-                    <div className="rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-[12px] font-semibold text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
-                        Signed in as {currentUser}
+                    <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-[var(--psd-body)]">Delegation</div>
+                        <h1 className="mt-0.5 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--psd-heading)]">Delegated to Me</h1>
                     </div>
+                </div>
+                <p className="relative z-10 hidden max-w-xl text-xs text-[var(--psd-body)] lg:block">
+                    Projects and applications that other users have shared access to. You can view and act on these based on the access level granted.
+                </p>
+                <div className="relative z-10 rounded-lg border border-[var(--psd-info)]/30 bg-[var(--psd-info-bg)] px-2.5 py-1 text-[11.5px] font-semibold text-[var(--psd-info)]">
+                    Signed in as {currentUser}
                 </div>
             </header>
 
-            <div className="flex gap-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                <button
-                    type="button"
-                    onClick={() => setActiveTab("received")}
-                    className={cn(
-                        "px-3 py-2 text-[12px] font-bold transition-colors",
-                        activeTab === "received"
-                            ? "border-b-2 border-[#4A6CF7] text-[#4A6CF7]"
-                            : "text-[#71717A] hover:text-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]",
-                    )}
-                >
-                    Received Delegations
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setActiveTab("create")}
-                    className={cn(
-                        "px-3 py-2 text-[12px] font-bold transition-colors",
-                        activeTab === "create"
-                            ? "border-b-2 border-[#4A6CF7] text-[#4A6CF7]"
-                            : "text-[#71717A] hover:text-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]",
-                    )}
-                >
-                    Create on Behalf
-                </button>
+            <div role="tablist" className="flex items-center gap-1.5">
+                {([
+                    ["received", "Received Delegations"],
+                    ["create", "Create on Behalf"],
+                ] as const).map(([key, label]) => {
+                    const on = activeTab === key;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            role="tab"
+                            aria-selected={on}
+                            onClick={() => setActiveTab(key)}
+                            className={cn(
+                                "psd-focus flex h-9 items-center rounded-full border px-3.5 text-[12.5px] font-bold transition-all duration-200",
+                                on
+                                    ? "border-transparent bg-[var(--psd-primary)] text-white shadow-sm"
+                                    : "border-[var(--psd-border)] bg-[var(--psd-surface)] text-[var(--psd-body)] hover:border-[var(--psd-primary)] hover:text-[var(--psd-primary)]",
+                            )}
+                        >
+                            {label}
+                        </button>
+                    );
+                })}
             </div>
 
             {activeTab === "create" && <CreateApplicationOnBehalf hideHeader />}
 
             {activeTab === "received" && (
             <>
-            <section className="grid gap-4 sm:grid-cols-3">
+            <section className="grid gap-2.5 sm:grid-cols-3">
                 <SummaryCard icon={UserCircle2} label="Delegators" value={activeDelegations.length} />
                 <SummaryCard icon={FolderKanban} label="Delegated Projects" value={delegatedProjectNames.length} />
                 <SummaryCard icon={FileText} label="Delegated Applications" value={totalDelegatedApplications} />
             </section>
 
-            <section className="space-y-4">
+            <section className="space-y-2.5">
                 {activeDelegations.length === 0 ? (
-                    <div className={cn(cardClasses, "p-5")}>
+                    <div className={cn(cardClasses, "p-3")}>
                         <EmptyState label="No one has delegated any projects or applications to you yet." />
                     </div>
                 ) : (
                     activeDelegations.map((delegation) => {
-                        const projectNames = parseJsonArray<string>(delegation.project_names);
+                        const isSpecific = delegation.delegation_type === "Specific Application";
+                        const info = receivedInfo.get(delegation.name);
+                        const allowedDoctypes = info?.allowed_doctypes ?? [];
+                        const projectNames = isSpecific
+                            ? (info?.project_names ?? []).map((p) => p.name)
+                            : parseJsonArray<string>(delegation.project_names);
                         const applications = parseJsonArray<DelegatedApplication>(delegation.applications);
 
                         return (
                             <div key={delegation.name} className={cn(cardClasses, "overflow-hidden")}>
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-l-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] bg-[var(--psd-bg)] px-4 py-2.5">
                                     <div className="flex items-center gap-2.5">
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#4A6CF7] dark:bg-[#27272A] dark:text-[#93C5FD]">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
                                             <UserCircle2 className="h-4 w-4" />
                                         </div>
                                         <div>
-                                            <div className="text-[13px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+                                            <div className="text-[13px] font-bold text-[var(--psd-heading)]">
                                                 {delegation.delegator_user}
                                             </div>
                                             <div className="mt-1 flex flex-wrap gap-1.5">
                                                 <Badge>{delegation.delegation_type || "View Only"}</Badge>
-                                                <Badge>{delegation.scope_type || "project"} scope</Badge>
+                                                {isSpecific ? <Badge>create only</Badge> : <Badge>{delegation.scope_type || "project"} scope</Badge>}
                                             </div>
                                         </div>
                                     </div>
                                     {(delegation.valid_from || delegation.valid_to) && (
-                                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--psd-body)]">
                                             <Clock className="h-3.5 w-3.5" />
                                             {formatDelegationDateTime(delegation.valid_from) || "Now"} to {formatDelegationDateTime(delegation.valid_to) || "No expiry"}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="grid gap-4 p-4 md:grid-cols-2">
+                                <div className="grid gap-3 p-3 md:grid-cols-2">
                                     <div>
-                                        <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#D4D4D8]">
-                                            <FolderKanban className="h-3.5 w-3.5 text-[#4A6CF7]" />
+                                        <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--psd-heading)]">
+                                            <FolderKanban className="h-3.5 w-3.5 text-[var(--psd-primary)]" />
                                             Projects ({projectNames.length})
                                         </h3>
                                         {delegation.scope_type === "all" ? (
-                                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                            <p className="text-[12px] text-[var(--psd-body)]">
                                                 Full access to all of {delegation.delegator_user}'s projects.
                                             </p>
                                         ) : projectNames.length === 0 ? (
-                                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">No projects in this delegation.</p>
+                                            <p className="text-[12px] text-[var(--psd-body)]">No projects in this delegation.</p>
                                         ) : (
                                             <ul className="space-y-1.5">
                                                 {projectNames.map((projectName) => {
-                                                    const project = projectLookup.get(projectName);
+                                                    const project = isSpecific
+                                                        ? info?.project_names?.find((p) => p.name === projectName)
+                                                        : projectLookup.get(projectName);
                                                     return (
                                                         <li key={projectName}>
                                                             <button
                                                                 type="button"
+                                                                disabled={isSpecific}
                                                                 onClick={() => navigate(`/project-details-overview/${projectName}`)}
-                                                                className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 text-left transition-colors hover:bg-white dark:border-[#3F3F46] dark:bg-[#18181B] dark:hover:bg-[#27272A]"
+                                                                className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-left transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40"
                                                             >
                                                                 <span className="min-w-0">
-                                                                    <span className="block truncate text-[12px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
+                                                                    <span className="block truncate text-[12px] font-bold text-[var(--psd-heading)]">
                                                                         {project?.project_title || projectName}
                                                                     </span>
-                                                                    <span className="block truncate text-[10px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                                                    <span className="block truncate text-[10px] font-semibold text-[var(--psd-body)]">
                                                                         {project?.project_no || projectName}
                                                                     </span>
                                                                 </span>
-                                                                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#A1A1AA]" />
+                                                                {!isSpecific && <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[var(--psd-muted)]" />}
                                                             </button>
                                                         </li>
                                                     );
@@ -332,17 +367,39 @@ const DelegatedToMe: React.FC = () => {
                                         )}
                                     </div>
 
+                                    {isSpecific ? (
                                     <div>
-                                        <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#D4D4D8]">
-                                            <FileText className="h-3.5 w-3.5 text-[#4A6CF7]" />
+                                        <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--psd-heading)]">
+                                            <FileText className="h-3.5 w-3.5 text-[var(--psd-primary)]" />
+                                            Application types you can create ({allowedDoctypes.length})
+                                        </h3>
+                                        {allowedDoctypes.length === 0 ? (
+                                            <p className="text-[12px] text-[var(--psd-body)]">No application types in this delegation.</p>
+                                        ) : (
+                                            <ul className="space-y-1.5">
+                                                {allowedDoctypes.map((doctype) => (
+                                                    <li key={doctype} className="rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 text-[12px] font-bold text-[#18181B] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7]">
+                                                        {doctype}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        <p className="mt-2 text-[11px] text-[var(--psd-body)]">
+                                            You can create these under the projects listed, on {delegation.delegator_user}'s behalf. Existing applications are not visible to you.
+                                        </p>
+                                    </div>
+                                    ) : (
+                                    <div>
+                                        <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--psd-heading)]">
+                                            <FileText className="h-3.5 w-3.5 text-[var(--psd-primary)]" />
                                             Applications ({applications.length})
                                         </h3>
                                         {delegation.scope_type === "all" ? (
-                                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                            <p className="text-[12px] text-[var(--psd-body)]">
                                                 Full access to all of {delegation.delegator_user}'s applications.
                                             </p>
                                         ) : applications.length === 0 ? (
-                                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">No applications in this delegation.</p>
+                                            <p className="text-[12px] text-[var(--psd-body)]">No applications in this delegation.</p>
                                         ) : (
                                             <ul className="space-y-1.5">
                                                 {applications.map((app) => (
@@ -350,23 +407,24 @@ const DelegatedToMe: React.FC = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => navigate(getApplicationRoute(app.doctype, app.name))}
-                                                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 text-left transition-colors hover:bg-white dark:border-[#3F3F46] dark:bg-[#18181B] dark:hover:bg-[#27272A]"
+                                                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] px-3 py-1.5 text-left transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40"
                                                         >
                                                             <span className="min-w-0">
-                                                                <span className="block truncate text-[12px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
+                                                                <span className="block truncate text-[12px] font-bold text-[var(--psd-heading)]">
                                                                     {app.name}
                                                                 </span>
-                                                                <span className="block truncate text-[10px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                                                <span className="block truncate text-[10px] font-semibold text-[var(--psd-body)]">
                                                                     {app.doctype}
                                                                 </span>
                                                             </span>
-                                                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#A1A1AA]" />
+                                                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[var(--psd-muted)]" />
                                                         </button>
                                                     </li>
                                                 ))}
                                             </ul>
                                         )}
                                     </div>
+                                    )}
                                 </div>
                             </div>
                         );

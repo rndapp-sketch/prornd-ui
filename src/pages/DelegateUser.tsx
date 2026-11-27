@@ -8,6 +8,7 @@ import {
     FileText,
     FolderKanban,
     Loader2,
+    Plus,
     Search,
     ShieldCheck,
     Trash2,
@@ -18,8 +19,13 @@ import {
 import { delegateUserAPI } from "@/services/apiService";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { cn } from "@/lib/utils";
+import { DELEGABLE_APPLICATION_DOCTYPES } from "@/utils/applicationRoutes";
+import { usePiLedgerData } from "@/hooks/usePiLedgerSummary";
 import { FormSelect } from "@/components/FormSelect";
 import "@/pages/dashboards/projectStaffDashboard.css";
+import { useSearchParams } from "react-router-dom";
+import RoleDelegation from "@/pages/RoleDelegation";
+import { useActingProfile } from "@/hooks/useActingProfile";
 
 type DelegateUserOption = {
     label: string;
@@ -60,6 +66,8 @@ type ActiveDelegation = {
     // return the raw doctype field as a JSON-encoded string.
     project_names?: string | string[];
     applications?: string | DelegationApplication[];
+    // Only for the "Specific Application" type: the doctypes the delegate may create
+    allowed_doctypes?: string | string[];
     valid_from?: string;
     valid_to?: string;
     enabled?: number;
@@ -143,7 +151,7 @@ const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.exception ||
     fallback;
 
-const DelegateUser: React.FC = () => {
+const DelegateUserForm: React.FC = () => {
     const { currentUser } = useFrappeAuth();
 
     const { call: searchUsers } = useFrappePostCall<{ message: DelegateUserOption[] }>(delegateUserAPI.searchUsers);
@@ -155,12 +163,13 @@ const DelegateUser: React.FC = () => {
 
     const [userOptions, setUserOptions] = React.useState<DelegateUserOption[]>([]);
     const [delegateEmail, setDelegateEmail] = React.useState("");
-    const [delegationType, setDelegationType] = React.useState<"View Only" | "View and Edit" | "Workflow Action">("View Only");
+    const [delegationType, setDelegationType] = React.useState<"View Only" | "View and Edit" | "Workflow Action" | "Specific Application">("View Only");
     const [scopeType, setScopeType] = React.useState<"all" | "project" | "application">("all");
     const [validFrom, setValidFrom] = React.useState("");
     const [validTo, setValidTo] = React.useState("");
     const [projects, setProjects] = React.useState<DelegationProject[]>([]);
     const [selectedProjects, setSelectedProjects] = React.useState<Set<string>>(new Set());
+    const [selectedDoctypes, setSelectedDoctypes] = React.useState<Set<string>>(new Set());
     const [applications, setApplications] = React.useState<DelegationApplication[]>([]);
     const [selectedApplications, setSelectedApplications] = React.useState<Set<string>>(new Set());
     const [activeDelegations, setActiveDelegations] = React.useState<ActiveDelegation[]>([]);
@@ -272,7 +281,34 @@ const DelegateUser: React.FC = () => {
         );
     }, [projects, query]);
 
-    const selectedProjectCount = selectedProjects.size;
+    const isSpecificApplication = delegationType === "Specific Application";
+
+    // Specific Application can only be tied to approved projects that have funds (read from the ledger)
+    const { projects: ledgerProjects, isLoading: ledgerLoading } = usePiLedgerData(currentUser);
+    const projectEligibility = React.useCallback(
+        (project: DelegationProject): { ok: boolean; reason?: string } => {
+            if (project.workflow_state !== "Approved") return { ok: false, reason: "Project is not approved" };
+            if (ledgerLoading && !ledgerProjects) return { ok: false, reason: "Checking funds..." };
+            const l = ledgerProjects?.find((x) => x.name === project.name);
+            if (!l || l.failed) return { ok: false, reason: "Funds could not be checked" };
+            if (!(l.commitable > 0 || l.actualBalance > 0)) return { ok: false, reason: "No funds available" };
+            return { ok: true };
+        },
+        [ledgerProjects, ledgerLoading],
+    );
+
+    // Projects that count as selected (a project picked earlier may not qualify for Specific Application)
+    const effectiveSelectedProjects = React.useMemo(
+        () =>
+            Array.from(selectedProjects).filter((name) => {
+                if (!isSpecificApplication) return true;
+                const project = projects.find((p) => p.name === name);
+                return !!project && projectEligibility(project).ok;
+            }),
+        [selectedProjects, isSpecificApplication, projects, projectEligibility],
+    );
+
+    const selectedProjectCount = effectiveSelectedProjects.length;
 
     const filteredApplications = React.useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -348,6 +384,17 @@ const DelegateUser: React.FC = () => {
         });
     };
 
+    // Specific Application needs a project and at least one application type before it can be delegated
+    const specificApplicationIncomplete = isSpecificApplication && (selectedProjectCount === 0 || selectedDoctypes.size === 0);
+
+    const toggleDoctype = (doctype: string) => {
+        setSelectedDoctypes((prev) => {
+            const next = new Set(prev);
+            next.has(doctype) ? next.delete(doctype) : next.add(doctype);
+            return next;
+        });
+    };
+
     const handleDelegate = async () => {
         if (!delegateEmail) {
             setError("Select a user to delegate to.");
@@ -359,6 +406,14 @@ const DelegateUser: React.FC = () => {
         }
         if (scopeType === "project" && selectedProjectCount === 0) {
             setError("Select at least one project — scope is set to 'Selected Projects'.");
+            return;
+        }
+        if (isSpecificApplication && selectedProjectCount === 0) {
+            setError("Select at least one project the delegate may create applications under.");
+            return;
+        }
+        if (isSpecificApplication && selectedDoctypes.size === 0) {
+            setError("Select at least one application type the delegate may create.");
             return;
         }
         if (scopeType === "application" && selectedApplicationCount === 0) {
@@ -391,8 +446,10 @@ const DelegateUser: React.FC = () => {
                 delegate_user: delegateEmail,
                 delegation_type: delegationType,
                 scope_type: scopeType,
-                project_names: JSON.stringify(scopeType === "project" ? Array.from(selectedProjects) : []),
+                project_names: JSON.stringify(scopeType === "project" ? effectiveSelectedProjects : []),
                 applications: JSON.stringify(scopeType === "application" ? selectedApplicationPayload : []),
+                // Specific Application: the delegate can only create these types (no access to existing records)
+                ...(isSpecificApplication ? { allowed_doctypes: JSON.stringify(Array.from(selectedDoctypes)) } : {}),
                 valid_from: toFrappeDateTime(validFrom),
                 valid_to: toFrappeDateTime(validTo),
             });
@@ -402,6 +459,7 @@ const DelegateUser: React.FC = () => {
             setValidTo("");
             setSelectedProjects(new Set());
             setSelectedApplications(new Set());
+            setSelectedDoctypes(new Set());
             await loadPage();
         } catch (e: any) {
             setError(e?.message || "Failed to create delegation.");
@@ -439,12 +497,21 @@ const DelegateUser: React.FC = () => {
 
             const updatedValue = removeFromJsonArray(existing.project_names, itemValue);
 
-            await updateDelegationField({
-                doctype: "User Delegation",
-                name: delegationName,
-                fieldname: "project_names",
-                value: updatedValue,
-            });
+            if (existing.delegation_type === "Specific Application") {
+                // Goes through the API so the server keeps at least one project; delegation_type picks the right row
+                await delegateUser({
+                    delegate_user: existing.delegate_user,
+                    delegation_type: "Specific Application",
+                    remove_project_names: JSON.stringify([itemValue]),
+                });
+            } else {
+                await updateDelegationField({
+                    doctype: "User Delegation",
+                    name: delegationName,
+                    fieldname: "project_names",
+                    value: updatedValue,
+                });
+            }
             setActiveDelegationDetails((prev) => {
                 return {
                     ...prev,
@@ -458,6 +525,65 @@ const DelegateUser: React.FC = () => {
             await loadPage();
         } catch (e: any) {
             setError(getErrorMessage(e, `Failed to remove ${itemValue}.`));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRemoveAllowedDoctype = async (delegationName: string, doctype: string) => {
+        if (!confirm(`Stop allowing ${doctype} in this delegation?`)) return;
+        setSaving(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const existing = enrichedActiveDelegations.find((delegation) => delegation.name === delegationName);
+            if (!existing) throw new Error("Delegation record is not loaded.");
+            await delegateUser({
+                delegate_user: existing.delegate_user,
+                delegation_type: "Specific Application",
+                remove_allowed_doctypes: JSON.stringify([doctype]),
+            });
+            setActiveDelegationDetails((prev) => ({
+                ...prev,
+                [delegationName]: {
+                    ...existing,
+                    allowed_doctypes: parseJsonStringArray(existing.allowed_doctypes).filter((d) => d !== doctype),
+                },
+            }));
+            setSuccess(`${doctype} removed from delegation.`);
+            await loadPage();
+        } catch (e: any) {
+            setError(getErrorMessage(e, `Failed to remove ${doctype}.`));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAddAllowedDoctypes = async (delegationName: string, doctypes: string[]) => {
+        if (!doctypes.length) return;
+        setSaving(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const existing = enrichedActiveDelegations.find((delegation) => delegation.name === delegationName);
+            if (!existing) throw new Error("Delegation record is not loaded.");
+            // New types are added to the existing ones; delegation_type picks the Specific Application row
+            await delegateUser({
+                delegate_user: existing.delegate_user,
+                delegation_type: "Specific Application",
+                allowed_doctypes: JSON.stringify(doctypes),
+            });
+            setActiveDelegationDetails((prev) => ({
+                ...prev,
+                [delegationName]: {
+                    ...existing,
+                    allowed_doctypes: Array.from(new Set([...parseJsonStringArray(existing.allowed_doctypes), ...doctypes])),
+                },
+            }));
+            setSuccess(`${doctypes.join(", ")} added to delegation.`);
+            await loadPage();
+        } catch (e: any) {
+            setError(getErrorMessage(e, "Failed to add application types."));
         } finally {
             setSaving(false);
         }
@@ -571,13 +697,32 @@ const DelegateUser: React.FC = () => {
                             <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                                 Permission
                             </label>
-                            <FormSelect value={delegationType} onChange={(e) => setDelegationType(e.target.value as any)}>
+                            <FormSelect
+                                value={delegationType}
+                                onChange={(e) => {
+                                    const next = e.target.value as typeof delegationType;
+                                    setDelegationType(next);
+                                    // Specific Application is always tied to selected projects
+                                    if (next === "Specific Application") setScopeType("project");
+                                }}
+                            >
                                 <option value="View Only">View Only</option>
                                 <option value="View and Edit">View and Edit</option>
-                                <option value="Workflow Action">Workflow Action</option>
+                                <option value="Specific Application">Specific Application</option>
+                                {/* <option value="Workflow Action">Workflow Action</option> */}
                             </FormSelect>
+                            <p className="mt-1.5 rounded-lg border border-l-[3px] border-r-[3px] border-sky-200 border-l-sky-500 border-r-sky-500 bg-sky-50 px-3 py-2 text-[11.5px] font-semibold leading-snug text-sky-800 dark:border-sky-900/50 dark:border-l-sky-400 dark:border-r-sky-400 dark:bg-sky-950/30 dark:text-sky-200">
+                                {delegationType === "View Only"
+                                    ? "The delegate can view the selected projects and applications, but cannot change anything."
+                                    : delegationType === "View and Edit"
+                                        ? "The delegate can view and edit the selected projects and applications, and can create new applications on your behalf."
+                                        : delegationType === "Specific Application"
+                                            ? "The delegate can create only the application types you select, only under the projects you select below. They will not see any existing applications."
+                                            : "The delegate can view, edit and take workflow actions (approve, reject, submit) on the selected items on your behalf."}
+                            </p>
                         </div>
                     </div>
+                    {!isSpecificApplication && (
                     <div className="mt-4">
                         <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
                             Scope
@@ -589,7 +734,7 @@ const DelegateUser: React.FC = () => {
                             >
                                 <option value="all">All Projects &amp; Applications</option>
                                 <option value="project">Selected Projects</option>
-                                <option value="application">Selected Applications</option>
+                                {!isSpecificApplication && <option value="application">Selected Applications</option>}
                             </FormSelect>
                         </div>
                         <p className="mt-1.5 text-[11.5px] text-[var(--psd-body)]">
@@ -600,6 +745,7 @@ const DelegateUser: React.FC = () => {
                                     : "The delegate will only see the specific applications you select below."}
                         </p>
                     </div>
+                    )}
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <div>
                             <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--psd-body)]">
@@ -638,7 +784,8 @@ const DelegateUser: React.FC = () => {
                         </div>
                         <button
                             onClick={handleDelegate}
-                            disabled={saving}
+                            disabled={saving || specificApplicationIncomplete}
+                            title={specificApplicationIncomplete ? "Select at least one project and one application type first" : undefined}
                             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--psd-primary)] px-5 text-[12.5px] font-bold text-white shadow-sm transition-all hover:bg-[var(--psd-primary-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
@@ -657,11 +804,15 @@ const DelegateUser: React.FC = () => {
                             {filteredProjects.length === 0 ? (
                                 <EmptyState label="No projects found" />
                             ) : (
-                                filteredProjects.map((project) => (
-                                    <label key={project.name} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-2.5 transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40">
+                                filteredProjects.map((project) => {
+                                    const eligibility = isSpecificApplication ? projectEligibility(project) : { ok: true as boolean, reason: undefined };
+                                    const disabled = !eligibility.ok;
+                                    return (
+                                    <label key={project.name} className={cn("flex items-start gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-2.5 transition-colors", disabled ? "cursor-not-allowed opacity-50 grayscale" : "cursor-pointer hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40")} title={disabled ? eligibility.reason : undefined}>
                                         <input
                                             type="checkbox"
-                                            checked={selectedProjects.has(project.name)}
+                                            disabled={disabled}
+                                            checked={!disabled && selectedProjects.has(project.name)}
                                             onChange={() => toggleProject(project.name)}
                                             className="mt-1 h-4 w-4 accent-[#6842D9]"
                                         />
@@ -672,11 +823,40 @@ const DelegateUser: React.FC = () => {
                                             <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] font-semibold text-[var(--psd-body)]">
                                                 <span>{project.project_no || project.name}</span>
                                                 {project.workflow_state && <span>{project.workflow_state}</span>}
+                                                {disabled && <span className="text-[#B45309]">{eligibility.reason}</span>}
                                             </div>
                                         </div>
                                     </label>
-                                ))
+                                    );
+                                })
                             )}
+
+
+                        </ScopePanel>
+                    </div>
+                    )}
+
+                    {isSpecificApplication && selectedProjectCount > 0 && (
+                    <div className="mt-5">
+                        <ScopePanel
+                            title="Application types the delegate can create"
+                            icon={FileText}
+                            count={DELEGABLE_APPLICATION_DOCTYPES.length}
+                            selectedCount={selectedDoctypes.size}
+                        >
+                            {DELEGABLE_APPLICATION_DOCTYPES.map((d) => (
+                                <label key={d.doctype} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-2.5 transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedDoctypes.has(d.doctype)}
+                                        onChange={() => toggleDoctype(d.doctype)}
+                                        className="mt-1 h-4 w-4 accent-[#6842D9]"
+                                    />
+                                    <div className="min-w-0">
+                                        <div className="truncate text-[13px] font-bold text-[var(--psd-heading)]">{d.doctype}</div>
+                                    </div>
+                                </label>
+                            ))}
                         </ScopePanel>
                     </div>
                     )}
@@ -768,7 +948,11 @@ const DelegateUser: React.FC = () => {
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                                     <Badge>{delegation.delegation_type || "View Only"}</Badge>
                                                     <Badge>{projectCount} projects</Badge>
-                                                    <Badge>{applicationCount} applications</Badge>
+                                                    {delegation.delegation_type === "Specific Application" ? (
+                                                        <Badge>{parseJsonStringArray(delegation.allowed_doctypes).length} types</Badge>
+                                                    ) : (
+                                                        <Badge>{applicationCount} applications</Badge>
+                                                    )}
                                                     {(delegation.valid_from || delegation.valid_to) && (
                                                         <Badge>
                                                             {formatDelegationDateTime(delegation.valid_from) || "Now"} to {formatDelegationDateTime(delegation.valid_to) || "No expiry"}
@@ -794,6 +978,8 @@ const DelegateUser: React.FC = () => {
                     onRevoke={() => handleUndelegate(selectedDelegation.name)}
                     onRemoveItem={(value) => handleRemoveDelegatedItem(selectedDelegation.name, value)}
                     onRemoveApplication={(app) => handleRemoveDelegatedApplication(selectedDelegation.name, app)}
+                    onRemoveDoctype={(doctype) => handleRemoveAllowedDoctype(selectedDelegation.name, doctype)}
+                    onAddDoctypes={(doctypes) => handleAddAllowedDoctypes(selectedDelegation.name, doctypes)}
                 />
             )}
         </div>
@@ -808,6 +994,8 @@ const DelegationDetailsModal = ({
     onRevoke,
     onRemoveItem,
     onRemoveApplication,
+    onRemoveDoctype,
+    onAddDoctypes,
 }: {
     delegation: ActiveDelegation;
     projectLookup: Map<string, DelegationProject>;
@@ -816,7 +1004,12 @@ const DelegationDetailsModal = ({
     onRevoke: () => void;
     onRemoveItem: (value: string) => void;
     onRemoveApplication: (app: DelegationApplication) => void;
+    onRemoveDoctype: (doctype: string) => void;
+    onAddDoctypes: (doctypes: string[]) => void;
 }) => {
+    const [typesToAdd, setTypesToAdd] = React.useState<Set<string>>(new Set());
+    const isSpecific = delegation.delegation_type === "Specific Application";
+    const allowedDoctypes = parseJsonStringArray(delegation.allowed_doctypes);
     const projectNames = parseJsonStringArray(delegation.project_names);
     const applicationItems = parseJsonApplicationArray(delegation.applications);
 
@@ -839,7 +1032,11 @@ const DelegationDetailsModal = ({
                                 <Badge>{delegation.delegation_type || "View Only"}</Badge>
                                 <Badge>{delegation.scope_type || "project"}</Badge>
                                 <Badge>{projectNames.length || delegation.project_count || 0} projects</Badge>
-                                <Badge>{applicationItems.length || delegation.application_count || 0} applications</Badge>
+                                {delegation.delegation_type === "Specific Application" ? (
+                                    parseJsonStringArray(delegation.allowed_doctypes).map((d) => <Badge key={d}>{d}</Badge>)
+                                ) : (
+                                    <Badge>{applicationItems.length || delegation.application_count || 0} applications</Badge>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -867,10 +1064,10 @@ const DelegationDetailsModal = ({
                         <div className="rounded-xl border border-[var(--psd-border)] border-l-[3px] border-l-[var(--psd-primary)] bg-[var(--psd-surface)] px-3.5 py-2">
                             <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wide text-[var(--psd-body)]">
                                 <FileText className="h-4 w-4" />
-                                Delegated Applications
+                                {isSpecific ? "Allowed Application Types" : "Delegated Applications"}
                             </div>
                             <div className="mt-1 text-[22px] font-bold leading-tight tabular-nums text-[var(--psd-heading)]">
-                                {applicationItems.length || delegation.application_count || 0}
+                                {isSpecific ? allowedDoctypes.length : applicationItems.length || delegation.application_count || 0}
                             </div>
                         </div>
                     </div>
@@ -894,6 +1091,61 @@ const DelegationDetailsModal = ({
                         onRemove={onRemoveItem}
                     />
 
+                    {isSpecific ? (
+                        <>
+                        <DelegatedDetailList
+                            title="Application types the delegate can create"
+                            icon={FileText}
+                            emptyLabel="No application types in this delegation"
+                            items={allowedDoctypes.map((d) => ({ id: d, title: d, meta: "Create only" }))}
+                            onRemove={onRemoveDoctype}
+                        />
+                        {(() => {
+                            const remaining = DELEGABLE_APPLICATION_DOCTYPES.filter((d) => !allowedDoctypes.includes(d.doctype));
+                            if (remaining.length === 0) return null;
+                            return (
+                                <div className="overflow-hidden rounded-xl border border-[var(--psd-border)] bg-[var(--psd-surface)]">
+                                    <div className="flex items-center justify-between border-b border-l-[3px] border-r-[3px] border-b-[var(--psd-border)] border-l-[var(--psd-accent)] border-r-[var(--psd-accent)] bg-[var(--psd-bg)] px-3.5 py-2">
+                                        <div className="text-[12px] font-bold uppercase tracking-wide text-[var(--psd-heading)]">
+                                            Add application types
+                                        </div>
+                                        <button
+                                            type="button"
+                                            disabled={saving || typesToAdd.size === 0}
+                                            onClick={() => {
+                                                onAddDoctypes(Array.from(typesToAdd));
+                                                setTypesToAdd(new Set());
+                                            }}
+                                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--psd-primary)] px-3 text-[11.5px] font-bold text-white transition-all hover:bg-[var(--psd-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                                            Add {typesToAdd.size > 0 ? `(${typesToAdd.size})` : ""}
+                                        </button>
+                                    </div>
+                                    <div className="grid gap-1.5 p-2.5 sm:grid-cols-2">
+                                        {remaining.map((d) => (
+                                            <label key={d.doctype} className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--psd-border)] bg-[var(--psd-surface)] p-2.5 transition-colors hover:border-[var(--psd-primary)]/50 hover:bg-[var(--psd-primary-light)]/40">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={typesToAdd.has(d.doctype)}
+                                                    onChange={() =>
+                                                        setTypesToAdd((prev) => {
+                                                            const next = new Set(prev);
+                                                            next.has(d.doctype) ? next.delete(d.doctype) : next.add(d.doctype);
+                                                            return next;
+                                                        })
+                                                    }
+                                                    className="h-4 w-4 accent-[#6842D9]"
+                                                />
+                                                <span className="truncate text-[13px] font-bold text-[var(--psd-heading)]">{d.doctype}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                        </>
+                    ) : (
                     <DelegatedDetailList
                         title="Applications"
                         icon={FileText}
@@ -912,6 +1164,7 @@ const DelegationDetailsModal = ({
                             if (app) onRemoveApplication(app);
                         }}
                     />
+                    )}
                 </div>
 
                 {(delegation.valid_from || delegation.valid_to) && (
@@ -953,7 +1206,7 @@ const SummaryCard = ({
     label: string;
     value: number;
 }) => (
-    <div className={cn(cardClasses, "flex items-center gap-3 border-l-[3px] !border-l-[var(--psd-primary)] px-3 py-2")}>
+    <div className={cn(cardClasses, "flex items-center gap-3 border-l-[3px] border-r-[3px] !border-l-[var(--psd-primary)] !border-r-[var(--psd-primary)] px-3 py-2")}>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--psd-primary-light)] text-[var(--psd-primary)]">
             <Icon className="h-[18px] w-[18px]" />
         </div>
@@ -1084,5 +1337,51 @@ const Badge = ({ children }: { children: React.ReactNode }) => (
         {children}
     </span>
 );
+
+/** Delegate User page: share documents (existing form) or give access to your account (role delegation). */
+const DelegateUser: React.FC = () => {
+    const [params, setParams] = useSearchParams();
+    const { isActing } = useActingProfile();
+    const tab = params.get("tab") === "account" ? "account" : "documents";
+    const [visited, setVisited] = React.useState({ documents: tab === "documents", account: true }); // account tab is preloaded in the background (no full-screen loader)
+    React.useEffect(() => {
+        setVisited((v) => (v[tab] ? v : { ...v, [tab]: true }));
+    }, [tab]);
+    const TabBtn = ({ id, label }: { id: "documents" | "account"; label: string }) => (
+        <button
+            type="button"
+            onClick={() => setParams(id === "account" ? { tab: "account" } : {})}
+            className={cn(
+                "rounded-xl px-5 py-2 text-[13px] font-bold transition-all duration-300",
+                tab === id
+                    ? "bg-gradient-to-r from-[#6842D9] to-[#4775E8] text-white shadow-md shadow-violet-500/25"
+                    : "text-zinc-600 hover:bg-white/60 dark:text-zinc-300 dark:hover:bg-white/10",
+            )}
+        >
+            {label}
+        </button>
+    );
+    return (
+        // Same violet theme on both tabs; the switcher is a frosted-glass pill.
+        <div className="-m-1 rounded-2xl bg-gradient-to-br from-violet-100/70 via-indigo-50/60 to-transparent p-3 dark:from-violet-950/30 dark:via-indigo-950/20">
+            <div className="mb-3 inline-flex gap-1 rounded-2xl border border-white/60 bg-white/40 p-1 shadow-[0_8px_30px_rgba(31,38,135,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
+                <TabBtn id="documents" label="Delegate User" />
+                <TabBtn id="account" label="Delegate Account Access" />
+            </div>
+            {isActing ? (
+                <div className="p-6 text-[14px] font-semibold text-zinc-600 dark:text-zinc-300">
+                    Delegation is not available while acting on a delegated profile. Switch back to your own profile first.
+                </div>
+            ) : (
+                // Both tabs stay mounted once opened (just hidden), so switching back is instant
+                // instead of reloading each tab's data and showing the loader again.
+                <>
+                    {visited.documents && <div hidden={tab !== "documents"}><DelegateUserForm /></div>}
+                    {visited.account && <div hidden={tab !== "account"}><RoleDelegation /></div>}
+                </>
+            )}
+        </div>
+    );
+};
 
 export default DelegateUser;

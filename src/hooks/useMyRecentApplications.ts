@@ -268,6 +268,27 @@ export function useMyRecentApplications(user?: string | null, limit = 8, scan = 
         ),
     );
 
+    // A project sent back can be older than the PER_TYPE most recent ones, so returned projects are asked for directly
+    const returnedProjectQueries = ["%Correction%", "%Put Back%"].map((pattern) =>
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useFrappeGetDocList<any>(
+            "Project Registration",
+            {
+                fields: ["name", "workflow_state", "modified", "creation", "project_title", "project_no"],
+                filters: [["pi_webmail", "=", user ?? ""], ["workflow_state", "like", pattern]],
+                orderBy: { field: "modified", order: "desc" },
+                limit: 20,
+            },
+            user ? undefined : null,
+            { revalidateOnFocus: false },
+        ),
+    );
+    const returnedProjects = useMemo(
+        () => returnedProjectQueries.flatMap((q) => q.data ?? []),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [...returnedProjectQueries.map((q) => q.data)],
+    );
+
     // Extensions waiting for this PI (the PI inbox): not owned by the PI, so they come from the pending-application list
     const { data: pendingPi } = useFrappeGetCall<{ message: { results: any[] } }>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
@@ -302,6 +323,20 @@ export function useMyRecentApplications(user?: string | null, limit = 8, scan = 
                 }),
             );
         });
+        const projectSource = SOURCES[0];
+        returnedProjects.forEach((r: any) => {
+            if (all.some((a) => a.doctype === projectSource.doctype && a.id === r.name)) return;
+            all.push({
+                id: r.name,
+                doctype: projectSource.doctype,
+                title: r.project_title || undefined,
+                projectNo: r.project_no && r.project_no !== r.name ? String(r.project_no) : undefined,
+                workflow_state: r.workflow_state || "Draft",
+                creation: r.creation,
+                modified: r.modified,
+                route: projectSource.route(r),
+            });
+        });
         extensionRows.forEach((r: any) =>
             all.push({
                 id: r.name,
@@ -315,7 +350,7 @@ export function useMyRecentApplications(user?: string | null, limit = 8, scan = 
         // `scan` rows get their latest comment looked up (so put-backs beyond the first few are still found)
         return all.sort((a, b) => (a.modified < b.modified ? 1 : -1)).slice(0, Math.max(limit, scan));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [...dataKey, extensionRows, limit, scan]);
+    }, [...dataKey, extensionRows, returnedProjects, limit, scan]);
 
     // Fill in each row's project number (projects already carry theirs)
     const [resolved, setResolved] = useState<Record<string, string | null>>({});
@@ -366,7 +401,13 @@ export function useMyRecentApplications(user?: string | null, limit = 8, scan = 
 
     // Applications whose latest comment is a put-back, wherever they fall in the scanned list
     const putBacks = useMemo(
-        () => withProjectNo.filter((it) => it.latestComment && /put\s*back/i.test(it.latestComment.text.slice(0, 40))),
+        () =>
+            withProjectNo.filter(
+                (it) =>
+                    // Projects (and some forms) are put back by moving the workflow to a "Put Back" / "Needs Correction (...)" state
+                    /put\s*back|needs\s*correction/i.test(it.workflow_state) ||
+                    (it.latestComment && /put\s*back/i.test(it.latestComment.text.slice(0, 40))),
+            ),
         [withProjectNo],
     );
 

@@ -31,6 +31,7 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { studentAPI } from "@/services/apiService";
 import { cn } from "@/lib/utils";
+import AccountSwitchCard from "@/components/AccountSwitchCard";
 
 type UserDoc = {
     name: string;
@@ -496,6 +497,7 @@ export default function Profile() {
 
     return (
         <div className="w-full text-[#3F3F46] dark:text-[#E4E4E7]">
+            <AccountSwitchCard />
             <form
                 onSubmit={handleSave}
                 className="w-full space-y-3 [&_input]:h-9 [&_input]:text-[13px] [&_select]:h-9 [&_select]:text-[13px] [&_textarea]:text-[13px]"

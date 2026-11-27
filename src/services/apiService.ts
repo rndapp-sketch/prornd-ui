@@ -435,6 +435,7 @@ export const delegateUserAPI = {
     searchUsers: `rndopsapp.rndopsapp.api.search_delegate_users`,
     getScope: `rndopsapp.rndopsapp.api.get_delegate_scope`,
     getActiveDelegations: `rndopsapp.rndopsapp.api.get_active_delegations`,
+    getReceivedDelegations: `rndopsapp.rndopsapp.api.get_received_delegations`,
     delegate: `rndopsapp.rndopsapp.api.delegate_user`,
     undelegate: `rndopsapp.rndopsapp.api.undelegate_user`,
     removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from "frappe-react-sdk";
 import { AlertTriangle, CheckCircle2, FileText, Loader2, Send, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FormSelect } from "@/components/FormSelect";
 import { delegateUserAPI } from "@/services/apiService";
 import { DELEGABLE_APPLICATION_DOCTYPES } from "@/utils/applicationRoutes";
 import { getApplicationRoute } from "@/utils/applicationRoutes";
@@ -14,10 +15,12 @@ interface ReceivedDelegation {
     delegator_user: string;
     delegation_type?: string;
     scope_type?: "all" | "project" | "application";
-    project_names?: string;
+    delegator_user_name?: string;
+    // get_received_delegations returns resolved projects; "Specific Application" also lists the types allowed
+    project_names?: Project[];
+    allowed_doctypes?: string[];
     valid_from?: string;
     valid_to?: string;
-    enabled?: number;
 }
 
 interface Project {
@@ -37,16 +40,6 @@ interface FormDataResponse {
 
 const cardClasses =
     "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm";
-
-const parseJsonArray = <T,>(raw?: string): T[] => {
-    if (!raw) return [];
-    try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? (parsed as T[]) : [];
-    } catch {
-        return [];
-    }
-};
 
 const parseDelegationDateTime = (value?: string) => {
     if (!value) return null;
@@ -89,7 +82,8 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
 
-    const [selectedDelegator, setSelectedDelegator] = React.useState("");
+    // Selected by delegation row: one delegator can have more than one (e.g. View and Edit plus Specific Application)
+    const [selectedDelegationName, setSelectedDelegationName] = React.useState("");
     const [selectedDoctype, setSelectedDoctype] = React.useState("");
     const [selectedProjectName, setSelectedProjectName] = React.useState("");
     const [fields, setFields] = React.useState<FormField[]>([]);
@@ -99,39 +93,47 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
     const [fieldsError, setFieldsError] = React.useState<string | null>(null);
     const [submitting, setSubmitting] = React.useState(false);
     const [submitError, setSubmitError] = React.useState<string | null>(null);
+    const [createdMessage, setCreatedMessage] = React.useState<string | null>(null);
 
     const { call: createOnBehalf } = useFrappePostCall<{ message: { status: string; name: string } }>(
         delegateUserAPI.createOnBehalf,
     );
 
-    const { data: receivedDelegationDocs, isLoading: delegationsLoading } = useFrappeGetDocList<ReceivedDelegation>(
-        "User Delegation",
-        {
-            fields: ["name", "delegator_user", "delegation_type", "scope_type", "project_names", "valid_from", "valid_to", "enabled"],
-            filters: currentUser
-                ? [
-                    ["delegate_user", "=", currentUser],
-                    ["enabled", "=", 1],
-                    ["delegation_type", "in", ["View and Edit", "Workflow Action"]],
-                ]
-                : [["name", "=", "NON_EXISTENT_DOC"]],
-            limit: 1000,
-        },
-    );
+    const [receivedDelegations, setReceivedDelegations] = React.useState<ReceivedDelegation[]>([]);
+    const [delegationsLoading, setDelegationsLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        if (!currentUser) return;
+        let cancelled = false;
+        setDelegationsLoading(true);
+        callFrappeMethod(delegateUserAPI.getReceivedDelegations, {})
+            .then((res) => !cancelled && setReceivedDelegations(Array.isArray(res?.message) ? res.message : []))
+            .catch(() => !cancelled && setReceivedDelegations([]))
+            .finally(() => !cancelled && setDelegationsLoading(false));
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser]);
 
     const usableDelegations = React.useMemo(() => {
         const now = new Date();
-        return (receivedDelegationDocs ?? []).filter((d) => isDelegationWithinDateRange(d, now));
-    }, [receivedDelegationDocs]);
+        return receivedDelegations.filter(
+            (d) =>
+                ["View and Edit", "Workflow Action", "Specific Application"].includes(d.delegation_type || "") &&
+                isDelegationWithinDateRange(d, now),
+        );
+    }, [receivedDelegations]);
 
     const selectedDelegation = React.useMemo(
-        () => usableDelegations.find((d) => d.delegator_user === selectedDelegator) || null,
-        [usableDelegations, selectedDelegator],
+        () => usableDelegations.find((d) => d.name === selectedDelegationName) || null,
+        [usableDelegations, selectedDelegationName],
     );
+    const selectedDelegator = selectedDelegation?.delegator_user || "";
+    const isSpecificApplication = selectedDelegation?.delegation_type === "Specific Application";
 
     const delegationProjectNames = React.useMemo(
-        () => (selectedDelegation ? parseJsonArray<string>(selectedDelegation.project_names) : []),
-        [selectedDelegation],
+        () => (selectedDelegation && !isSpecificApplication && Array.isArray(selectedDelegation.project_names) ? selectedDelegation.project_names.map((p) => p.name) : []),
+        [selectedDelegation, isSpecificApplication],
     );
 
     // Projects for scope_type='project' — resolved directly from the delegation row.
@@ -145,36 +147,44 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
     const { data: delegatorOwnedProjects } = useFrappeGetDocList<Project>("Project Registration", {
         fields: ["name", "project_title", "project_no"],
         filters:
-            selectedDelegation?.scope_type === "all" && selectedDelegator
+            selectedDelegation?.scope_type === "all" && !isSpecificApplication && selectedDelegator
                 ? [["pi_webmail", "=", selectedDelegator]]
                 : [["name", "=", "NON_EXISTENT_DOC"]],
         limit: 1000,
     });
 
-    const projectOptions = selectedDelegation?.scope_type === "all" ? delegatorOwnedProjects ?? [] : scopedProjects ?? [];
+    // Specific Application: the delegator's chosen projects come with the delegation (the delegate cannot read them directly)
+    const projectOptions = isSpecificApplication
+        ? Array.isArray(selectedDelegation?.project_names) ? selectedDelegation!.project_names! : []
+        : selectedDelegation?.scope_type === "all" ? delegatorOwnedProjects ?? [] : scopedProjects ?? [];
 
     const allowedDoctypes = React.useMemo(() => {
         if (!selectedDelegation) return [];
+        if (isSpecificApplication) {
+            const allowed = new Set(selectedDelegation.allowed_doctypes ?? []);
+            return DELEGABLE_APPLICATION_DOCTYPES.filter((d) => allowed.has(d.doctype));
+        }
         if (selectedDelegation.scope_type === "application") return [];
         if (selectedDelegation.scope_type === "project") {
             return DELEGABLE_APPLICATION_DOCTYPES.filter((d) => !!d.projectField);
         }
         return DELEGABLE_APPLICATION_DOCTYPES;
-    }, [selectedDelegation]);
+    }, [selectedDelegation, isSpecificApplication]);
 
     const selectedDoctypeMeta = React.useMemo(
         () => allowedDoctypes.find((d) => d.doctype === selectedDoctype) || null,
         [allowedDoctypes, selectedDoctype],
     );
 
-    const requiresProject = !!selectedDoctypeMeta?.projectField;
+    // Specific Application always needs a project: the server fills the project fields of every type from it
+    const requiresProject = isSpecificApplication ? !!selectedDoctypeMeta : !!selectedDoctypeMeta?.projectField;
 
     React.useEffect(() => {
         setSelectedDoctype("");
         setSelectedProjectName("");
         setFields([]);
         setFormData({});
-    }, [selectedDelegator]);
+    }, [selectedDelegationName]);
 
     // The chosen project is tracked separately (selectedProjectName) and
     // excluded from the rendered/submitted fields — it's sent to the backend
@@ -237,6 +247,7 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
             (f) =>
                 f.fieldname !== selectedDoctypeMeta.projectField &&
                 f.fieldname !== selectedDoctypeMeta.ownerField &&
+                !selectedDoctypeMeta.serverFilledProjectFields?.includes(f.fieldname) &&
                 f.fieldtype !== "Attach" &&
                 f.fieldtype !== "Attach Image",
         );
@@ -274,12 +285,13 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
     }, []);
 
     const canSubmit =
-        !!selectedDelegator && !!selectedDoctypeMeta && (!requiresProject || !!selectedProjectName) && !fieldsLoading;
+        !!selectedDelegation && !!selectedDoctypeMeta && (!requiresProject || !!selectedProjectName) && !fieldsLoading;
 
     const handleSubmit = async () => {
         if (!selectedDoctypeMeta) return;
         setSubmitting(true);
         setSubmitError(null);
+        setCreatedMessage(null);
         try {
             const payloadFields: Record<string, any> = {};
             renderableFields.forEach((field) => {
@@ -295,7 +307,11 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                 fields: JSON.stringify(payloadFields),
             });
 
-            if (res?.message?.status === "success" && res.message.name) {
+            if (res?.message?.status === "success" && res.message.name && isSpecificApplication) {
+                // The delegate cannot open a document created under this type: it now sits with the delegator as a draft
+                setCreatedMessage(`${selectedDoctypeMeta.doctype} ${res.message.name} was created for ${selectedDelegator}. They can open it from their Drafts.`);
+                setSelectedDoctype("");
+            } else if (res?.message?.status === "success" && res.message.name) {
                 navigate(getApplicationRoute(selectedDoctypeMeta.doctype, res.message.name));
             } else {
                 throw new Error("Create failed.");
@@ -334,7 +350,7 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                         Create Application On Behalf
                     </h1>
                     <p className="mt-1 max-w-3xl text-[13px] font-medium leading-6 text-[#71717A] dark:text-[#A1A1AA]">
-                        Create a new application for someone who has delegated View and Edit or Workflow Action access to you.
+                        Create a new application for someone who has delegated View and Edit, Workflow Action or Specific Application access to you.
                         The application is attributed to them, not you.
                     </p>
                 </div>
@@ -345,7 +361,7 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                 <div className={cn(cardClasses, "p-6 text-center")}>
                     <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-[#A1A1AA]" />
                     <p className="text-[13px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
-                        No one has delegated "View and Edit" or "Workflow Action" access to you yet.
+                        No one has delegated "View and Edit", "Workflow Action" or "Specific Application" access to you yet.
                     </p>
                 </div>
             ) : (
@@ -356,18 +372,18 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                             <UserCircle2 className="h-3.5 w-3.5 text-[#4A6CF7]" />
                             Step 1 — Create on behalf of
                         </label>
-                        <select
-                            className="h-10 w-full max-w-md rounded-lg border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#18181B] px-3 text-[13px] font-medium text-[#18181B] dark:text-[#E4E4E7] outline-none focus:border-[#4A6CF7]"
-                            value={selectedDelegator}
-                            onChange={(e) => setSelectedDelegator(e.target.value)}
-                        >
-                            <option value="">Select a delegator...</option>
-                            {usableDelegations.map((d) => (
-                                <option key={d.name} value={d.delegator_user}>
-                                    {d.delegator_user} ({d.scope_type || "all"} scope, {d.delegation_type})
-                                </option>
-                            ))}
-                        </select>
+                        <div className="w-full max-w-md">
+                            <FormSelect value={selectedDelegationName}
+                                onChange={(e) => setSelectedDelegationName(e.target.value)}
+                            >
+                                <option value="">Select a delegator...</option>
+                                {usableDelegations.map((d) => (
+                                    <option key={d.name} value={d.name}>
+                                        {d.delegator_user_name || d.delegator_user} ({d.delegation_type === "Specific Application" ? "specific applications" : `${d.scope_type || "all"} scope, ${d.delegation_type}`})
+                                    </option>
+                                ))}
+                            </FormSelect>
+                        </div>
                     </div>
 
                     {selectedDelegation?.scope_type === "application" && (
@@ -384,19 +400,23 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
                                 Step 2 — Application type
                             </label>
-                            <select
-                                className="h-10 w-full max-w-md rounded-lg border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#18181B] px-3 text-[13px] font-medium text-[#18181B] dark:text-[#E4E4E7] outline-none focus:border-[#4A6CF7]"
-                                value={selectedDoctype}
-                                onChange={(e) => setSelectedDoctype(e.target.value)}
-                            >
-                                <option value="">Select an application type...</option>
-                                {allowedDoctypes.map((d) => (
-                                    <option key={d.doctype} value={d.doctype}>
-                                        {d.doctype}
-                                    </option>
-                                ))}
-                            </select>
-                            {selectedDelegation.scope_type === "project" && (
+                            <div className="w-full max-w-md">
+                                <FormSelect value={selectedDoctype}
+                                    onChange={(e) => setSelectedDoctype(e.target.value)}
+                                >
+                                    <option value="">Select an application type...</option>
+                                    {allowedDoctypes.map((d) => (
+                                        <option key={d.doctype} value={d.doctype}>
+                                            {d.doctype}
+                                        </option>
+                                    ))}
+                                </FormSelect>
+                            </div>
+                            {isSpecificApplication ? (
+                                <p className="mt-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                    Only the application types {selectedDelegator} allowed for you are shown.
+                                </p>
+                            ) : selectedDelegation.scope_type === "project" && (
                                 <p className="mt-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                     Only application types tied to a project are shown — this delegation is project-scoped.
                                 </p>
@@ -410,18 +430,18 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
                                 Step 3 — Project
                             </label>
-                            <select
-                                className="h-10 w-full max-w-md rounded-lg border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#18181B] px-3 text-[13px] font-medium text-[#18181B] dark:text-[#E4E4E7] outline-none focus:border-[#4A6CF7]"
-                                value={selectedProjectName}
-                                onChange={(e) => setSelectedProjectName(e.target.value)}
-                            >
-                                <option value="">Select a project...</option>
-                                {projectOptions.map((p) => (
-                                    <option key={p.name} value={p.name}>
-                                        {p.project_title || p.name} ({p.project_no || p.name})
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="w-full max-w-md">
+                                <FormSelect value={selectedProjectName}
+                                    onChange={(e) => setSelectedProjectName(e.target.value)}
+                                >
+                                    <option value="">Select a project...</option>
+                                    {projectOptions.map((p) => (
+                                        <option key={p.name} value={p.name}>
+                                            {p.project_title || p.name} ({p.project_no || p.name})
+                                        </option>
+                                    ))}
+                                </FormSelect>
+                            </div>
                             {projectOptions.length === 0 && (
                                 <p className="mt-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                     No projects found for this delegator.
@@ -465,6 +485,13 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
                                     />
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {createdMessage && (
+                        <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[12px] font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                            {createdMessage}
                         </div>
                     )}
 

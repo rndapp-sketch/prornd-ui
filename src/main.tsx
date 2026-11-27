@@ -3,7 +3,7 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { FrappeProvider } from 'frappe-react-sdk';
 import { decodeCredit } from '@/lib/credit';
 import { getGitLeaderboard } from '@/lib/leaderboard';
@@ -148,6 +148,7 @@ import ProjectStaffDetailView from './pages/ProjectStaffDetailView';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import DelegatedToMe from './pages/DelegatedToMe.tsx';
+import { bootstrapActingProfile } from '@/lib/actingProfile';
 import CoProjectView from './pages/CoProjectView.tsx';
 import LeaveModule from './pages/LeaveModule.tsx';
 import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
@@ -1163,6 +1164,10 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    path: "role-delegation",
+                    element: <Navigate to="/delegate-user?tab=account" replace />,
+                },
+                {
                     path: "delegated-to-me",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -1298,7 +1303,31 @@ const router = createBrowserRouter(
     }
 );
 
-createRoot(document.getElementById('root') as HTMLElement).render(
+function ProfileLoadError({ onRetry }: { onRetry: () => void }) {
+    return (
+        <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: 16 }}>
+            <div style={{ maxWidth: 360, textAlign: 'center' }}>
+                <p style={{ fontWeight: 700, marginBottom: 8 }}>Could not load your profile</p>
+                <p style={{ fontSize: 13, color: '#52525B', marginBottom: 16 }}>
+                    The server did not confirm which profile you are using, so the app has not been started. Check your connection and try again.
+                </p>
+                <button onClick={onRetry} style={{ height: 40, padding: '0 20px', borderRadius: 8, border: 0, background: '#D97757', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                    Retry
+                </button>
+            </div>
+        </div>
+    );
+}
+
+const rootEl = createRoot(document.getElementById('root') as HTMLElement);
+
+// The acting profile must be known before anything else calls the backend (docs/role_delegation_implementation_plan.md F1).
+function startApp() {
+    bootstrapActingProfile().then(renderApp, () => rootEl.render(<ProfileLoadError onRetry={startApp} />));
+}
+
+function renderApp() {
+  rootEl.render(
     <StrictMode>
       <ErrorBoundary>
         {/*
@@ -1317,7 +1346,10 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         </FrappeProvider>
       </ErrorBoundary>
     </StrictMode>
-);
+  );
+}
+
+startApp();
 
 // Hidden, route-independent credit markers — decoded and inserted only at
 // runtime, so the plaintext exists solely in the live page, never in a

@@ -34,6 +34,8 @@ export interface DelegableApplicationDoctype {
     projectField?: string;
     /** Owner-identifying field the backend force-sets to delegator_user on create_application_on_behalf */
     ownerField?: string;
+    /** Project-related fields the backend fills itself from `project_name` on create-on-behalf (hidden from the form) */
+    serverFilledProjectFields?: string[];
 }
 
 export const DELEGABLE_APPLICATION_DOCTYPES: DelegableApplicationDoctype[] = [
@@ -68,35 +70,42 @@ export const DELEGABLE_APPLICATION_DOCTYPES: DelegableApplicationDoctype[] = [
     },
     {
         doctype: "Direct Purchase",
+        serverFilledProjectFields: ["project_no"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.get_direct_purchase_fields",
     },
     {
         doctype: "Disbursal of Consultancy",
+        serverFilledProjectFields: ["disbursal_project_number", "project_title"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_fields",
         ownerField: "webmail_id",
     },
     {
         doctype: "Disbursal of Honorarium",
+        serverFilledProjectFields: ["project_name", "project_no"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields",
         ownerField: "webmail_id",
     },
     {
         doctype: "Loan Request",
+        serverFilledProjectFields: ["project_name", "project_number"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.loan_request.loan_request.get_loan_request_fields",
         ownerField: "loan_for_webmail_id",
     },
     {
         doctype: "Indent General Form",
+        serverFilledProjectFields: ["igf_project_title", "igf_project_code"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.indent_general_form.indent_general_form.get_indent_general_form_fields",
         ownerField: "igf_webmail_id",
     },
     {
         doctype: "Indent Cum Sanction Sheet",
+        serverFilledProjectFields: ["project_ref", "project_no"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_fields",
         ownerField: "icss_applicant_webmail_id",
     },
     {
         doctype: "Recruitment Adhoc Contractual",
+        serverFilledProjectFields: ["upfa_project_code", "upfa_project_title"],
         getFieldsMethod: "rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_recruitment_adhoc_contractual_fields",
         ownerField: "webmail_id",
     },
