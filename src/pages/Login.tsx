@@ -5,6 +5,7 @@ import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useRef } from 'react';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { DotMatrixCanvas } from '@/components/DotMatrixCanvas';
+import PermanentStaffRegistration from '@/components/PermanentStaffRegistration';
 
 import {
   Eye,
@@ -185,6 +186,14 @@ const LOGIN_STYLES = `
 }
 `;
 
+/**
+ * The login endpoint returns 403 with registration_required when the institute
+ * credentials are valid but no User exists. A plain 401 is a wrong password and
+ * must NOT open the registration form.
+ */
+const isUserNotRegistered = (status: number, data: any): boolean =>
+  data?.registration_required === true || data?.exc_type === 'RegistrationRequiredError';
+
 const Login: React.FC = () => {
   const fitScale = useFitScale(DESIGN_HEIGHT);
   // --- LOGIC: Configuration & State ---
@@ -208,6 +217,8 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // Set only when the institute login was accepted but no PRAGATI User exists for it.
+  const [registering, setRegistering] = useState<{ email: string } | null>(null);
 
   const { currentUser, logout } = useFrappeAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
@@ -276,6 +287,11 @@ const Login: React.FC = () => {
           body: JSON.stringify({ usr: fullUsername, pwd: password, client_ip: clientIpRef.current }),
         });
         const data = await res.json();
+        if (isUserNotRegistered(res.status, data)) {
+          setRegistering({ email: data.email || fullUsername });
+          setIsLoading(false);
+          return;
+        }
         if (!res.ok || data.message === 'Invalid login credentials') {
           const exc = data.exc_type ?? '';
           if (res.status === 401 || exc === 'AuthenticationError') throw { message: 'Invalid username or password.', exc_type: 'AuthenticationError' };
@@ -464,6 +480,14 @@ const Login: React.FC = () => {
 
             <div className="overflow-hidden rounded-[22px] border border-white/90 bg-white/[0.72] shadow-[0_18px_55px_rgba(31,65,105,0.12)] backdrop-blur-[18px] dark:border-white/10 dark:bg-[#27272A]/60 dark:shadow-[0_28px_70px_-14px_rgba(0,0,0,0.6)]">
               <div className="px-7 pb-5 pt-5">
+                {registering ? (
+                  <PermanentStaffRegistration
+                    email={registering.email}
+                    password={password}
+                    onBack={() => setRegistering(null)}
+                    onRegistered={() => { setRegistering(null); handleSubmit(); }}
+                  />
+                ) : (<>
                 <div className="mb-5 text-center">
                   <div className="mb-3 flex items-center justify-center">
                     <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo.png`} alt="PRAGATI R&D Logo" className="h-[104px] w-auto object-contain dark:drop-shadow-[0_0_10px_rgba(255,255,255,0.95)] dark:brightness-125 dark:contrast-110" />
@@ -598,6 +622,7 @@ const Login: React.FC = () => {
                     User Manual
                   </a>
                 </div>
+                </>)}
               </div>
             </div>
 
